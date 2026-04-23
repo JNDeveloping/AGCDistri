@@ -1,9 +1,10 @@
+import { AppError } from '../errors/app-error.js';
 import { authService } from '../modules/auth/services/auth.service.js';
 
-export const authenticate = (req, res, next) => {
+export const authenticate = (req, _res, next) => {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
-    return res.status(401).json({ success: false, message: 'Missing bearer token' });
+    throw new AppError('Token de autenticación faltante.', 401);
   }
 
   const token = header.replace('Bearer ', '');
@@ -12,6 +13,6 @@ export const authenticate = (req, res, next) => {
     req.user = authService.verifyToken(token);
     return next();
   } catch {
-    return res.status(401).json({ success: false, message: 'Invalid token' });
+    throw new AppError('Token inválido o expirado.', 401);
   }
 };

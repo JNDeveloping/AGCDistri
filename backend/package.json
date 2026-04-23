@@ -1,12 +1,14 @@
 {
   "name": "agc-distribuidora-api",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "db:migrate": "./scripts/migrate.sh",
+    "db:seed": "./scripts/seed.sh"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

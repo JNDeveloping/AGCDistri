@@ -4,36 +4,35 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/cubit/auth_cubit.dart';
+import '../../features/auth/presentation/cubit/auth_state.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
-import '../../features/dashboard/presentation/pages/dashboard_page.dart';
+import '../../features/auth/presentation/pages/splash_page.dart';
+import '../../features/home/presentation/pages/home_page.dart';
 
 class AppRouter {
   AppRouter({required AuthCubit authCubit})
       : router = GoRouter(
-          initialLocation: DashboardPage.path,
+          initialLocation: SplashPage.path,
           refreshListenable: GoRouterRefreshStream(authCubit.stream),
           routes: [
-            GoRoute(
-              path: DashboardPage.path,
-              name: DashboardPage.name,
-              builder: (_, __) => const DashboardPage(),
-            ),
-            GoRoute(
-              path: LoginPage.path,
-              name: LoginPage.name,
-              builder: (_, __) => const LoginPage(),
-            ),
+            GoRoute(path: SplashPage.path, name: SplashPage.name, builder: (_, __) => const SplashPage()),
+            GoRoute(path: LoginPage.path, name: LoginPage.name, builder: (_, __) => const LoginPage()),
+            GoRoute(path: HomePage.path, name: HomePage.name, builder: (_, __) => const HomePage()),
           ],
           redirect: (_, state) {
-            final isLoggedIn = authCubit.state.isAuthenticated;
-            final goingToLogin = state.matchedLocation == LoginPage.path;
+            final status = authCubit.state.status;
+            final location = state.matchedLocation;
 
-            if (!isLoggedIn && !goingToLogin) {
-              return LoginPage.path;
+            if (status == AuthStatus.checking) {
+              return location == SplashPage.path ? null : SplashPage.path;
             }
 
-            if (isLoggedIn && goingToLogin) {
-              return DashboardPage.path;
+            if (status == AuthStatus.unauthenticated) {
+              return location == LoginPage.path ? null : LoginPage.path;
+            }
+
+            if (status == AuthStatus.authenticated) {
+              return location == HomePage.path ? null : HomePage.path;
             }
 
             return null;

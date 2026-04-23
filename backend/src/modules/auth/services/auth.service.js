@@ -1,10 +1,11 @@
 import jwt from 'jsonwebtoken';
 
+import { ROLE_PERMISSIONS } from '../../../config/constants.js';
 import { env } from '../../../config/env.js';
 
 export class AuthService {
-  generateToken(payload) {
-    return jwt.sign(payload, env.jwtSecret, {
+  generateToken({ userId, email, role }) {
+    return jwt.sign({ sub: userId, email, role }, env.jwtSecret, {
       expiresIn: env.jwtExpiresIn,
     });
   }
@@ -13,9 +14,23 @@ export class AuthService {
     return jwt.verify(token, env.jwtSecret);
   }
 
-  buildSession({ userId, email, role }) {
-    const token = this.generateToken({ sub: userId, email, role });
-    return { userId, email, role, token };
+  buildSession(user) {
+    const token = this.generateToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        fullName: user.full_name,
+        email: user.email,
+        role: user.role,
+        permissions: ROLE_PERMISSIONS[user.role] ?? [],
+      },
+    };
   }
 }
 

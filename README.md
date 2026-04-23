@@ -1,142 +1,91 @@
-# AGC Distribuidora - Base de Plataforma (Mobile + Backend)
+# AGC Distribuidora
 
-Base profesional preparada para escalar una app de distribuidora mayorista con Flutter + Node.js/Express + PostgreSQL.
+Base profesional de app móvil (Flutter) + API (Node.js/Express) con PostgreSQL.
 
 ## Stack
-- **Mobile:** Flutter + `flutter_bloc` + `go_router` + `dio`
-- **Backend:** Node.js + Express + JWT + Zod
-- **Database:** PostgreSQL (`pg`)
+- Mobile: Flutter + BLoC/Cubit + GoRouter + Dio + Secure Storage
+- Backend: Node.js + Express + JWT + bcryptjs + Zod
+- Base de datos: PostgreSQL
 
----
-
-## Estructura de carpetas
-
+## Estructura
 ```text
-.
-├── backend/
-│   ├── src/
-│   │   ├── config/            # Variables de entorno y logging
-│   │   ├── database/          # Pool de PostgreSQL y healthcheck DB
-│   │   ├── middlewares/       # Auth JWT, validación, error handling
-│   │   ├── modules/
-│   │   │   ├── auth/          # Módulo de autenticación (base lista)
-│   │   │   └── health/        # Endpoint operativo de salud
-│   │   ├── utils/             # Helpers de respuesta HTTP
-│   │   ├── app.js             # Composición Express
-│   │   └── server.js          # Bootstrap de API
-│   ├── .env.example
-│   └── package.json
-├── mobile/
-│   ├── lib/
-│   │   ├── core/
-│   │   │   ├── config/        # Bootstrap de app e inyección inicial
-│   │   │   ├── router/        # Navegación escalable con GoRouter
-│   │   │   └── theme/         # Tema visual corporativo
-│   │   ├── features/
-│   │   │   ├── auth/          # Base de autenticación con Cubit
-│   │   │   └── dashboard/     # Pantalla operativa base
-│   │   ├── models/            # Modelos de dominio compartidos
-│   │   ├── services/          # API client y storage de token
-│   │   └── shared/            # Componentes/extensiones reutilizables
-│   ├── .env.example
-│   └── pubspec.yaml
-└── README.md
+backend/
+  src/
+    config/
+    database/
+      migrations/
+      seeds/
+    errors/
+    middlewares/
+    modules/
+      auth/
+      users/
+      operations/
+      health/
+mobile/
+  lib/
+    core/
+    features/
+      auth/
+      home/
+    services/
 ```
 
----
+## Backend
 
-## Backend: cómo correr
+### Variables de entorno
+Copiar `backend/.env.example` a `.env`.
 
-1. Instalar dependencias:
-   ```bash
-   cd backend
-   npm install
-   ```
+### Migraciones y seed
+```bash
+cd backend
+npm install
+DATABASE_URL=postgresql://... npm run db:migrate
+DATABASE_URL=postgresql://... npm run db:seed
+```
 
-2. Configurar entorno:
-   ```bash
-   cp .env.example .env
-   ```
-   Ajustar `DATABASE_URL`, `JWT_SECRET` y puertos según tu entorno.
+### Ejecutar API
+```bash
+npm run dev
+```
 
-3. Levantar API:
-   ```bash
-   npm run dev
-   ```
-
-### Endpoints base disponibles
-- `GET /api/v1/health`
+### Endpoints
+#### Auth
+- `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
-- `GET /api/v1/auth/me` (requiere Bearer token)
+- `GET /api/v1/auth/me` (Bearer token)
 
-> En esta etapa, `login` emite JWT con una sesión base para validar wiring de arquitectura.
+#### Operaciones protegidas por rol
+- `GET /api/v1/operaciones/clientes` → admin, vendedor
+- `GET /api/v1/operaciones/productos` → admin, vendedor
+- `GET /api/v1/operaciones/pedidos` → admin, vendedor
+- `POST /api/v1/operaciones/pedidos` → admin, vendedor
+- `GET /api/v1/operaciones/repartos/mis-asignaciones` → admin, repartidor
+- `GET /api/v1/operaciones/rutas/mis-rutas` → admin, repartidor
+- `GET /api/v1/operaciones/entregas/mis-entregas` → admin, repartidor
 
----
+### Credenciales de prueba (seed)
+Password común: `Admin123!`
+- admin@agc.local (admin)
+- vendedor@agc.local (vendedor)
+- repartidor@agc.local (repartidor)
 
-## Mobile Flutter: cómo correr
+## Mobile Flutter
 
-1. Crear proyecto Flutter real (si todavía no está generado):
-   ```bash
-   cd mobile
-   flutter create .
-   ```
+### Variables de entorno
+Copiar `mobile/.env.example` a `.env`.
 
-2. Instalar dependencias:
-   ```bash
-   flutter pub get
-   ```
+### Ejecutar
+```bash
+cd mobile
+flutter pub get
+flutter run
+```
 
-3. Configurar entorno:
-   ```bash
-   cp .env.example .env
-   ```
-
-4. Ejecutar app:
-   ```bash
-   flutter run
-   ```
-
-> `API_BASE_URL` default está pensado para emulador Android (`10.0.2.2`).
-
----
-
-## Variables de entorno
-
-### backend/.env.example
-- `PORT`
-- `DATABASE_URL`
-- `JWT_SECRET`
-- `JWT_EXPIRES_IN`
-- `CORS_ORIGIN`
-
-### mobile/.env.example
-- `API_BASE_URL`
-
----
-
-## Decisiones de arquitectura tomadas
-
-- **Estado global:** `Cubit` (`flutter_bloc`) para mantener consistencia, simplicidad y escalabilidad.
-- **Navegación:** `go_router` con guard de autenticación basado en estado.
-- **Auth:** base JWT lista en backend + cliente móvil integrado por `ApiClient`.
-- **DB:** conexión PostgreSQL centralizada mediante `Pool` con healthcheck al iniciar.
-- **Escalabilidad:** módulos de backend por dominio (`modules/*`) y features de Flutter por vertical.
-
----
-
-## Cómo continuar con módulo Login (siguiente etapa)
-
-1. **Backend auth real**
-   - Crear tabla `users` y `roles` en PostgreSQL.
-   - Validar credenciales con hash (`bcryptjs`).
-   - Reemplazar `pending-db-user-id` por usuario real.
-
-2. **Mobile auth real**
-   - Reemplazar `TokenStorage` en memoria por almacenamiento seguro (`flutter_secure_storage`).
-   - Agregar refresh token strategy.
-   - Manejar expiración y logout automático.
-
-3. **Seguridad/producción**
-   - Rotación de secretos JWT.
-   - Rate limit y audit logs.
-   - CI/CD + tests de integración.
+## Flujo de login
+1. App inicia en Splash.
+2. Se busca token seguro en dispositivo.
+3. Si hay token, se valida con `GET /auth/me`.
+4. Si es válido → Home; si no → Login.
+5. Login guarda token en secure storage.
+6. Logout elimina token y vuelve a Login.

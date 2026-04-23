@@ -1,13 +1,11 @@
+import { AppError } from '../errors/app-error.js';
+
 export const validate = (schema) => {
-  return (req, res, next) => {
+  return (req, _res, next) => {
     const result = schema.safeParse(req.body);
 
     if (!result.success) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation error',
-        errors: result.error.flatten(),
-      });
+      throw new AppError('Error de validación.', 400, result.error.flatten());
     }
 
     req.body = result.data;

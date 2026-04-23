@@ -16,11 +16,12 @@ class ApiClient {
         ) {
     _dio.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (options, handler) {
-          final token = _tokenStorage.token;
+        onRequest: (options, handler) async {
+          final token = await _tokenStorage.read();
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+
           handler.next(options);
         },
       ),
@@ -35,5 +36,9 @@ class ApiClient {
     Map<String, dynamic>? data,
   }) async {
     return _dio.post<Map<String, dynamic>>(path, data: data);
+  }
+
+  Future<Response<Map<String, dynamic>>> get(String path) {
+    return _dio.get<Map<String, dynamic>>(path);
   }
 }

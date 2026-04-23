@@ -1,25 +1,25 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../../models/user_session.dart';
+import '../../domain/models/auth_session.dart';
 
-enum AuthStatus { initial, loading, authenticated, unauthenticated, failure }
+enum AuthStatus { checking, unauthenticated, authenticating, authenticated, failure }
 
 class AuthState extends Equatable {
   const AuthState({
-    this.status = AuthStatus.initial,
+    this.status = AuthStatus.checking,
     this.session,
     this.errorMessage,
   });
 
   final AuthStatus status;
-  final UserSession? session;
+  final AuthSession? session;
   final String? errorMessage;
 
   bool get isAuthenticated => status == AuthStatus.authenticated && session != null;
 
   AuthState copyWith({
     AuthStatus? status,
-    UserSession? session,
+    AuthSession? session,
     String? errorMessage,
     bool clearSession = false,
   }) {
@@ -27,30 +27,6 @@ class AuthState extends Equatable {
       status: status ?? this.status,
       session: clearSession ? null : session ?? this.session,
       errorMessage: errorMessage,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'status': status.name,
-      'session': session?.toJson(),
-      'errorMessage': errorMessage,
-    };
-  }
-
-  factory AuthState.fromJson(Map<String, dynamic> json) {
-    final statusName = json['status'] as String?;
-    final status = AuthStatus.values.firstWhere(
-      (element) => element.name == statusName,
-      orElse: () => AuthStatus.initial,
-    );
-
-    final sessionJson = json['session'] as Map<String, dynamic>?;
-
-    return AuthState(
-      status: status,
-      session: sessionJson != null ? UserSession.fromJson(sessionJson) : null,
-      errorMessage: json['errorMessage'] as String?,
     );
   }
 

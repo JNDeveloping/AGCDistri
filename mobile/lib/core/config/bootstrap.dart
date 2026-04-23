@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:path_provider/path_provider.dart';
 
+import '../../features/auth/data/datasources/auth_remote_datasource.dart';
+import '../../features/auth/data/repositories/auth_repository.dart';
 import '../../features/auth/presentation/cubit/auth_cubit.dart';
 import '../../services/api/api_client.dart';
 import '../../services/storage/token_storage.dart';
@@ -10,42 +10,25 @@ import '../router/app_router.dart';
 import '../theme/app_theme.dart';
 
 Future<void> bootstrap() async {
-  HydratedBloc.storage = await HydratedStorage.build(
-    storageDirectory: await getTemporaryDirectory(),
-  );
-
   final tokenStorage = TokenStorage();
   final apiClient = ApiClient(tokenStorage: tokenStorage);
-
-  runApp(
-    AppRoot(
-      apiClient: apiClient,
-      tokenStorage: tokenStorage,
-    ),
+  final authRepository = AuthRepository(
+    remoteDataSource: AuthRemoteDataSource(apiClient: apiClient),
+    tokenStorage: tokenStorage,
   );
+
+  runApp(AppRoot(authRepository: authRepository));
 }
 
 class AppRoot extends StatelessWidget {
-  const AppRoot({
-    required this.apiClient,
-    required this.tokenStorage,
-    super.key,
-  });
+  const AppRoot({required this.authRepository, super.key});
 
-  final ApiClient apiClient;
-  final TokenStorage tokenStorage;
+  final AuthRepository authRepository;
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (_) => AuthCubit(
-            apiClient: apiClient,
-            tokenStorage: tokenStorage,
-          )..restoreSession(),
-        ),
-      ],
+    return BlocProvider(
+      create: (_) => AuthCubit(authRepository: authRepository)..initialize(),
       child: Builder(
         builder: (context) {
           final router = AppRouter(authCubit: context.read<AuthCubit>()).router;
@@ -54,7 +37,6 @@ class AppRoot extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             title: 'AGC Distribuidora',
             theme: AppTheme.light,
-            darkTheme: AppTheme.dark,
             routerConfig: router,
           );
         },
