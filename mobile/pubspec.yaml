@@ -1,0 +1,29 @@
+name: distribuidora_movil
+description: App móvil profesional para gestión de distribuidora mayorista.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_bloc: ^8.1.6
+  equatable: ^2.0.5
+  go_router: ^14.6.2
+  dio: ^5.7.0
+  flutter_dotenv: ^5.2.1
+  hydrated_bloc: ^9.1.5
+  path_provider: ^2.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
