@@ -66,9 +66,18 @@ npm install
 ```
 
 ### 6) Ejecutar migraciones y seeds
+En macOS/Linux (bash):
 ```bash
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/agc_distribuidora npm run db:migrate
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/agc_distribuidora npm run db:seed
+```
+
+En Windows PowerShell:
+```powershell
+$env:DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/agc_distribuidora"
+npm run db:migrate
+npm run db:seed
+Remove-Item Env:DATABASE_URL
 ```
 
 ### 7) Levantar API
