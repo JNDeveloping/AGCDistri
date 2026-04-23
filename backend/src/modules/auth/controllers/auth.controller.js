@@ -1,3 +1,4 @@
+import { ROLE_PERMISSIONS } from '../../../config/constants.js';
 import { pool } from '../../../database/pool.js';
 import { ok } from '../../../utils/api-response.js';
 import { authService } from '../services/auth.service.js';
@@ -46,5 +47,6 @@ export const meController = async (req, res) => {
     fullName: user.full_name,
     email: user.email,
     role: user.role,
+    permissions: ROLE_PERMISSIONS[user.role] ?? [],
   });
 };

@@ -4,6 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/auth/data/repositories/auth_repository.dart';
 import '../../features/auth/presentation/cubit/auth_cubit.dart';
+import '../../features/clientes/data/datasources/client_remote_datasource.dart';
+import '../../features/clientes/data/repositories/client_repository.dart';
+import '../../features/clientes/presentation/cubit/clients_cubit.dart';
 import '../../services/api/api_client.dart';
 import '../../services/storage/token_storage.dart';
 import '../router/app_router.dart';
@@ -12,23 +15,36 @@ import '../theme/app_theme.dart';
 Future<void> bootstrap() async {
   final tokenStorage = TokenStorage();
   final apiClient = ApiClient(tokenStorage: tokenStorage);
+
   final authRepository = AuthRepository(
     remoteDataSource: AuthRemoteDataSource(apiClient: apiClient),
     tokenStorage: tokenStorage,
   );
 
-  runApp(AppRoot(authRepository: authRepository));
+  final clientRepository = ClientRepository(
+    remoteDataSource: ClientRemoteDataSource(apiClient: apiClient),
+  );
+
+  runApp(AppRoot(authRepository: authRepository, clientRepository: clientRepository));
 }
 
 class AppRoot extends StatelessWidget {
-  const AppRoot({required this.authRepository, super.key});
+  const AppRoot({
+    required this.authRepository,
+    required this.clientRepository,
+    super.key,
+  });
 
   final AuthRepository authRepository;
+  final ClientRepository clientRepository;
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => AuthCubit(authRepository: authRepository)..initialize(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => AuthCubit(authRepository: authRepository)..initialize()),
+        BlocProvider(create: (_) => ClientsCubit(clientRepository: clientRepository)),
+      ],
       child: Builder(
         builder: (context) {
           final router = AppRouter(authCubit: context.read<AuthCubit>()).router;

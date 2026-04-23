@@ -53,7 +53,7 @@ class AuthRepository {
         fullName: data['fullName'] as String,
         email: data['email'] as String,
         role: data['role'] as String,
-        permissions: const [],
+        permissions: (data['permissions'] as List<dynamic>? ?? []).cast<String>(),
       );
 
       return AuthSession(token: token, user: user);

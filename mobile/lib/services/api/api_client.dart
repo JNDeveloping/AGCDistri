@@ -34,11 +34,31 @@ class ApiClient {
   Future<Response<Map<String, dynamic>>> post(
     String path, {
     Map<String, dynamic>? data,
+    Map<String, dynamic>? queryParameters,
   }) async {
-    return _dio.post<Map<String, dynamic>>(path, data: data);
+    return _dio.post<Map<String, dynamic>>(path, data: data, queryParameters: queryParameters);
   }
 
-  Future<Response<Map<String, dynamic>>> get(String path) {
-    return _dio.get<Map<String, dynamic>>(path);
+  Future<Response<Map<String, dynamic>>> put(
+    String path, {
+    Map<String, dynamic>? data,
+    Map<String, dynamic>? queryParameters,
+  }) {
+    return _dio.put<Map<String, dynamic>>(path, data: data, queryParameters: queryParameters);
+  }
+
+  Future<Response<Map<String, dynamic>>> patch(
+    String path, {
+    Map<String, dynamic>? data,
+    Map<String, dynamic>? queryParameters,
+  }) {
+    return _dio.patch<Map<String, dynamic>>(path, data: data, queryParameters: queryParameters);
+  }
+
+  Future<Response<Map<String, dynamic>>> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) {
+    return _dio.get<Map<String, dynamic>>(path, queryParameters: queryParameters);
   }
 }

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../auth/presentation/cubit/auth_cubit.dart';
-import '../../../auth/presentation/cubit/auth_state.dart';
+import '../../../clientes/presentation/pages/clientes_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -15,6 +16,8 @@ class HomePage extends StatelessWidget {
     final session = context.select((AuthCubit cubit) => cubit.state.session);
     final role = session?.user.role ?? 'sin rol';
 
+    final canManageClients = role == 'admin' || role == 'vendedor' || role == 'repartidor';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Panel principal'),
@@ -25,58 +28,23 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Hola, ${session?.user.fullName ?? 'usuario'}', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text('Rol activo: $role', style: Theme.of(context).textTheme.bodyLarge),
-            const SizedBox(height: 20),
-            _RolePermissions(role: role),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RolePermissions extends StatelessWidget {
-  const _RolePermissions({required this.role});
-
-  final String role;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = switch (role) {
-      'admin' => ['Acceso total a módulos operativos y administrativos.'],
-      'vendedor' => ['Ver clientes', 'Ver productos', 'Ver pedidos', 'Crear pedidos'],
-      'repartidor' => ['Ver repartos asignados', 'Ver rutas asignadas', 'Ver entregas asignadas'],
-      _ => ['Sin permisos asignados'],
-    };
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Permisos de operación'),
-            const SizedBox(height: 10),
-            ...items.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.check_circle_rounded, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(item)),
-                    ],
-                  ),
-                )),
-          ],
-        ),
+        children: [
+          Text('Hola, ${session?.user.fullName ?? 'usuario'}', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text('Rol activo: $role', style: Theme.of(context).textTheme.bodyLarge),
+          const SizedBox(height: 18),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.groups_rounded),
+              title: const Text('Módulo de Clientes'),
+              subtitle: const Text('Gestión comercial y datos para pedidos/rutas/cobranzas'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: canManageClients ? () => context.go(ClientesPage.path) : null,
+            ),
+          ),
+        ],
       ),
     );
   }
