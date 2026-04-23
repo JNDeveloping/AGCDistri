@@ -9,6 +9,7 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/clientes/presentation/pages/clientes_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/productos/presentation/pages/productos_page.dart';
 
 class AppRouter {
   AppRouter({required AuthCubit authCubit})
@@ -20,6 +21,7 @@ class AppRouter {
             GoRoute(path: LoginPage.path, name: LoginPage.name, builder: (_, __) => const LoginPage()),
             GoRoute(path: HomePage.path, name: HomePage.name, builder: (_, __) => const HomePage()),
             GoRoute(path: ClientesPage.path, name: ClientesPage.name, builder: (_, __) => const ClientesPage()),
+            GoRoute(path: ProductosPage.path, name: ProductosPage.name, builder: (_, __) => const ProductosPage()),
           ],
           redirect: (_, state) {
             final status = authCubit.state.status;
@@ -34,7 +36,7 @@ class AppRouter {
             }
 
             if (status == AuthStatus.authenticated) {
-              final allowed = [HomePage.path, ClientesPage.path];
+              final allowed = [HomePage.path, ClientesPage.path, ProductosPage.path];
               if (!allowed.contains(location)) {
                 return HomePage.path;
               }

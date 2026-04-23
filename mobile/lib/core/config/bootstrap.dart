@@ -7,6 +7,9 @@ import '../../features/auth/presentation/cubit/auth_cubit.dart';
 import '../../features/clientes/data/datasources/client_remote_datasource.dart';
 import '../../features/clientes/data/repositories/client_repository.dart';
 import '../../features/clientes/presentation/cubit/clients_cubit.dart';
+import '../../features/productos/data/datasources/product_remote_datasource.dart';
+import '../../features/productos/data/repositories/product_repository.dart';
+import '../../features/productos/presentation/cubit/products_cubit.dart';
 import '../../services/api/api_client.dart';
 import '../../services/storage/token_storage.dart';
 import '../router/app_router.dart';
@@ -25,18 +28,30 @@ Future<void> bootstrap() async {
     remoteDataSource: ClientRemoteDataSource(apiClient: apiClient),
   );
 
-  runApp(AppRoot(authRepository: authRepository, clientRepository: clientRepository));
+  final productRepository = ProductRepository(
+    remoteDataSource: ProductRemoteDataSource(apiClient: apiClient),
+  );
+
+  runApp(
+    AppRoot(
+      authRepository: authRepository,
+      clientRepository: clientRepository,
+      productRepository: productRepository,
+    ),
+  );
 }
 
 class AppRoot extends StatelessWidget {
   const AppRoot({
     required this.authRepository,
     required this.clientRepository,
+    required this.productRepository,
     super.key,
   });
 
   final AuthRepository authRepository;
   final ClientRepository clientRepository;
+  final ProductRepository productRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +59,7 @@ class AppRoot extends StatelessWidget {
       providers: [
         BlocProvider(create: (_) => AuthCubit(authRepository: authRepository)..initialize()),
         BlocProvider(create: (_) => ClientsCubit(clientRepository: clientRepository)),
+        BlocProvider(create: (_) => ProductsCubit(repository: productRepository)),
       ],
       child: Builder(
         builder: (context) {

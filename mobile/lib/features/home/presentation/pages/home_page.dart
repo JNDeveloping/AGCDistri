@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../clientes/presentation/pages/clientes_page.dart';
+import '../../../productos/presentation/pages/productos_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -16,7 +17,7 @@ class HomePage extends StatelessWidget {
     final session = context.select((AuthCubit cubit) => cubit.state.session);
     final role = session?.user.role ?? 'sin rol';
 
-    final canManageClients = role == 'admin' || role == 'vendedor' || role == 'repartidor';
+    final canManageModules = role == 'admin' || role == 'vendedor' || role == 'repartidor';
 
     return Scaffold(
       appBar: AppBar(
@@ -41,7 +42,16 @@ class HomePage extends StatelessWidget {
               title: const Text('Módulo de Clientes'),
               subtitle: const Text('Gestión comercial y datos para pedidos/rutas/cobranzas'),
               trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: canManageClients ? () => context.go(ClientesPage.path) : null,
+              onTap: canManageModules ? () => context.go(ClientesPage.path) : null,
+            ),
+          ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.inventory_2_rounded),
+              title: const Text('Módulo de Productos'),
+              subtitle: const Text('Catálogo con stock, precios y preparación para pedidos/promos'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: canManageModules ? () => context.go(ProductosPage.path) : null,
             ),
           ),
         ],
