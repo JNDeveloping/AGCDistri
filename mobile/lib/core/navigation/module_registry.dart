@@ -45,7 +45,7 @@ class ModuleRegistry {
     key: 'company-settings',
     label: 'Empresa',
     route: '/company-settings',
-    icon: Icons.settings_business_rounded,
+    icon: Icons.business_rounded,
     roles: ['admin'],
   );
 
