@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/navigation/app_bottom_nav_bar.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../domain/models/company_settings_model.dart';
 import '../cubit/company_settings_cubit.dart';
@@ -89,7 +88,6 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Configuración de Empresa')),
-      bottomNavigationBar: AppBottomNavBar(currentRoute: CompanySettingsPage.path, role: role),
       body: BlocConsumer<CompanySettingsCubit, CompanySettingsState>(
         listenWhen: (prev, curr) => prev.settings != curr.settings,
         listener: (_, state) => _syncFromModel(state.settings),

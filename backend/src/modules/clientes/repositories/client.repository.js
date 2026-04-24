@@ -195,6 +195,69 @@ export class ClientRepository {
     const { rows } = await pool.query(query, [id]);
     return rows[0] ?? null;
   }
+
+  async hasAssociatedMovements(id) {
+    const query = `
+      WITH candidate_tables AS (
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name IN ('orders', 'client_orders', 'current_account_entries', 'client_movements')
+      )
+      SELECT EXISTS (
+        SELECT 1 FROM candidate_tables WHERE table_name = 'orders'
+      ) AS has_orders_table,
+      EXISTS (
+        SELECT 1 FROM candidate_tables WHERE table_name = 'client_orders'
+      ) AS has_client_orders_table,
+      EXISTS (
+        SELECT 1 FROM candidate_tables WHERE table_name = 'current_account_entries'
+      ) AS has_account_entries_table,
+      EXISTS (
+        SELECT 1 FROM candidate_tables WHERE table_name = 'client_movements'
+      ) AS has_movements_table
+    `;
+
+    const { rows } = await pool.query(query);
+    const tables = rows[0] ?? {};
+    let hasAssociations = false;
+
+    if (tables.has_orders_table) {
+      const { rows: orderRows } = await pool.query('SELECT 1 FROM orders WHERE client_id = $1 LIMIT 1', [id]);
+      hasAssociations = hasAssociations || orderRows.length > 0;
+    }
+
+    if (tables.has_client_orders_table) {
+      const { rows: orderRows } = await pool.query('SELECT 1 FROM client_orders WHERE client_id = $1 LIMIT 1', [id]);
+      hasAssociations = hasAssociations || orderRows.length > 0;
+    }
+
+    if (tables.has_account_entries_table) {
+      const { rows: accountRows } = await pool.query(
+        'SELECT 1 FROM current_account_entries WHERE client_id = $1 LIMIT 1',
+        [id],
+      );
+      hasAssociations = hasAssociations || accountRows.length > 0;
+    }
+
+    if (tables.has_movements_table) {
+      const { rows: movementRows } = await pool.query('SELECT 1 FROM client_movements WHERE client_id = $1 LIMIT 1', [id]);
+      hasAssociations = hasAssociations || movementRows.length > 0;
+    }
+
+    if (hasAssociations) {
+      return true;
+    }
+
+    const row = await this.findById(id);
+    return row ? Number(row.current_balance ?? 0) > 0 : false;
+  }
+
+  async remove(id) {
+    const query = 'DELETE FROM clients WHERE id = $1 RETURNING id';
+    const { rows } = await pool.query(query, [id]);
+    return rows[0] ?? null;
+  }
 }
 
 export const clientRepository = new ClientRepository();

@@ -22,6 +22,8 @@ import '../../services/api/api_client.dart';
 import '../../services/storage/token_storage.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
+import '../../features/users/data/datasources/users_remote_datasource.dart';
+import '../../features/users/data/repositories/users_repository.dart';
 
 Future<void> bootstrap() async {
   final tokenStorage = TokenStorage();
@@ -48,6 +50,10 @@ Future<void> bootstrap() async {
     remoteDataSource: CompanySettingsRemoteDataSource(apiClient: apiClient),
   );
 
+  final usersRepository = UsersRepository(
+    remoteDataSource: UsersRemoteDataSource(apiClient: apiClient),
+  );
+
   runApp(
     AppRoot(
       authRepository: authRepository,
@@ -55,6 +61,7 @@ Future<void> bootstrap() async {
       productRepository: productRepository,
       dashboardRepository: dashboardRepository,
       companySettingsRepository: companySettingsRepository,
+      usersRepository: usersRepository,
     ),
   );
 }
@@ -66,6 +73,7 @@ class AppRoot extends StatelessWidget {
     required this.productRepository,
     required this.dashboardRepository,
     required this.companySettingsRepository,
+    required this.usersRepository,
     super.key,
   });
 
@@ -74,6 +82,7 @@ class AppRoot extends StatelessWidget {
   final ProductRepository productRepository;
   final DashboardRepository dashboardRepository;
   final CompanySettingsRepository companySettingsRepository;
+  final UsersRepository usersRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +96,10 @@ class AppRoot extends StatelessWidget {
       ],
       child: Builder(
         builder: (context) {
-          final router = AppRouter(authCubit: context.read<AuthCubit>()).router;
+          final router = AppRouter(
+            authCubit: context.read<AuthCubit>(),
+            usersRepository: usersRepository,
+          ).router;
 
           return BlocListener<AuthCubit, AuthState>(
             listenWhen: (previous, current) => previous.status != current.status || previous.session != current.session,

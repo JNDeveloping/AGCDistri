@@ -74,6 +74,15 @@ class _ProductFormPageState extends State<ProductFormPage> {
   @override
   void dispose() {
     _cost.removeListener(_onCostChanged);
+    _code.dispose();
+    _name.dispose();
+    _shortDescription.dispose();
+    _brand.dispose();
+    _barcode.dispose();
+    _cost.dispose();
+    _salePrice.dispose();
+    _stock.dispose();
+    _stockMin.dispose();
     super.dispose();
   }
 
@@ -230,9 +239,11 @@ class _ProductFormPageState extends State<ProductFormPage> {
   }
 
   double _suggestedSalePrice() {
-    final cost = double.tryParse(_cost.text.trim().replaceAll(',', '.')) ?? 0;
+    final cost = _toDouble(_cost.text);
     return context.read<CompanySettingsCubit>().suggestedWholesalePrice(cost);
   }
+
+  double _toDouble(String value) => double.tryParse(value.trim().replaceAll(',', '.')) ?? 0;
 
   void _applyCalculatedSalePrice() {
     final calculated = _suggestedSalePrice().toStringAsFixed(2);
@@ -311,11 +322,11 @@ class _ProductFormPageState extends State<ProductFormPage> {
       categoryName: _categories.where((c) => c.id == _selectedCategoryId).map((e) => e.name).firstOrNull,
       barcode: _barcode.text.trim().isEmpty ? null : _barcode.text.trim(),
       unitMeasure: _selectedUnitMeasure,
-      cost: _cost.text.trim().isEmpty ? null : double.tryParse(_cost.text.trim()),
-      salePrice: double.tryParse(_salePrice.text.trim().replaceAll(',', '.')) ?? 0,
+      cost: _cost.text.trim().isEmpty ? null : _toDouble(_cost.text),
+      salePrice: _toDouble(_salePrice.text),
       marginPercentage: null,
-      stockCurrent: double.tryParse(_stock.text.trim()) ?? 0,
-      stockMinimum: double.tryParse(_stockMin.text.trim()) ?? 0,
+      stockCurrent: _toDouble(_stock.text),
+      stockMinimum: _toDouble(_stockMin.text),
       isActive: widget.product?.isActive ?? true,
       isFeatured: widget.product?.isFeatured ?? false,
       imageUrl: null,

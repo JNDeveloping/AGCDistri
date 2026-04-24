@@ -41,15 +41,15 @@ class ModuleRegistry {
     roles: ['admin', 'vendedor', 'repartidor'],
   );
 
-  static const companySettings = AppModule(
-    key: 'company-settings',
-    label: 'Empresa',
-    route: '/company-settings',
-    icon: Icons.business_rounded,
-    roles: ['admin'],
+  static const profile = AppModule(
+    key: 'profile',
+    label: 'Perfil',
+    route: '/profile',
+    icon: Icons.person_rounded,
+    roles: ['admin', 'vendedor', 'repartidor'],
   );
 
-  static const modules = [dashboard, clients, products, companySettings];
+  static const modules = [dashboard, clients, products, profile];
 
   static List<AppModule> modulesForRole(String role) {
     return modules.where((module) => module.roles.contains(role)).toList();

@@ -32,3 +32,8 @@ export const deactivateClientController = async (req, res) => {
   const client = await clientService.deactivate(req.params.id);
   return ok(res, client, 'Cliente desactivado correctamente.');
 };
+
+export const deleteClientController = async (req, res) => {
+  const result = await clientService.remove(req.params.id);
+  return ok(res, result, 'Cliente eliminado correctamente.');
+};

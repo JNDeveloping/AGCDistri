@@ -51,6 +51,11 @@ class ClientsCubit extends Cubit<ClientsState> {
     await load();
   }
 
+  Future<void> delete(String id) async {
+    await _clientRepository.delete(id);
+    await load();
+  }
+
   Future<ClientModel> getById(String id) {
     return _clientRepository.getById(id);
   }

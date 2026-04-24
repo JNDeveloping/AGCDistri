@@ -79,6 +79,14 @@ class ClientRepository {
     }
   }
 
+  Future<void> delete(String id) async {
+    try {
+      await _remoteDataSource.deleteClient(id);
+    } on DioException catch (error) {
+      throw ClientException(_extractMessage(error));
+    }
+  }
+
   String _extractMessage(DioException error) {
     if (error.response?.data is Map<String, dynamic>) {
       return (error.response?.data['message'] as String?) ?? 'Error en módulo clientes.';

@@ -61,4 +61,12 @@ class ApiClient {
   }) {
     return _dio.get<Map<String, dynamic>>(path, queryParameters: queryParameters);
   }
+
+  Future<Response<Map<String, dynamic>>> delete(
+    String path, {
+    Map<String, dynamic>? data,
+    Map<String, dynamic>? queryParameters,
+  }) {
+    return _dio.delete<Map<String, dynamic>>(path, data: data, queryParameters: queryParameters);
+  }
 }

@@ -1,20 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../domain/models/product_model.dart';
 import '../cubit/products_cubit.dart';
+import 'product_form_page.dart';
 
-class ProductDetailPage extends StatelessWidget {
+class ProductDetailPage extends StatefulWidget {
   const ProductDetailPage({required this.productId, super.key});
 
   final String productId;
 
   @override
+  State<ProductDetailPage> createState() => _ProductDetailPageState();
+}
+
+class _ProductDetailPageState extends State<ProductDetailPage> {
+  late Future<ProductModel> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = context.read<ProductsCubit>().getById(widget.productId);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final role = context.select((AuthCubit cubit) => cubit.state.session?.user.role ?? 'vendedor');
+    final canEdit = role == 'admin';
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalle producto')),
+      appBar: AppBar(
+        title: const Text('Detalle producto'),
+        actions: [
+          if (canEdit)
+            IconButton(
+              onPressed: () async {
+                final product = await _future;
+                if (!mounted) return;
+                final changed = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(builder: (_) => ProductFormPage(product: product)),
+                );
+                if (changed == true && mounted) {
+                  setState(() => _future = context.read<ProductsCubit>().getById(widget.productId));
+                }
+              },
+              icon: const Icon(Icons.edit_rounded),
+            ),
+        ],
+      ),
       body: FutureBuilder<ProductModel>(
-        future: context.read<ProductsCubit>().getById(productId),
+        future: _future,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());

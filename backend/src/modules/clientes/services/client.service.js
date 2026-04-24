@@ -114,6 +114,24 @@ export class ClientService {
 
     return formatClient(row);
   }
+
+  async remove(id) {
+    const existing = await clientRepository.findById(id);
+    if (!existing) {
+      throw new AppError('Cliente no encontrado.', 404);
+    }
+
+    const hasMovements = await clientRepository.hasAssociatedMovements(id);
+    if (hasMovements) {
+      throw new AppError(
+        'No se puede eliminar este cliente porque tiene movimientos asociados. Podés desactivarlo.',
+        409,
+      );
+    }
+
+    await clientRepository.remove(id);
+    return { id };
+  }
 }
 
 export const clientService = new ClientService();

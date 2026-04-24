@@ -40,6 +40,49 @@ export class UserService {
 
     return user;
   }
+
+  async list() {
+    return userRepository.list();
+  }
+
+  async update(id, payload) {
+    const existing = await userRepository.findById(id);
+    if (!existing) {
+      throw new AppError('Usuario no encontrado.', 404);
+    }
+
+    if (payload.email && payload.email.toLowerCase() !== existing.email.toLowerCase()) {
+      const duplicated = await userRepository.findByEmail(payload.email);
+      if (duplicated) {
+        throw new AppError('El correo ya está registrado.', 409);
+      }
+    }
+
+    let passwordHash;
+    if (payload.password) {
+      passwordHash = await bcrypt.hash(payload.password, 12);
+    }
+
+    return userRepository.update(id, {
+      fullName: payload.fullName,
+      email: payload.email,
+      role: payload.role,
+      passwordHash,
+    });
+  }
+
+  async deactivate(id, actorId) {
+    if (id === actorId) {
+      throw new AppError('No podés desactivar tu propio usuario.', 400);
+    }
+
+    const user = await userRepository.deactivate(id);
+    if (!user) {
+      throw new AppError('Usuario no encontrado.', 404);
+    }
+
+    return user;
+  }
 }
 
 export const userService = new UserService();

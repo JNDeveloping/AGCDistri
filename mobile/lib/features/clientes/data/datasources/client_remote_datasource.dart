@@ -33,6 +33,10 @@ class ClientRemoteDataSource {
     return _patch('/clientes/$id/deactivate');
   }
 
+  Future<Map<String, dynamic>> deleteClient(String id) {
+    return _delete('/clientes/$id');
+  }
+
   Future<Map<String, dynamic>> _get(String path, {Map<String, dynamic>? queryParameters}) async {
     final response = await _apiClient.get(path, queryParameters: queryParameters);
     return response.data ?? {};
@@ -50,6 +54,11 @@ class ClientRemoteDataSource {
 
   Future<Map<String, dynamic>> _patch(String path) async {
     final response = await _apiClient.patch(path);
+    return response.data ?? {};
+  }
+
+  Future<Map<String, dynamic>> _delete(String path) async {
+    final response = await _apiClient.delete(path);
     return response.data ?? {};
   }
 }

@@ -36,6 +36,61 @@ export class UserRepository {
     const { rows } = await pool.query(query, [id]);
     return rows[0] ?? null;
   }
+
+  async list() {
+    const query = `
+      SELECT id, full_name, email, role, is_active, created_at, updated_at
+      FROM users
+      ORDER BY created_at DESC
+    `;
+
+    const { rows } = await pool.query(query);
+    return rows;
+  }
+
+  async update(id, patch) {
+    const dbMap = {
+      fullName: 'full_name',
+      email: 'email',
+      role: 'role',
+      passwordHash: 'password_hash',
+    };
+
+    const keys = Object.keys(patch).filter((key) => dbMap[key]);
+    if (!keys.length) {
+      return this.findById(id);
+    }
+
+    const sets = [];
+    const values = [];
+    keys.forEach((key) => {
+      values.push(key === 'email' ? String(patch[key]).toLowerCase() : patch[key]);
+      sets.push(`${dbMap[key]} = $${values.length}`);
+    });
+
+    values.push(id);
+    const query = `
+      UPDATE users
+      SET ${sets.join(', ')}, updated_at = NOW()
+      WHERE id = $${values.length}
+      RETURNING id, full_name, email, role, is_active, created_at, updated_at
+    `;
+
+    const { rows } = await pool.query(query, values);
+    return rows[0] ?? null;
+  }
+
+  async deactivate(id) {
+    const query = `
+      UPDATE users
+      SET is_active = FALSE, updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, full_name, email, role, is_active, created_at, updated_at
+    `;
+
+    const { rows } = await pool.query(query, [id]);
+    return rows[0] ?? null;
+  }
 }
 
 export const userRepository = new UserRepository();
