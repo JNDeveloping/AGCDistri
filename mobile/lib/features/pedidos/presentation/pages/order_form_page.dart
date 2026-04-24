@@ -204,7 +204,19 @@ class _OrderFormPageState extends State<OrderFormPage> {
       _taxTotal.text = order.taxTotal.toStringAsFixed(2);
       _cart
         ..clear()
-        ..addEntries(order.items.map((i) => MapEntry(i.productId, _CartLine(product: OrderProductLookup(id: i.productId, name: i.productName, salePrice: i.unitPrice), quantity: i.quantity, discountType: 'amount', discountValue: i.discountAmount))));
+        ..addEntries(
+          order.items.map(
+            (i) => MapEntry(
+              i.productId,
+              _CartLine(
+                product: OrderProductLookup(id: i.productId, name: i.productName, salePrice: i.unitPrice),
+                quantity: i.quantity,
+                discountType: i.discountType,
+                discountValue: i.discountValue,
+              ),
+            ),
+          ),
+        );
     });
   }
 

@@ -47,33 +47,47 @@ class _PedidosPageState extends State<PedidosPage> {
           : null,
       body: Column(
         children: [
-          Padding(
+          Container(
+            margin: const EdgeInsets.all(12),
             padding: const EdgeInsets.all(12),
-            child: TextField(
-              controller: _search,
-              onChanged: context.read<OrdersCubit>().onSearch,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: 'Buscar pedido por número',
-                filled: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primaryContainer,
+                  Theme.of(context).colorScheme.secondaryContainer,
+                ],
               ),
             ),
-          ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Row(
+            child: Column(
               children: [
-                _chip('Todos', null),
-                _chip('Pendiente', 'pendiente'),
-                _chip('Confirmado', 'confirmado'),
-                _chip('En reparto', 'en_reparto'),
-                _chip('Entregado', 'entregado'),
+                TextField(
+                  controller: _search,
+                  onChanged: context.read<OrdersCubit>().onSearch,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search),
+                    hintText: 'Buscar pedido por número',
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _chip('Todos', null),
+                      _chip('Pendiente', 'pendiente'),
+                      _chip('Confirmado', 'confirmado'),
+                      _chip('En reparto', 'en_reparto'),
+                      _chip('Entregado', 'entregado'),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
           Expanded(
             child: BlocBuilder<OrdersCubit, OrdersState>(builder: (_, state) {
               if (state.status == OrdersStatus.loading && state.items.isEmpty) return const Center(child: CircularProgressIndicator());
@@ -85,21 +99,31 @@ class _PedidosPageState extends State<PedidosPage> {
                 itemBuilder: (_, i) {
                   final o = state.items[i];
                   return Card(
-                    elevation: 1,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    elevation: 0,
+                    color: Theme.of(context).colorScheme.surfaceContainerLow,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(18),
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailPage(orderId: o.id))),
                       child: Padding(
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(children: [Expanded(child: Text('Pedido #${o.orderNumber}', style: const TextStyle(fontWeight: FontWeight.w800))), _statusBadge(o.status)]),
+                            Row(children: [Expanded(child: Text('Pedido #${o.orderNumber}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17))), _statusBadge(o.status)]),
                             const SizedBox(height: 6),
                             Text(o.clientName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 8),
-                            Row(children: [const Icon(Icons.attach_money, size: 16), Text(' ${o.total.toStringAsFixed(2)}'), const SizedBox(width: 12), const Icon(Icons.inventory_2_outlined, size: 16), Text(' ${o.items.length} ítems')]),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 6,
+                              children: [
+                                _infoPill(icon: Icons.attach_money_rounded, label: '\$${o.total.toStringAsFixed(2)}'),
+                                _infoPill(icon: Icons.inventory_2_outlined, label: '${o.items.length} ítems'),
+                                _infoPill(icon: Icons.payments_outlined, label: o.paymentTerms == 'cuenta_corriente' ? 'Cta. cte.' : 'Contado'),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -136,6 +160,24 @@ class _PedidosPageState extends State<PedidosPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
       child: Text(status, style: const TextStyle(fontSize: 12)),
+    );
+  }
+
+  Widget _infoPill({required IconData icon, required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15),
+          const SizedBox(width: 6),
+          Text(label),
+        ],
+      ),
     );
   }
 }

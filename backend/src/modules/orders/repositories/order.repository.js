@@ -96,7 +96,7 @@ export class OrderRepository {
     const { rows } = await pool.query(
       `
       SELECT id, order_id, product_id, product_code, product_name, quantity, unit_measure,
-             unit_price, discount_amount, subtotal, cost, estimated_margin
+             unit_price, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
       FROM order_items
       WHERE order_id = $1
       ORDER BY created_at ASC
@@ -151,8 +151,8 @@ export class OrderRepository {
         `
         INSERT INTO order_items (
           order_id, product_id, product_code, product_name, quantity, unit_measure,
-          unit_price, discount_amount, subtotal, cost, estimated_margin
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+          unit_price, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
         `,
         [
           orderId,
@@ -162,6 +162,8 @@ export class OrderRepository {
           item.quantity,
           item.unitMeasure,
           item.unitPrice,
+          item.discountType,
+          item.discountValue,
           item.discountAmount,
           item.subtotal,
           item.cost,
@@ -212,8 +214,8 @@ export class OrderRepository {
         `
         INSERT INTO order_items (
           order_id, product_id, product_code, product_name, quantity, unit_measure,
-          unit_price, discount_amount, subtotal, cost, estimated_margin
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+          unit_price, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
         `,
         [
           id,
@@ -223,6 +225,8 @@ export class OrderRepository {
           item.quantity,
           item.unitMeasure,
           item.unitPrice,
+          item.discountType,
+          item.discountValue,
           item.discountAmount,
           item.subtotal,
           item.cost,

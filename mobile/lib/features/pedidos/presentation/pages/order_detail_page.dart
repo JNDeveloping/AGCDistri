@@ -72,7 +72,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               const SizedBox(height: 8),
               ...o.items.map((i) => ListTile(
                     title: Text(i.productName),
-                    subtitle: Text('${i.quantity} x ${i.unitPrice.toStringAsFixed(2)}'),
+                    subtitle: Text(
+                      '${i.quantity} x ${i.unitPrice.toStringAsFixed(2)}'
+                      ' · Desc: ${i.discountType == 'percentage' ? '${i.discountValue.toStringAsFixed(2)}%' : i.discountValue.toStringAsFixed(2)}',
+                    ),
                     trailing: Text(i.subtotal.toStringAsFixed(2)),
                   )),
               const Divider(),

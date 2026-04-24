@@ -95,6 +95,9 @@ class OrderItemModel extends Equatable {
     required this.productName,
     required this.quantity,
     required this.unitPrice,
+    required this.discountType,
+    required this.discountValue,
+    required this.discountAmount,
     required this.subtotal,
     required this.estimatedMargin,
   });
@@ -103,6 +106,9 @@ class OrderItemModel extends Equatable {
   final String productName;
   final double quantity;
   final double unitPrice;
+  final String discountType;
+  final double discountValue;
+  final double discountAmount;
   final double subtotal;
   final double estimatedMargin;
 
@@ -111,12 +117,15 @@ class OrderItemModel extends Equatable {
         productName: json['productName'] as String? ?? '-',
         quantity: (json['quantity'] as num?)?.toDouble() ?? 0,
         unitPrice: (json['unitPrice'] as num?)?.toDouble() ?? 0,
+        discountType: json['discountType'] as String? ?? 'amount',
+        discountValue: (json['discountValue'] as num?)?.toDouble() ?? 0,
+        discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0,
         subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0,
         estimatedMargin: (json['estimatedMargin'] as num?)?.toDouble() ?? 0,
       );
 
   @override
-  List<Object?> get props => [productId, quantity, unitPrice, subtotal];
+  List<Object?> get props => [productId, quantity, unitPrice, discountType, discountValue, discountAmount, subtotal];
 }
 
 class OrderClientLookup {
