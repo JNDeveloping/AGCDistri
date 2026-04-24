@@ -18,6 +18,9 @@ import '../../features/dashboard/presentation/cubit/dashboard_cubit.dart';
 import '../../features/productos/data/datasources/product_remote_datasource.dart';
 import '../../features/productos/data/repositories/product_repository.dart';
 import '../../features/productos/presentation/cubit/products_cubit.dart';
+import '../../features/pedidos/data/datasources/order_remote_datasource.dart';
+import '../../features/pedidos/data/repositories/order_repository.dart';
+import '../../features/pedidos/presentation/cubit/orders_cubit.dart';
 import '../../services/api/api_client.dart';
 import '../../services/storage/token_storage.dart';
 import '../router/app_router.dart';
@@ -46,6 +49,10 @@ Future<void> bootstrap() async {
     remoteDataSource: DashboardRemoteDataSource(apiClient: apiClient),
   );
 
+  final orderRepository = OrderRepository(
+    remoteDataSource: OrderRemoteDataSource(apiClient: apiClient),
+  );
+
   final companySettingsRepository = CompanySettingsRepository(
     remoteDataSource: CompanySettingsRemoteDataSource(apiClient: apiClient),
   );
@@ -60,6 +67,7 @@ Future<void> bootstrap() async {
       clientRepository: clientRepository,
       productRepository: productRepository,
       dashboardRepository: dashboardRepository,
+      orderRepository: orderRepository,
       companySettingsRepository: companySettingsRepository,
       usersRepository: usersRepository,
     ),
@@ -72,6 +80,7 @@ class AppRoot extends StatelessWidget {
     required this.clientRepository,
     required this.productRepository,
     required this.dashboardRepository,
+    required this.orderRepository,
     required this.companySettingsRepository,
     required this.usersRepository,
     super.key,
@@ -81,6 +90,7 @@ class AppRoot extends StatelessWidget {
   final ClientRepository clientRepository;
   final ProductRepository productRepository;
   final DashboardRepository dashboardRepository;
+  final OrderRepository orderRepository;
   final CompanySettingsRepository companySettingsRepository;
   final UsersRepository usersRepository;
 
@@ -92,6 +102,7 @@ class AppRoot extends StatelessWidget {
         BlocProvider(create: (_) => ClientsCubit(clientRepository: clientRepository)),
         BlocProvider(create: (_) => ProductsCubit(repository: productRepository)),
         BlocProvider(create: (_) => DashboardCubit(repository: dashboardRepository)),
+        BlocProvider(create: (_) => OrdersCubit(repository: orderRepository)),
         BlocProvider(create: (_) => CompanySettingsCubit(repository: companySettingsRepository)),
       ],
       child: Builder(

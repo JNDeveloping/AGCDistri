@@ -41,6 +41,15 @@ class ModuleRegistry {
     roles: ['admin', 'vendedor', 'repartidor'],
   );
 
+
+  static const orders = AppModule(
+    key: 'pedidos',
+    label: 'Pedidos',
+    route: '/pedidos',
+    icon: Icons.shopping_cart_checkout_rounded,
+    roles: ['admin', 'vendedor', 'repartidor'],
+  );
+
   static const profile = AppModule(
     key: 'profile',
     label: 'Perfil',
@@ -49,7 +58,7 @@ class ModuleRegistry {
     roles: ['admin', 'vendedor', 'repartidor'],
   );
 
-  static const modules = [dashboard, clients, products, profile];
+  static const modules = [dashboard, clients, products, orders, profile];
 
   static List<AppModule> modulesForRole(String role) {
     return modules.where((module) => module.roles.contains(role)).toList();
