@@ -34,6 +34,16 @@ class _OrderFormPageState extends State<OrderFormPage> {
   }
 
   @override
+  void dispose() {
+    _notes.dispose();
+    _paymentTerms.dispose();
+    _deliveryAddress.dispose();
+    _discountTotal.dispose();
+    _taxTotal.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final subtotal = _cart.values.fold<double>(0, (acc, l) => acc + (l.product.salePrice * l.quantity));
     final total = subtotal - (double.tryParse(_discountTotal.text) ?? 0) + (double.tryParse(_taxTotal.text) ?? 0);
@@ -112,6 +122,36 @@ class _OrderFormPageState extends State<OrderFormPage> {
   Future<void> _selectClient() async {
     final selected = await Navigator.push<OrderClientLookup>(context, MaterialPageRoute(builder: (_) => const OrderClientSelectorPage()));
     if (selected != null) setState(() => _client = selected);
+  }
+
+  Future<void> _loadExisting() async {
+    final order = await context.read<OrdersCubit>().getById(widget.orderId!);
+
+    final cart = <String, _CartLine>{
+      for (final item in order.items)
+        item.productId: _CartLine(
+          product: OrderProductLookup(
+            id: item.productId,
+            name: item.productName,
+            salePrice: item.unitPrice,
+          ),
+          quantity: item.quantity,
+        ),
+    };
+
+    if (!mounted) return;
+
+    setState(() {
+      _client = OrderClientLookup(id: order.clientId, businessName: order.clientName);
+      _notes.text = order.notes ?? '';
+      _paymentTerms.text = order.paymentTerms ?? '';
+      _deliveryAddress.text = order.deliveryAddress ?? '';
+      _discountTotal.text = order.discountTotal.toStringAsFixed(2);
+      _taxTotal.text = order.taxTotal.toStringAsFixed(2);
+      _cart
+        ..clear()
+        ..addAll(cart);
+    });
   }
 
   Future<void> _addProduct() async {
