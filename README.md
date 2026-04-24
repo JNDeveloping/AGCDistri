@@ -88,3 +88,9 @@ Los productos quedan listos para enlazarse por `product_id` con futuros módulos
 - listas de precios por cliente/zona
 - control de stock y sugerencias de reposición
 - compras a proveedores
+
+## Troubleshooting
+- Error `No existe la relacion products`:
+  1. Verificá `DATABASE_URL` en `backend/.env`.
+  2. Ejecutá migraciones: `npm run db:migrate`.
+  3. Si querés datos iniciales: `npm run db:seed`.
