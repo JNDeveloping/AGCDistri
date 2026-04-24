@@ -78,14 +78,26 @@ export class ClientRepository {
   }
 
   async findByCodeOrTaxId({ internalCode, taxId, ignoreId = null }) {
-    const values = [internalCode, taxId, ignoreId];
-    const query = `
+    const values = [internalCode];
+    const duplicateFilters = ['internal_code = $1'];
+
+    if (taxId) {
+      values.push(taxId);
+      duplicateFilters.push(`tax_id = $${values.length}`);
+    }
+
+    let query = `
       SELECT id, internal_code, tax_id
       FROM clients
-      WHERE (internal_code = $1 OR ($2 IS NOT NULL AND tax_id = $2))
-      AND ($3::uuid IS NULL OR id <> $3)
-      LIMIT 1
+      WHERE (${duplicateFilters.join(' OR ')})
     `;
+
+    if (ignoreId) {
+      values.push(ignoreId);
+      query += ` AND id <> $${values.length}`;
+    }
+
+    query += ' LIMIT 1';
 
     const { rows } = await pool.query(query, values);
     return rows[0] ?? null;
