@@ -57,7 +57,7 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
               ),
               const SizedBox(height: 8),
               Text('Código: ${client.internalCode}'),
-              Row(children: [Expanded(child: Text('Teléfono: ${client.phone}')), if (buildWhatsappUrl(client.phone) != null) IconButton(onPressed: () => openClientWhatsapp(client.phone), icon: const Icon(Icons.chat), tooltip: 'WhatsApp')]),
+              Row(children: [Expanded(child: Text('Teléfono: ${client.phone}')), if (buildWhatsappUrl(client.phone) != null) IconButton(onPressed: () async { final ok = await openClientWhatsapp(client.phone); if (context.mounted && !ok) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo abrir WhatsApp.'))); } }, icon: const Icon(Icons.chat), tooltip: 'WhatsApp')]),
               if (client.email != null) Text('Email: ${client.email}'),
               if (client.taxId != null) Text('CUIT: ${client.taxId}'),
               const Divider(height: 30),

@@ -51,20 +51,13 @@ const mapItem = (row) => ({
 export class OrderService {
   async list({ filters, pagination, role, userId }) {
     const { rows, total } = await orderRepository.list({ filters, pagination, role, userId });
-    return {
-      total,
-      page: pagination.page,
-      limit: pagination.limit,
-      items: rows.map((r) => mapOrder(r)),
-    };
+    return { total, page: pagination.page, limit: pagination.limit, items: rows.map((r) => mapOrder(r)) };
   }
 
   async getById(id, role, userId) {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError('Pedido no encontrado.', 404);
-
     this.ensureAccess(order, role, userId);
-
     const items = (await orderRepository.listItems(id)).map(mapItem);
     return mapOrder(order, items);
   }
@@ -74,9 +67,17 @@ export class OrderService {
     if (!payload.items?.length) throw new AppError('Debe incluir al menos un producto.', 400);
 
     const client = await this.loadClient(payload.clientId);
-    const computed = await this.computeTotals(payload);
-    const orderId = await orderRepository.createOrder(client, payload, user.sub, computed);
-    return this.getById(orderId, user.role, user.sub);
+    const normalizedPayload = { ...payload, paymentTerms: payload.paymentTerms ?? 'contado' };
+    const computed = await this.computeTotals(normalizedPayload);
+    const orderId = await orderRepository.createOrder(client, normalizedPayload, user.sub, computed);
+    const created = await this.getById(orderId, user.role, user.sub);
+
+    if (created.paymentTerms === 'cuenta_corriente') {
+      await this.adjustClientBalance(created.clientId, created.total);
+      return this.getById(orderId, user.role, user.sub);
+    }
+
+    return created;
   }
 
   async update(id, payload, user) {
@@ -87,13 +88,24 @@ export class OrderService {
     if (!editableStatuses.includes(existing.status)) {
       throw new AppError('Solo se pueden editar pedidos pendientes.', 409);
     }
-
     if (!payload.items?.length) throw new AppError('Debe incluir al menos un producto.', 400);
 
     const client = await this.loadClient(payload.clientId);
-    const computed = await this.computeTotals(payload);
-    await orderRepository.updatePendingOrder(id, client, payload, computed);
-    return this.getById(id, user.role, user.sub);
+    const normalizedPayload = { ...payload, paymentTerms: payload.paymentTerms ?? existing.payment_terms ?? 'contado' };
+    const computed = await this.computeTotals(normalizedPayload);
+    await orderRepository.updatePendingOrder(id, client, normalizedPayload, computed);
+
+    const updated = await this.getById(id, user.role, user.sub);
+
+    if (existing.payment_terms === 'cuenta_corriente') {
+      await this.adjustClientBalance(existing.client_id, -Number(existing.total));
+    }
+    if (updated.paymentTerms === 'cuenta_corriente') {
+      await this.adjustClientBalance(updated.clientId, updated.total);
+      return this.getById(id, user.role, user.sub);
+    }
+
+    return updated;
   }
 
   async cancel(id, user) {
@@ -101,12 +113,11 @@ export class OrderService {
     if (!existing) throw new AppError('Pedido no encontrado.', 404);
     this.ensureAccess(existing, user.role, user.sub);
 
-    if (existing.status === 'cancelado') {
-      return this.getById(id, user.role, user.sub);
-    }
+    if (existing.status === 'cancelado') return this.getById(id, user.role, user.sub);
 
-    if (existing.stock_discounted) {
-      await orderRepository.restoreStock(id);
+    if (existing.stock_discounted) await orderRepository.restoreStock(id);
+    if (existing.payment_terms === 'cuenta_corriente') {
+      await this.adjustClientBalance(existing.client_id, -Number(existing.total));
     }
 
     await orderRepository.cancel(id);
@@ -117,14 +128,8 @@ export class OrderService {
     const existing = await orderRepository.findById(id);
     if (!existing) throw new AppError('Pedido no encontrado.', 404);
     this.ensureAccess(existing, user.role, user.sub);
-
-    if (terminalStatuses.includes(existing.status)) {
-      throw new AppError('No se puede cambiar estado de pedidos entregados o cancelados.', 409);
-    }
-
-    if (status === 'cancelado') {
-      return this.cancel(id, user);
-    }
+    if (terminalStatuses.includes(existing.status)) throw new AppError('No se puede cambiar estado de pedidos entregados o cancelados.', 409);
+    if (status === 'cancelado') return this.cancel(id, user);
 
     if (stockCommitStatuses.includes(status) && !existing.stock_discounted) {
       await this.ensureStockForOrder(id);
@@ -153,17 +158,17 @@ export class OrderService {
 
     const items = payload.items.map((raw) => {
       const quantity = Number(raw.quantity);
-      if (!Number.isFinite(quantity) || quantity <= 0) {
-        throw new AppError('Todas las cantidades deben ser mayores a cero.', 400);
-      }
+      if (!Number.isFinite(quantity) || quantity <= 0) throw new AppError('Todas las cantidades deben ser mayores a cero.', 400);
 
       const product = map.get(raw.productId);
-      if (!product || !product.is_active) {
-        throw new AppError('Hay productos inexistentes o inactivos en el pedido.', 400);
-      }
+      if (!product || !product.is_active) throw new AppError('Hay productos inexistentes o inactivos en el pedido.', 400);
 
       const unitPrice = Number(product.wholesale_price ?? 0);
-      const discountAmount = Number(raw.discountAmount ?? 0);
+      const discountType = raw.discountType ?? 'amount';
+      const discountValue = Number(raw.discountValue ?? raw.discountAmount ?? 0);
+      const discountAmount = discountType === 'percentage'
+        ? Math.max(0, (unitPrice * quantity * discountValue) / 100)
+        : Math.max(0, discountValue);
       const subtotal = Math.max(0, unitPrice * quantity - discountAmount);
       const cost = product.cost == null ? null : Number(product.cost);
       const estimatedMargin = cost == null ? 0 : subtotal - (cost * quantity);
@@ -196,6 +201,11 @@ export class OrderService {
     const client = rows[0];
     if (!client) throw new AppError('Cliente no encontrado.', 404);
     return client;
+  }
+
+  async adjustClientBalance(clientId, delta) {
+    if (!delta || delta === 0) return;
+    await pool.query('UPDATE clients SET current_balance = current_balance + $2, updated_at = NOW() WHERE id = $1', [clientId, delta]);
   }
 
   ensureAccess(order, role, userId) {

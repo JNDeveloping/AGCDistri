@@ -1,20 +1,22 @@
 import { z } from 'zod';
 
 export const orderStatusValues = ['pendiente', 'confirmado', 'preparado', 'en_reparto', 'entregado', 'cancelado'];
+export const paymentTermsValues = ['contado', 'cuenta_corriente'];
 
 const orderItemSchema = z.object({
   productId: z.string().uuid(),
   quantity: z.coerce.number().positive(),
+  discountType: z.enum(['amount', 'percentage']).optional().default('amount'),
+  discountValue: z.coerce.number().min(0).optional().default(0),
   discountAmount: z.coerce.number().min(0).optional().default(0),
 });
 
 export const createOrderSchema = z.object({
   clientId: z.string().uuid(),
   notes: z.string().max(4000).optional().nullable(),
-  paymentTerms: z.string().max(120).optional().nullable(),
+  paymentTerms: z.enum(paymentTermsValues).optional().default('contado'),
   discountTotal: z.coerce.number().min(0).optional().default(0),
   taxTotal: z.coerce.number().min(0).optional().default(0),
-  deliveryAddress: z.string().max(255).optional().nullable(),
   estimatedDeliveryDate: z.string().date().optional().nullable(),
   items: z.array(orderItemSchema).min(1),
 });

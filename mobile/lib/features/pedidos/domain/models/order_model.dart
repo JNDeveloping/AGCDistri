@@ -1,20 +1,27 @@
 import 'package:equatable/equatable.dart';
 
 class OrderItemInput extends Equatable {
-  const OrderItemInput({required this.productId, required this.quantity, this.discountAmount = 0});
+  const OrderItemInput({
+    required this.productId,
+    required this.quantity,
+    this.discountType = 'amount',
+    this.discountValue = 0,
+  });
 
   final String productId;
   final double quantity;
-  final double discountAmount;
+  final String discountType;
+  final double discountValue;
 
   Map<String, dynamic> toJson() => {
         'productId': productId,
         'quantity': quantity,
-        'discountAmount': discountAmount,
+        'discountType': discountType,
+        'discountValue': discountValue,
       };
 
   @override
-  List<Object?> get props => [productId, quantity, discountAmount];
+  List<Object?> get props => [productId, quantity, discountType, discountValue];
 }
 
 class OrderModel extends Equatable {

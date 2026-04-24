@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/navigation/app_bottom_nav_bar.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../company_settings/presentation/pages/company_settings_page.dart';
+import '../../../clientes/presentation/pages/zones_management_page.dart';
+import '../../../productos/presentation/pages/product_categories_page.dart';
 import '../../../users/data/repositories/users_repository.dart';
 import '../../../users/presentation/pages/users_page.dart';
 
@@ -100,6 +102,31 @@ class _ProfilePageState extends State<ProfilePage> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => UsersPage(repository: widget.usersRepository)),
+                ),
+              ),
+            ),
+
+          if (isAdmin)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.route_rounded),
+                title: const Text('Zonas'),
+                subtitle: const Text('Gestionar zonas y mover clientes'),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ZonesManagementPage(canManage: true)),
+                ),
+              ),
+            ),
+          if (isAdmin)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.category_rounded),
+                title: const Text('Categorías'),
+                subtitle: const Text('Gestionar categorías y mover productos'),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProductCategoriesPage(canManage: true)),
                 ),
               ),
             ),

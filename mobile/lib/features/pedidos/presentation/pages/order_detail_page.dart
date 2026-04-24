@@ -44,6 +44,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               Text('Cliente: ${o.clientName}'),
               Text('Vendedor: ${o.sellerName}'),
               Text('Estado: ${o.status}'),
+              Text('Condición de pago: ${o.paymentTerms ?? '-'}'),
+              Text('Dirección entrega: ${o.deliveryAddress ?? '-'}'),
               if (canManage && o.status == 'pendiente')
                 Row(children: [
                   OutlinedButton(onPressed: () async {

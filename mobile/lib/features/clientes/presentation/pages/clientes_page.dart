@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/navigation/app_bottom_nav_bar.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../data/repositories/client_repository.dart';
 import '../../domain/models/client_model.dart';
 import '../cubit/clients_cubit.dart';
 import '../cubit/clients_state.dart';
@@ -42,7 +43,7 @@ class _ClientesPageState extends State<ClientesPage> {
     final canEdit = role == 'admin' || role == 'vendedor';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Clientes'), actions: [if (canEdit) TextButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ZonesManagementPage(canManage: role == 'admin'))), icon: const Icon(Icons.route), label: const Text('Zonas'))]),
+      appBar: AppBar(title: const Text('Clientes'), actions: [if (role == 'admin') TextButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ZonesManagementPage(canManage: true))), icon: const Icon(Icons.route), label: const Text('Zonas'))]),
       bottomNavigationBar: AppBottomNavBar(currentRoute: ClientesPage.path, role: role),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
@@ -201,9 +202,28 @@ class _ClientesPageState extends State<ClientesPage> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cliente eliminado.')));
         }
-      } catch (error) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      } on ClientException catch (error) {
+        if (!context.mounted) return;
+        if (error.canDeactivate) {
+          final action = await showDialog<bool>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('No se puede eliminar'),
+              content: const Text('Este cliente tiene movimientos asociados y no se puede eliminar. Podés desactivarlo.'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cerrar')),
+                FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Desactivar cliente')),
+              ],
+            ),
+          );
+          if (action == true) {
+            await context.read<ClientsCubit>().deactivate(id);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cliente desactivado.')));
+            }
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
         }
       }
     }

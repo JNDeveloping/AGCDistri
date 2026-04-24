@@ -39,9 +39,7 @@ class _PedidosPageState extends State<PedidosPage> {
           ? FloatingActionButton.extended(
               onPressed: () async {
                 final saved = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const OrderFormPage()));
-                if (saved == true && mounted) {
-                  await context.read<OrdersCubit>().load();
-                }
+                if (saved == true && mounted) await context.read<OrdersCubit>().load();
               },
               icon: const Icon(Icons.add_shopping_cart),
               label: const Text('Nuevo pedido'),
@@ -54,31 +52,58 @@ class _PedidosPageState extends State<PedidosPage> {
             child: TextField(
               controller: _search,
               onChanged: context.read<OrdersCubit>().onSearch,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Buscar por número de pedido'),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: 'Buscar pedido por número',
+                filled: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+              ),
             ),
           ),
-          Wrap(
-            spacing: 8,
-            children: [
-              ChoiceChip(label: const Text('Todos'), selected: context.watch<OrdersCubit>().state.statusFilter == null, onSelected: (_) => context.read<OrdersCubit>().setStatusFilter(null)),
-              ChoiceChip(label: const Text('Pendiente'), selected: context.watch<OrdersCubit>().state.statusFilter == 'pendiente', onSelected: (_) => context.read<OrdersCubit>().setStatusFilter('pendiente')),
-              ChoiceChip(label: const Text('En reparto'), selected: context.watch<OrdersCubit>().state.statusFilter == 'en_reparto', onSelected: (_) => context.read<OrdersCubit>().setStatusFilter('en_reparto')),
-              ChoiceChip(label: const Text('Entregado'), selected: context.watch<OrdersCubit>().state.statusFilter == 'entregado', onSelected: (_) => context.read<OrdersCubit>().setStatusFilter('entregado')),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              children: [
+                _chip('Todos', null),
+                _chip('Pendiente', 'pendiente'),
+                _chip('Confirmado', 'confirmado'),
+                _chip('En reparto', 'en_reparto'),
+                _chip('Entregado', 'entregado'),
+              ],
+            ),
           ),
+          const SizedBox(height: 8),
           Expanded(
             child: BlocBuilder<OrdersCubit, OrdersState>(builder: (_, state) {
               if (state.status == OrdersStatus.loading && state.items.isEmpty) return const Center(child: CircularProgressIndicator());
               if (state.status == OrdersStatus.failure) return Center(child: Text(state.errorMessage ?? 'No se pudo cargar pedidos'));
               if (state.items.isEmpty) return const Center(child: Text('Sin pedidos.'));
               return ListView.builder(
+                padding: const EdgeInsets.all(12),
                 itemCount: state.items.length,
                 itemBuilder: (_, i) {
                   final o = state.items[i];
-                  return ListTile(
-                    title: Text('Pedido #${o.orderNumber} · ${o.clientName}'),
-                    subtitle: Text('${o.status} · ${o.total.toStringAsFixed(2)}'),
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailPage(orderId: o.id))),
+                  return Card(
+                    elevation: 1,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailPage(orderId: o.id))),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(children: [Expanded(child: Text('Pedido #${o.orderNumber}', style: const TextStyle(fontWeight: FontWeight.w800))), _statusBadge(o.status)]),
+                            const SizedBox(height: 6),
+                            Text(o.clientName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 8),
+                            Row(children: [const Icon(Icons.attach_money, size: 16), Text(' ${o.total.toStringAsFixed(2)}'), const SizedBox(width: 12), const Icon(Icons.inventory_2_outlined, size: 16), Text(' ${o.items.length} ítems')]),
+                          ],
+                        ),
+                      ),
+                    ),
                   );
                 },
               );
@@ -86,6 +111,31 @@ class _PedidosPageState extends State<PedidosPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _chip(String label, String? value) {
+    final selected = context.watch<OrdersCubit>().state.statusFilter == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(label: Text(label), selected: selected, onSelected: (_) => context.read<OrdersCubit>().setStatusFilter(value)),
+    );
+  }
+
+  Widget _statusBadge(String status) {
+    final colors = Theme.of(context).colorScheme;
+    final bg = switch (status) {
+      'pendiente' => colors.secondaryContainer,
+      'confirmado' => Colors.blue.shade100,
+      'preparado' => Colors.amber.shade100,
+      'en_reparto' => Colors.deepPurple.shade100,
+      'entregado' => Colors.green.shade100,
+      _ => Colors.red.shade100,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(10)),
+      child: Text(status, style: const TextStyle(fontSize: 12)),
     );
   }
 }

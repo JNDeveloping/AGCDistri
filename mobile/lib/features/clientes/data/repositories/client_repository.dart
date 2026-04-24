@@ -23,7 +23,7 @@ class ClientRepository {
         limit: data['limit'] as int? ?? 20,
       );
     } on DioException catch (error) {
-      throw ClientException(_extractMessage(error));
+      throw _extractError(error);
     }
   }
 
@@ -31,12 +31,10 @@ class ClientRepository {
     try {
       final payload = await _remoteDataSource.getClient(id);
       final data = payload['data'] as Map<String, dynamic>?;
-      if (data == null) {
-        throw ClientException('Cliente no encontrado.');
-      }
+      if (data == null) throw ClientException('Cliente no encontrado.');
       return ClientModel.fromJson(data);
     } on DioException catch (error) {
-      throw ClientException(_extractMessage(error));
+      throw _extractError(error);
     }
   }
 
@@ -44,12 +42,10 @@ class ClientRepository {
     try {
       final payload = await _remoteDataSource.createClient(client.toJson());
       final data = payload['data'] as Map<String, dynamic>?;
-      if (data == null) {
-        throw ClientException('No se pudo crear el cliente.');
-      }
+      if (data == null) throw ClientException('No se pudo crear el cliente.');
       return ClientModel.fromJson(data);
     } on DioException catch (error) {
-      throw ClientException(_extractMessage(error));
+      throw _extractError(error);
     }
   }
 
@@ -57,12 +53,10 @@ class ClientRepository {
     try {
       final payload = await _remoteDataSource.updateClient(id, client.toJson());
       final data = payload['data'] as Map<String, dynamic>?;
-      if (data == null) {
-        throw ClientException('No se pudo actualizar el cliente.');
-      }
+      if (data == null) throw ClientException('No se pudo actualizar el cliente.');
       return ClientModel.fromJson(data);
     } on DioException catch (error) {
-      throw ClientException(_extractMessage(error));
+      throw _extractError(error);
     }
   }
 
@@ -70,12 +64,10 @@ class ClientRepository {
     try {
       final payload = await _remoteDataSource.deactivateClient(id);
       final data = payload['data'] as Map<String, dynamic>?;
-      if (data == null) {
-        throw ClientException('No se pudo desactivar el cliente.');
-      }
+      if (data == null) throw ClientException('No se pudo desactivar el cliente.');
       return ClientModel.fromJson(data);
     } on DioException catch (error) {
-      throw ClientException(_extractMessage(error));
+      throw _extractError(error);
     }
   }
 
@@ -83,12 +75,10 @@ class ClientRepository {
     try {
       final payload = await _remoteDataSource.activateClient(id);
       final data = payload['data'] as Map<String, dynamic>?;
-      if (data == null) {
-        throw ClientException('No se pudo activar el cliente.');
-      }
+      if (data == null) throw ClientException('No se pudo activar el cliente.');
       return ClientModel.fromJson(data);
     } on DioException catch (error) {
-      throw ClientException(_extractMessage(error));
+      throw _extractError(error);
     }
   }
 
@@ -96,7 +86,7 @@ class ClientRepository {
     try {
       await _remoteDataSource.deleteClient(id);
     } on DioException catch (error) {
-      throw ClientException(_extractMessage(error));
+      throw _extractError(error);
     }
   }
 
@@ -107,7 +97,7 @@ class ClientRepository {
           .map((raw) => ClientZone.fromJson(raw as Map<String, dynamic>))
           .toList();
     } on DioException catch (error) {
-      throw ClientException(_extractMessage(error));
+      throw _extractError(error);
     }
   }
 
@@ -118,7 +108,7 @@ class ClientRepository {
       if (data == null) throw ClientException('No se pudo crear la zona.');
       return ClientZone.fromJson(data);
     } on DioException catch (error) {
-      throw ClientException(_extractMessage(error));
+      throw _extractError(error);
     }
   }
 
@@ -129,7 +119,7 @@ class ClientRepository {
       if (data == null) throw ClientException('No se pudo actualizar la zona.');
       return ClientZone.fromJson(data);
     } on DioException catch (error) {
-      throw ClientException(_extractMessage(error));
+      throw _extractError(error);
     }
   }
 
@@ -140,7 +130,7 @@ class ClientRepository {
       if (data == null) throw ClientException('No se pudo desactivar la zona.');
       return ClientZone.fromJson(data);
     } on DioException catch (error) {
-      throw ClientException(_extractMessage(error));
+      throw _extractError(error);
     }
   }
 
@@ -150,7 +140,7 @@ class ClientRepository {
       final data = payload['data'] as Map<String, dynamic>? ?? {};
       return data['moved'] as int? ?? 0;
     } on DioException catch (error) {
-      throw ClientException(_extractMessage(error));
+      throw _extractError(error);
     }
   }
 
@@ -158,15 +148,20 @@ class ClientRepository {
     try {
       await _remoteDataSource.deleteZone(id);
     } on DioException catch (error) {
-      throw ClientException(_extractMessage(error));
+      throw _extractError(error);
     }
   }
 
-  String _extractMessage(DioException error) {
+  ClientException _extractError(DioException error) {
     if (error.response?.data is Map<String, dynamic>) {
-      return (error.response?.data['message'] as String?) ?? 'Error en módulo clientes.';
+      final data = error.response!.data as Map<String, dynamic>;
+      final details = data['details'] as Map<String, dynamic>?;
+      return ClientException(
+        (data['message'] as String?) ?? 'Error en módulo clientes.',
+        canDeactivate: details?['canDeactivate'] == true || data['canDeactivate'] == true,
+      );
     }
-    return 'No se pudo conectar con el módulo clientes.';
+    return ClientException('No se pudo conectar con el módulo clientes.');
   }
 }
 
@@ -185,8 +180,12 @@ class ClientListResponse {
 }
 
 class ClientException implements Exception {
-  ClientException(this.message);
+  ClientException(this.message, {this.canDeactivate = false});
   final String message;
+  final bool canDeactivate;
+
+  @override
+  String toString() => message;
 }
 
 class ClientZone {

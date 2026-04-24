@@ -34,13 +34,12 @@ class _ProductosPageState extends State<ProductosPage> {
   Widget build(BuildContext context) {
     final role = context.select((AuthCubit cubit) => cubit.state.session?.user.role ?? 'vendedor');
     final canEdit = role == 'admin';
-    final canViewCategories = role == 'admin' || role == 'vendedor';
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Productos'),
         actions: [
-          if (canViewCategories)
+          if (canEdit)
             TextButton.icon(
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductCategoriesPage(canManage: role == 'admin'))),
               icon: const Icon(Icons.category),

@@ -18,26 +18,21 @@ class OrderFormPage extends StatefulWidget {
 class _OrderFormPageState extends State<OrderFormPage> {
   OrderClientLookup? _client;
   final _notes = TextEditingController();
-  final _paymentTerms = TextEditingController();
-  final _deliveryAddress = TextEditingController();
   final _discountTotal = TextEditingController(text: '0');
   final _taxTotal = TextEditingController(text: '0');
   final Map<String, _CartLine> _cart = {};
   bool _saving = false;
+  String _paymentTerms = 'contado';
 
   @override
   void initState() {
     super.initState();
-    if (widget.orderId != null) {
-      _loadExisting();
-    }
+    if (widget.orderId != null) _loadExisting();
   }
 
   @override
   void dispose() {
     _notes.dispose();
-    _paymentTerms.dispose();
-    _deliveryAddress.dispose();
     _discountTotal.dispose();
     _taxTotal.dispose();
     super.dispose();
@@ -45,76 +40,149 @@ class _OrderFormPageState extends State<OrderFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    final subtotal = _cart.values.fold<double>(0, (acc, l) => acc + (l.product.salePrice * l.quantity));
+    final color = Theme.of(context).colorScheme;
+    final subtotal = _cart.values.fold<double>(0, (acc, l) => acc + l.netSubtotal);
     final total = subtotal - (double.tryParse(_discountTotal.text) ?? 0) + (double.tryParse(_taxTotal.text) ?? 0);
-
     final creditWarning = _client != null && _client!.creditLimit > 0 && (_client!.currentBalance + total) > _client!.creditLimit;
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.orderId == null ? 'Nuevo pedido' : 'Editar pedido')),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(12),
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        decoration: BoxDecoration(color: color.surfaceContainerHighest, boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black12)]),
         child: Row(
           children: [
-            Expanded(child: Text('Subtotal: ${subtotal.toStringAsFixed(2)}\nTotal: ${total.toStringAsFixed(2)}')),
-            FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Guardando...' : 'Guardar pedido')),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Subtotal: ${subtotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text('Total: ${total.toStringAsFixed(2)}', style: TextStyle(fontSize: 18, color: color.primary, fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
+            FilledButton.icon(onPressed: _saving ? null : _save, icon: const Icon(Icons.save), label: Text(_saving ? 'Guardando...' : 'Guardar')),
           ],
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         children: [
-          ListTile(
-            title: Text(_client?.businessName ?? 'Seleccionar cliente'),
-            subtitle: _client == null ? null : Text('Saldo ${_client!.currentBalance.toStringAsFixed(2)} · Límite ${_client!.creditLimit.toStringAsFixed(2)}'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: _selectClient,
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.storefront),
+              title: Text(_client?.businessName ?? 'Seleccionar cliente'),
+              subtitle: _client == null
+                  ? const Text('Tocá para elegir cliente')
+                  : Text('Saldo ${_client!.currentBalance.toStringAsFixed(2)} · Límite ${_client!.creditLimit.toStringAsFixed(2)}'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _selectClient,
+            ),
           ),
+          if (_client != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text('Dirección de entrega: se usa automáticamente la del cliente.', style: TextStyle(color: color.onSurfaceVariant)),
+            ),
           if (creditWarning)
-            const Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('Advertencia: este pedido supera el límite de crédito del cliente.', style: TextStyle(color: Colors.orange)),
+            const Card(
+              color: Color(0xFFFFF3CD),
+              child: Padding(
+                padding: EdgeInsets.all(10),
+                child: Text('Advertencia: este pedido supera el límite de crédito del cliente.'),
+              ),
             ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: Text('Carrito (${_cart.length} productos)', style: Theme.of(context).textTheme.titleMedium)),
-              TextButton.icon(onPressed: _addProduct, icon: const Icon(Icons.add), label: const Text('Agregar')),
+              Expanded(child: Text('Carrito (${_cart.length})', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold))),
+              FilledButton.tonalIcon(onPressed: _addProduct, icon: const Icon(Icons.add), label: const Text('Agregar producto')),
             ],
           ),
-          ..._cart.values.map((line) => Card(
-                child: ListTile(
-                  title: Text(line.product.name),
-                  subtitle: Text('Precio ${line.product.salePrice.toStringAsFixed(2)} · Stock ${line.product.stockCurrent.toStringAsFixed(0)}'),
-                  trailing: SizedBox(
-                    width: 180,
-                    child: Row(
-                      children: [
-                        IconButton(onPressed: () => _changeQty(line.product.id, line.quantity - 1), icon: const Icon(Icons.remove_circle_outline)),
-                        Expanded(
-                          child: TextFormField(
-                            initialValue: line.quantity.toStringAsFixed(0),
-                            textAlign: TextAlign.center,
-                            keyboardType: TextInputType.number,
-                            onFieldSubmitted: (v) => _changeQty(line.product.id, double.tryParse(v) ?? line.quantity),
-                          ),
-                        ),
-                        IconButton(onPressed: () => _changeQty(line.product.id, line.quantity + 1), icon: const Icon(Icons.add_circle_outline)),
-                        IconButton(onPressed: () => _cart.remove(line.product.id), icon: const Icon(Icons.delete_outline)),
-                      ],
-                    ),
+          const SizedBox(height: 8),
+          ..._cart.values.map(_itemCard),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: _paymentTerms,
+                    decoration: const InputDecoration(labelText: 'Condición de pago'),
+                    items: const [
+                      DropdownMenuItem(value: 'contado', child: Text('Contado')),
+                      DropdownMenuItem(value: 'cuenta_corriente', child: Text('Cuenta corriente')),
+                    ],
+                    onChanged: (v) => setState(() => _paymentTerms = v ?? 'contado'),
+                  ),
+                  TextField(controller: _discountTotal, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Descuento general')),
+                  TextField(controller: _taxTotal, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Impuestos')),
+                  TextField(controller: _notes, decoration: const InputDecoration(labelText: 'Observaciones')),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _itemCard(_CartLine line) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(line.product.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Text('Precio unitario: ${line.product.salePrice.toStringAsFixed(2)} · Stock ${line.product.stockCurrent.toStringAsFixed(0)}'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                IconButton(onPressed: () => _changeQty(line.product.id, line.quantity - 1), icon: const Icon(Icons.remove_circle_outline)),
+                SizedBox(
+                  width: 70,
+                  child: TextFormField(
+                    initialValue: line.quantity.toStringAsFixed(0),
+                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+                    textAlign: TextAlign.center,
+                    keyboardType: TextInputType.number,
+                    onFieldSubmitted: (v) => _changeQty(line.product.id, double.tryParse(v) ?? line.quantity),
                   ),
                 ),
-              )),
-          const SizedBox(height: 8),
-          TextField(controller: _discountTotal, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Descuento general')),
-          TextField(controller: _taxTotal, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Impuestos')),
-          TextField(controller: _paymentTerms, decoration: const InputDecoration(labelText: 'Condición de pago')),
-          TextField(controller: _deliveryAddress, decoration: const InputDecoration(labelText: 'Dirección de entrega')),
-          TextField(controller: _notes, decoration: const InputDecoration(labelText: 'Observaciones')),
-          const SizedBox(height: 24),
-        ],
+                IconButton(onPressed: () => _changeQty(line.product.id, line.quantity + 1), icon: const Icon(Icons.add_circle_outline)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: line.discountType,
+                    decoration: const InputDecoration(labelText: 'Desc.'),
+                    items: const [
+                      DropdownMenuItem(value: 'amount', child: Text('Monto')),
+                      DropdownMenuItem(value: 'percentage', child: Text('%')),
+                    ],
+                    onChanged: (v) => _changeDiscountType(line.product.id, v ?? 'amount'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 80,
+                  child: TextFormField(
+                    initialValue: line.discountValue.toStringAsFixed(0),
+                    style: const TextStyle(color: Colors.black),
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Valor'),
+                    onFieldSubmitted: (v) => _changeDiscountValue(line.product.id, double.tryParse(v) ?? 0),
+                  ),
+                ),
+                IconButton(onPressed: () => setState(() => _cart.remove(line.product.id)), icon: const Icon(Icons.delete_outline)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text('Final ítem: ${line.netSubtotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+          ],
+        ),
       ),
     );
   }
@@ -126,31 +194,17 @@ class _OrderFormPageState extends State<OrderFormPage> {
 
   Future<void> _loadExisting() async {
     final order = await context.read<OrdersCubit>().getById(widget.orderId!);
-
-    final cart = <String, _CartLine>{
-      for (final item in order.items)
-        item.productId: _CartLine(
-          product: OrderProductLookup(
-            id: item.productId,
-            name: item.productName,
-            salePrice: item.unitPrice,
-          ),
-          quantity: item.quantity,
-        ),
-    };
-
     if (!mounted) return;
 
     setState(() {
-      _client = OrderClientLookup(id: order.clientId, businessName: order.clientName);
+      _client = OrderClientLookup(id: order.clientId, businessName: order.clientName, currentBalance: 0, creditLimit: 0);
       _notes.text = order.notes ?? '';
-      _paymentTerms.text = order.paymentTerms ?? '';
-      _deliveryAddress.text = order.deliveryAddress ?? '';
+      _paymentTerms = order.paymentTerms ?? 'contado';
       _discountTotal.text = order.discountTotal.toStringAsFixed(2);
       _taxTotal.text = order.taxTotal.toStringAsFixed(2);
       _cart
         ..clear()
-        ..addAll(cart);
+        ..addEntries(order.items.map((i) => MapEntry(i.productId, _CartLine(product: OrderProductLookup(id: i.productId, name: i.productName, salePrice: i.unitPrice), quantity: i.quantity, discountType: 'amount', discountValue: i.discountAmount))));
     });
   }
 
@@ -159,17 +213,32 @@ class _OrderFormPageState extends State<OrderFormPage> {
     if (selected == null) return;
     setState(() {
       final existing = _cart[selected.id];
-      _cart[selected.id] = _CartLine(product: selected, quantity: (existing?.quantity ?? 0) + 1);
+      _cart[selected.id] = _CartLine(
+        product: selected,
+        quantity: (existing?.quantity ?? 0) + 1,
+        discountType: existing?.discountType ?? 'amount',
+        discountValue: existing?.discountValue ?? 0,
+      );
     });
   }
 
   void _changeQty(String id, double value) {
-    if (!_cart.containsKey(id)) return;
-    if (value <= 0) {
-      setState(() => _cart.remove(id));
-      return;
-    }
-    setState(() => _cart[id] = _CartLine(product: _cart[id]!.product, quantity: value));
+    final line = _cart[id];
+    if (line == null) return;
+    if (value <= 0) return setState(() => _cart.remove(id));
+    setState(() => _cart[id] = line.copyWith(quantity: value));
+  }
+
+  void _changeDiscountType(String id, String type) {
+    final line = _cart[id];
+    if (line == null) return;
+    setState(() => _cart[id] = line.copyWith(discountType: type));
+  }
+
+  void _changeDiscountValue(String id, double value) {
+    final line = _cart[id];
+    if (line == null) return;
+    setState(() => _cart[id] = line.copyWith(discountValue: value));
   }
 
   Future<void> _save() async {
@@ -184,16 +253,17 @@ class _OrderFormPageState extends State<OrderFormPage> {
 
     setState(() => _saving = true);
     try {
-      final items = _cart.values.map((l) => OrderItemInput(productId: l.product.id, quantity: l.quantity)).toList();
+      final items = _cart.values
+          .map((l) => OrderItemInput(productId: l.product.id, quantity: l.quantity, discountType: l.discountType, discountValue: l.discountValue))
+          .toList();
       await context.read<OrdersCubit>().save(
             id: widget.orderId,
             clientId: _client!.id,
             items: items,
             discountTotal: double.tryParse(_discountTotal.text) ?? 0,
             taxTotal: double.tryParse(_taxTotal.text) ?? 0,
-            paymentTerms: _paymentTerms.text.trim().isEmpty ? null : _paymentTerms.text.trim(),
+            paymentTerms: _paymentTerms,
             notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-            deliveryAddress: _deliveryAddress.text.trim().isEmpty ? null : _deliveryAddress.text.trim(),
           );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -205,7 +275,26 @@ class _OrderFormPageState extends State<OrderFormPage> {
 }
 
 class _CartLine {
-  _CartLine({required this.product, required this.quantity});
+  _CartLine({required this.product, required this.quantity, this.discountType = 'amount', this.discountValue = 0});
+
   final OrderProductLookup product;
   final double quantity;
+  final String discountType;
+  final double discountValue;
+
+  double get discountAmount {
+    if (discountType == 'percentage') {
+      return (product.salePrice * quantity * discountValue) / 100;
+    }
+    return discountValue;
+  }
+
+  double get netSubtotal => (product.salePrice * quantity - discountAmount).clamp(0, double.infinity);
+
+  _CartLine copyWith({double? quantity, String? discountType, double? discountValue}) => _CartLine(
+        product: product,
+        quantity: quantity ?? this.quantity,
+        discountType: discountType ?? this.discountType,
+        discountValue: discountValue ?? this.discountValue,
+      );
 }

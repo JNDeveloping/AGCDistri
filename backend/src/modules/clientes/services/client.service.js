@@ -160,8 +160,9 @@ export class ClientService {
     const hasMovements = await clientRepository.hasAssociatedMovements(id);
     if (hasMovements) {
       throw new AppError(
-        'No se puede eliminar este cliente porque tiene movimientos asociados. Podés desactivarlo.',
+        'Este cliente tiene movimientos asociados y no se puede eliminar. Podés desactivarlo.',
         409,
+        { canDeactivate: true },
       );
     }
 

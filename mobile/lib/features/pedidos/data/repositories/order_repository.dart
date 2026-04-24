@@ -27,7 +27,15 @@ class OrderRepository {
     }
   }
 
-  Future<OrderModel> save({String? id, required String clientId, required List<OrderItemInput> items, double discountTotal = 0, double taxTotal = 0, String? paymentTerms, String? notes, String? deliveryAddress}) async {
+  Future<OrderModel> save({
+    String? id,
+    required String clientId,
+    required List<OrderItemInput> items,
+    double discountTotal = 0,
+    double taxTotal = 0,
+    String? paymentTerms,
+    String? notes,
+  }) async {
     try {
       final data = {
         'clientId': clientId,
@@ -36,7 +44,6 @@ class OrderRepository {
         'taxTotal': taxTotal,
         'paymentTerms': paymentTerms,
         'notes': notes,
-        'deliveryAddress': deliveryAddress,
       };
       final payload = id == null ? await _remoteDataSource.createOrder(data) : await _remoteDataSource.updateOrder(id, data);
       return OrderModel.fromJson(payload['data'] as Map<String, dynamic>);

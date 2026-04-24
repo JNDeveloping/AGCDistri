@@ -35,7 +35,15 @@ class OrdersCubit extends Cubit<OrdersState> {
 
   Future<OrderModel> getById(String id) => _repository.getById(id);
 
-  Future<OrderModel> save({String? id, required String clientId, required List<OrderItemInput> items, double discountTotal = 0, double taxTotal = 0, String? paymentTerms, String? notes, String? deliveryAddress}) async {
+  Future<OrderModel> save({
+    String? id,
+    required String clientId,
+    required List<OrderItemInput> items,
+    double discountTotal = 0,
+    double taxTotal = 0,
+    String? paymentTerms,
+    String? notes,
+  }) async {
     final saved = await _repository.save(
       id: id,
       clientId: clientId,
@@ -44,7 +52,6 @@ class OrdersCubit extends Cubit<OrdersState> {
       taxTotal: taxTotal,
       paymentTerms: paymentTerms,
       notes: notes,
-      deliveryAddress: deliveryAddress,
     );
     await load();
     return saved;
