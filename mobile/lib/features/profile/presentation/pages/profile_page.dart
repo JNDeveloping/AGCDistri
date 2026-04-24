@@ -119,6 +119,19 @@ class _ProfilePageState extends State<ProfilePage> {
               onTap: () => context.read<AuthCubit>().logout(),
             ),
           ),
+          const SizedBox(height: 16),
+          Center(
+            child: Text(
+              'Aplicacion desarrollada por Tomas Victola',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.2,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );
