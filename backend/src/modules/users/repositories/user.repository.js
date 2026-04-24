@@ -56,7 +56,7 @@ export class UserRepository {
       passwordHash: 'password_hash',
     };
 
-    const keys = Object.keys(patch).filter((key) => dbMap[key]);
+    const keys = Object.keys(patch).filter((key) => dbMap[key] && patch[key] !== undefined);
     if (!keys.length) {
       return this.findById(id);
     }
