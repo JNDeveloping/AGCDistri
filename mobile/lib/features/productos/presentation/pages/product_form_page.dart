@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../company_settings/presentation/cubit/company_settings_cubit.dart';
+import '../../../company_settings/presentation/cubit/company_settings_state.dart';
 import '../../domain/models/product_model.dart';
 import '../cubit/products_cubit.dart';
 import 'barcode_scanner_page.dart';
@@ -19,6 +20,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
   final _formKey = GlobalKey<FormState>();
   bool _saving = false;
   bool _manualSalePrice = false;
+  bool _costChangedAfterManual = false;
 
   late final TextEditingController _code;
   late final TextEditingController _name;
@@ -63,8 +65,9 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _stockMin = TextEditingController(text: p?.stockMinimum.toStringAsFixed(2) ?? '0');
     _selectedUnitMeasure = p?.unitMeasure;
     _selectedCategoryId = p?.categoryId;
-    _manualSalePrice = p != null;
+    _manualSalePrice = false;
     _cost.addListener(_onCostChanged);
+    _applyCalculatedSalePrice();
     _loadCategories();
   }
 
@@ -85,20 +88,61 @@ class _ProductFormPageState extends State<ProductFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.product == null ? 'Nuevo producto' : 'Editar producto')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
+    return BlocListener<CompanySettingsCubit, CompanySettingsState>(
+      listener: (_, __) {
+        if (!_manualSalePrice) {
+          _applyCalculatedSalePrice();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(title: Text(widget.product == null ? 'Nuevo producto' : 'Editar producto')),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
               _field(_name, 'Nombre', requiredField: true),
-              _field(_salePrice, 'Precio de venta', number: true, requiredField: true, onChanged: (_) => _manualSalePrice = true),
+              _field(
+                _salePrice,
+                'Precio de venta',
+                number: true,
+                requiredField: true,
+                onChanged: (_) {
+                  _manualSalePrice = true;
+                  setState(() => _costChangedAfterManual = false);
+                },
+              ),
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: Text('Sugerido: ${_suggestedSalePrice().toStringAsFixed(2)}', style: Theme.of(context).textTheme.bodySmall),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _manualSalePrice
+                        ? (_costChangedAfterManual
+                            ? 'Precio modificado manualmente. Costo cambió, podés recalcular.'
+                            : 'Precio modificado manualmente.')
+                        : 'Calculado con ${context.read<CompanySettingsCubit>().state.settings.defaultProfitPercentage.toStringAsFixed(2)}% de ganancia y '
+                            '${context.read<CompanySettingsCubit>().state.settings.priceRoundingEnabled ? 'redondeo a ${context.read<CompanySettingsCubit>().state.settings.priceRoundingMultiple}' : 'sin redondeo'}.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
               ),
+              if (_costChangedAfterManual)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _manualSalePrice = false;
+                        _costChangedAfterManual = false;
+                      });
+                      _applyCalculatedSalePrice();
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Recalcular precio de venta'),
+                  ),
+                ),
               _field(_code, 'Código interno', requiredField: false),
               _field(_shortDescription, 'Descripción corta', requiredField: false),
               _field(_brand, 'Marca', requiredField: false),
@@ -146,6 +190,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
               const SizedBox(height: 16),
               ElevatedButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Guardando...' : 'Guardar producto')),
             ],
+            ),
           ),
         ),
       ),
@@ -177,13 +222,23 @@ class _ProductFormPageState extends State<ProductFormPage> {
   }
 
   void _onCostChanged() {
-    if (_manualSalePrice) return;
-    _salePrice.text = _suggestedSalePrice().toStringAsFixed(2);
+    if (_manualSalePrice) {
+      setState(() => _costChangedAfterManual = true);
+      return;
+    }
+    _applyCalculatedSalePrice();
   }
 
   double _suggestedSalePrice() {
-    final cost = double.tryParse(_cost.text.trim()) ?? 0;
+    final cost = double.tryParse(_cost.text.trim().replaceAll(',', '.')) ?? 0;
     return context.read<CompanySettingsCubit>().suggestedWholesalePrice(cost);
+  }
+
+  void _applyCalculatedSalePrice() {
+    final calculated = _suggestedSalePrice().toStringAsFixed(2);
+    if (_salePrice.text != calculated) {
+      _salePrice.text = calculated;
+    }
   }
 
   Future<void> _scanBarcode() async {
@@ -257,7 +312,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
       barcode: _barcode.text.trim().isEmpty ? null : _barcode.text.trim(),
       unitMeasure: _selectedUnitMeasure,
       cost: _cost.text.trim().isEmpty ? null : double.tryParse(_cost.text.trim()),
-      salePrice: double.tryParse(_salePrice.text.trim()) ?? 0,
+      salePrice: double.tryParse(_salePrice.text.trim().replaceAll(',', '.')) ?? 0,
       marginPercentage: null,
       stockCurrent: double.tryParse(_stock.text.trim()) ?? 0,
       stockMinimum: double.tryParse(_stockMin.text.trim()) ?? 0,

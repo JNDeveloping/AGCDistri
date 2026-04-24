@@ -29,7 +29,7 @@ export const createProductSchema = z.object({
   barcode: optionalTrimmedString,
   unitMeasure: z.enum(unitMeasureValues).optional().nullable(),
   cost: money.optional().nullable(),
-  salePrice: money,
+  salePrice: money.optional().nullable(),
   marginPercentage: z.number().min(0).max(999).optional().nullable(),
   stockCurrent: quantity.optional().nullable(),
   stockMinimum: quantity.optional().nullable(),
