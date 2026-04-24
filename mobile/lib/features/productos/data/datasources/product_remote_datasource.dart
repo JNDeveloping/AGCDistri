@@ -22,4 +22,18 @@ class ProductRemoteDataSource {
   Future<Map<String, dynamic>> createProduct(Map<String, dynamic> data) async => (await _apiClient.post('/productos', data: data)).data ?? {};
   Future<Map<String, dynamic>> updateProduct(String id, Map<String, dynamic> data) async => (await _apiClient.put('/productos/$id', data: data)).data ?? {};
   Future<Map<String, dynamic>> deactivateProduct(String id) async => (await _apiClient.patch('/productos/$id/deactivate')).data ?? {};
+
+  Future<Map<String, dynamic>> listCategories({bool includeInactive = false}) async {
+    final response = await _apiClient.get('/product-categories', queryParameters: {'includeInactive': includeInactive});
+    return response.data ?? {};
+  }
+
+  Future<Map<String, dynamic>> createCategory(Map<String, dynamic> data) async =>
+      (await _apiClient.post('/product-categories', data: data)).data ?? {};
+
+  Future<Map<String, dynamic>> updateCategory(String id, Map<String, dynamic> data) async =>
+      (await _apiClient.put('/product-categories/$id', data: data)).data ?? {};
+
+  Future<Map<String, dynamic>> deactivateCategory(String id) async =>
+      (await _apiClient.patch('/product-categories/$id/deactivate')).data ?? {};
 }

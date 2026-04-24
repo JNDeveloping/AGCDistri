@@ -2,12 +2,16 @@ import { pool } from '../../../database/pool.js';
 
 const baseSelect = `
   SELECT
-    id, internal_code, name, short_description, long_description,
-    brand, category, segment, barcode, unit_measure, presentation,
-    cost, wholesale_price, retail_price, margin_percentage,
-    stock_current, stock_minimum, is_active, is_featured, image_url,
-    tax_rate, created_at, updated_at, deactivated_at
-  FROM products
+    p.id, p.internal_code, p.name, p.short_description, p.long_description,
+    p.brand, p.barcode, p.unit_measure, p.presentation,
+    p.cost, p.wholesale_price, p.retail_price, p.margin_percentage,
+    p.stock_current, p.stock_minimum, p.is_active, p.is_featured, p.image_url,
+    p.tax_rate, p.notes, p.created_at, p.updated_at, p.deactivated_at,
+    p.category_id,
+    c.name AS category_name,
+    c.is_active AS category_is_active
+  FROM products p
+  LEFT JOIN product_categories c ON c.id = p.category_id
 `;
 
 export class ProductRepository {
@@ -15,9 +19,10 @@ export class ProductRepository {
     const query = `
       INSERT INTO products (
         internal_code, name, short_description, long_description,
-        brand, category, segment, barcode, unit_measure, presentation,
+        brand, barcode, unit_measure, presentation,
         cost, wholesale_price, retail_price, margin_percentage,
-        stock_current, stock_minimum, is_featured, image_url, tax_rate
+        stock_current, stock_minimum, is_featured, image_url, tax_rate,
+        category_id, notes
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
         $11,$12,$13,$14,$15,$16,$17,$18,$19
@@ -31,8 +36,6 @@ export class ProductRepository {
       payload.shortDescription,
       payload.longDescription,
       payload.brand,
-      payload.category,
-      payload.segment,
       payload.barcode,
       payload.unitMeasure,
       payload.presentation,
@@ -45,27 +48,47 @@ export class ProductRepository {
       payload.isFeatured,
       payload.imageUrl,
       payload.taxRate,
+      payload.categoryId,
+      payload.notes,
     ];
 
     const { rows } = await pool.query(query, values);
-    return rows[0];
+    return this.findById(rows[0].id);
   }
 
   async findById(id) {
-    const { rows } = await pool.query(`${baseSelect} WHERE id = $1 LIMIT 1`, [id]);
+    const { rows } = await pool.query(`${baseSelect} WHERE p.id = $1 LIMIT 1`, [id]);
     return rows[0] ?? null;
   }
 
   async findDuplicated({ internalCode, barcode, ignoreId = null }) {
-    const query = `
-      SELECT id, internal_code, barcode
-      FROM products
-      WHERE (internal_code = $1 OR ($2 IS NOT NULL AND barcode = $2))
-      AND ($3::uuid IS NULL OR id <> $3)
-      LIMIT 1
-    `;
+    const conditions = [];
+    const values = [];
 
-    const { rows } = await pool.query(query, [internalCode, barcode, ignoreId]);
+    if (internalCode) {
+      values.push(internalCode);
+      conditions.push(`internal_code = $${values.length}`);
+    }
+
+    if (barcode) {
+      values.push(barcode);
+      conditions.push(`barcode = $${values.length}`);
+    }
+
+    if (!conditions.length) {
+      return null;
+    }
+
+    let query = `SELECT id, internal_code, barcode FROM products WHERE (${conditions.join(' OR ')})`;
+
+    if (ignoreId) {
+      values.push(ignoreId);
+      query += ` AND id <> $${values.length}`;
+    }
+
+    query += ' LIMIT 1';
+
+    const { rows } = await pool.query(query, values);
     return rows[0] ?? null;
   }
 
@@ -78,25 +101,25 @@ export class ProductRepository {
       values.push(`%${q}%`);
       const idx = values.length;
       filters.push(`(
-        name ILIKE $${idx} OR internal_code ILIKE $${idx} OR segment ILIKE $${idx}
-        OR brand ILIKE $${idx} OR category ILIKE $${idx} OR barcode ILIKE $${idx}
+        p.name ILIKE $${idx} OR p.internal_code ILIKE $${idx} OR p.brand ILIKE $${idx}
+        OR p.barcode ILIKE $${idx} OR c.name ILIKE $${idx}
       )`);
     }
 
     if (typeof isActive === 'boolean') {
       values.push(isActive);
-      filters.push(`is_active = $${values.length}`);
+      filters.push(`p.is_active = $${values.length}`);
     }
 
     if (lowStock) {
-      filters.push('stock_current <= stock_minimum');
+      filters.push('p.stock_current <= p.stock_minimum');
     }
 
     const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
     values.push(limit, offset);
 
-    const dataQuery = `${baseSelect} ${where} ORDER BY name ASC LIMIT $${values.length - 1} OFFSET $${values.length}`;
-    const countQuery = `SELECT COUNT(*)::int AS total FROM products ${where}`;
+    const dataQuery = `${baseSelect} ${where} ORDER BY p.name ASC LIMIT $${values.length - 1} OFFSET $${values.length}`;
+    const countQuery = `SELECT COUNT(*)::int AS total FROM products p LEFT JOIN product_categories c ON c.id = p.category_id ${where}`;
 
     const [data, count] = await Promise.all([
       pool.query(dataQuery, values),
@@ -113,8 +136,6 @@ export class ProductRepository {
       shortDescription: 'short_description',
       longDescription: 'long_description',
       brand: 'brand',
-      category: 'category',
-      segment: 'segment',
       barcode: 'barcode',
       unitMeasure: 'unit_measure',
       presentation: 'presentation',
@@ -127,6 +148,8 @@ export class ProductRepository {
       isFeatured: 'is_featured',
       imageUrl: 'image_url',
       taxRate: 'tax_rate',
+      categoryId: 'category_id',
+      notes: 'notes',
     };
 
     const keys = Object.keys(patch).filter((key) => dbMap[key]);
@@ -142,9 +165,9 @@ export class ProductRepository {
     });
 
     values.push(id);
-    const query = `UPDATE products SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${values.length} RETURNING *`;
+    const query = `UPDATE products SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${values.length} RETURNING id`;
     const { rows } = await pool.query(query, values);
-    return rows[0] ?? null;
+    return this.findById(rows[0].id);
   }
 
   async deactivate(id) {
@@ -152,11 +175,11 @@ export class ProductRepository {
       UPDATE products
       SET is_active = FALSE, deactivated_at = NOW(), updated_at = NOW()
       WHERE id = $1
-      RETURNING *
+      RETURNING id
     `;
 
     const { rows } = await pool.query(query, [id]);
-    return rows[0] ?? null;
+    return rows[0] ? this.findById(rows[0].id) : null;
   }
 }
 

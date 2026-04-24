@@ -11,6 +11,7 @@ import { clientRouter } from './modules/clientes/routes/client.routes.js';
 import { dashboardRouter } from './modules/dashboard/routes/dashboard.routes.js';
 import { healthRouter } from './modules/health/routes/health.routes.js';
 import { operationsRouter } from './modules/operations/routes/operations.routes.js';
+import { productCategoryRouter } from './modules/product-categories/routes/product-category.routes.js';
 import { productRouter } from './modules/productos/routes/product.routes.js';
 
 export const createApp = () => {
@@ -25,6 +26,7 @@ export const createApp = () => {
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/dashboard', dashboardRouter);
   app.use('/api/v1/clientes', clientRouter);
+  app.use('/api/v1/product-categories', productCategoryRouter);
   app.use('/api/v1/productos', productRouter);
   app.use('/api/v1/operaciones', operationsRouter);
 

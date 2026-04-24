@@ -12,10 +12,9 @@ class ProductRepository {
     try {
       final payload = await _remoteDataSource.fetchProducts(query: query, isActive: isActive, lowStock: lowStock);
       final data = payload['data'] as Map<String, dynamic>? ?? {};
-      final items = (data['items'] as List<dynamic>? ?? [])
+      return (data['items'] as List<dynamic>? ?? [])
           .map((raw) => ProductModel.fromJson(raw as Map<String, dynamic>))
           .toList();
-      return items;
     } on DioException catch (error) {
       throw ProductException(_message(error));
     }
@@ -45,6 +44,38 @@ class ProductRepository {
   Future<void> deactivate(String id) async {
     try {
       await _remoteDataSource.deactivateProduct(id);
+    } on DioException catch (error) {
+      throw ProductException(_message(error));
+    }
+  }
+
+  Future<List<ProductCategory>> listCategories({bool includeInactive = false}) async {
+    try {
+      final payload = await _remoteDataSource.listCategories(includeInactive: includeInactive);
+      return (payload['data'] as List<dynamic>? ?? [])
+          .map((raw) => ProductCategory.fromJson(raw as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (error) {
+      throw ProductException(_message(error));
+    }
+  }
+
+  Future<void> saveCategory({String? id, required String name, String? description}) async {
+    try {
+      final data = {'name': name, 'description': description};
+      if (id == null) {
+        await _remoteDataSource.createCategory(data);
+      } else {
+        await _remoteDataSource.updateCategory(id, data);
+      }
+    } on DioException catch (error) {
+      throw ProductException(_message(error));
+    }
+  }
+
+  Future<void> deactivateCategory(String id) async {
+    try {
+      await _remoteDataSource.deactivateCategory(id);
     } on DioException catch (error) {
       throw ProductException(_message(error));
     }

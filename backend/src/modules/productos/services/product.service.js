@@ -2,61 +2,78 @@ import { AppError } from '../../../errors/app-error.js';
 import { productRepository } from '../repositories/product.repository.js';
 
 const computeMargin = (cost, wholesalePrice) => {
-  if (!cost || cost <= 0) {
+  if (!cost || cost <= 0 || !wholesalePrice || wholesalePrice <= 0) {
     return null;
   }
 
   return Number((((wholesalePrice - cost) / cost) * 100).toFixed(2));
 };
 
-const formatProduct = (row) => ({
-  id: row.id,
-  internalCode: row.internal_code,
-  name: row.name,
-  shortDescription: row.short_description,
-  longDescription: row.long_description,
-  brand: row.brand,
-  category: row.category,
-  segment: row.segment,
-  barcode: row.barcode,
-  unitMeasure: row.unit_measure,
-  presentation: row.presentation,
-  cost: Number(row.cost),
-  wholesalePrice: Number(row.wholesale_price),
-  retailPrice: row.retail_price == null ? null : Number(row.retail_price),
-  marginPercentage: row.margin_percentage == null ? null : Number(row.margin_percentage),
-  stockCurrent: Number(row.stock_current),
-  stockMinimum: Number(row.stock_minimum),
-  isActive: row.is_active,
-  isFeatured: row.is_featured,
-  imageUrl: row.image_url,
-  taxRate: row.tax_rate == null ? null : Number(row.tax_rate),
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-  deactivatedAt: row.deactivated_at,
-  lowStock: Number(row.stock_current) <= Number(row.stock_minimum),
-});
+const formatProduct = (row, role) => {
+  const base = {
+    id: row.id,
+    internalCode: row.internal_code,
+    name: row.name,
+    shortDescription: row.short_description,
+    longDescription: row.long_description,
+    brand: row.brand,
+    barcode: row.barcode,
+    unitMeasure: row.unit_measure,
+    presentation: row.presentation,
+    wholesalePrice: row.wholesale_price == null ? null : Number(row.wholesale_price),
+    retailPrice: row.retail_price == null ? null : Number(row.retail_price),
+    stockCurrent: row.stock_current == null ? 0 : Number(row.stock_current),
+    stockMinimum: row.stock_minimum == null ? 0 : Number(row.stock_minimum),
+    isActive: row.is_active,
+    isFeatured: row.is_featured,
+    imageUrl: row.image_url,
+    taxRate: row.tax_rate == null ? null : Number(row.tax_rate),
+    notes: row.notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deactivatedAt: row.deactivated_at,
+    categoryId: row.category_id,
+    categoryName: row.category_name,
+    categoryIsActive: row.category_is_active,
+    lowStock: Number(row.stock_current ?? 0) <= Number(row.stock_minimum ?? 0),
+  };
 
-const basicProduct = (p) => ({
-  id: p.id,
-  internalCode: p.internalCode,
-  name: p.name,
-  shortDescription: p.shortDescription,
-  brand: p.brand,
-  category: p.category,
-  segment: p.segment,
-  presentation: p.presentation,
-  stockCurrent: p.stockCurrent,
-  stockMinimum: p.stockMinimum,
-  isActive: p.isActive,
-  lowStock: p.lowStock,
-});
+  if (role === 'admin') {
+    return {
+      ...base,
+      cost: row.cost == null ? null : Number(row.cost),
+      marginPercentage: row.margin_percentage == null ? null : Number(row.margin_percentage),
+    };
+  }
+
+  if (role === 'vendedor') {
+    return {
+      ...base,
+      cost: null,
+      marginPercentage: null,
+    };
+  }
+
+  return {
+    id: base.id,
+    internalCode: base.internalCode,
+    name: base.name,
+    shortDescription: base.shortDescription,
+    unitMeasure: base.unitMeasure,
+    presentation: base.presentation,
+    stockCurrent: base.stockCurrent,
+    stockMinimum: base.stockMinimum,
+    isActive: base.isActive,
+    lowStock: base.lowStock,
+    categoryName: base.categoryName,
+  };
+};
 
 export class ProductService {
   async create(payload) {
     const duplicated = await productRepository.findDuplicated({
       internalCode: payload.internalCode,
-      barcode: payload.barcode ?? null,
+      barcode: payload.barcode,
     });
 
     if (duplicated) {
@@ -64,19 +81,23 @@ export class ProductService {
     }
 
     const marginPercentage = payload.marginPercentage ?? computeMargin(payload.cost, payload.wholesalePrice);
-    const created = await productRepository.create({ ...payload, marginPercentage });
-    return formatProduct(created);
+    const created = await productRepository.create({
+      ...payload,
+      marginPercentage,
+      shortDescription: payload.shortDescription ?? null,
+      stockCurrent: payload.stockCurrent ?? 0,
+      stockMinimum: payload.stockMinimum ?? 0,
+    });
+    return formatProduct(created, 'admin');
   }
 
   async list({ q, isActive, lowStock, page, limit, role }) {
     const { rows, total } = await productRepository.list({ q, isActive, lowStock, page, limit });
-    const items = rows.map((row) => formatProduct(row));
-
     return {
       total,
       page,
       limit,
-      items: role === 'repartidor' ? items.map(basicProduct) : items,
+      items: rows.map((row) => formatProduct(row, role)),
     };
   }
 
@@ -86,8 +107,7 @@ export class ProductService {
       throw new AppError('Producto no encontrado.', 404);
     }
 
-    const product = formatProduct(row);
-    return role === 'repartidor' ? basicProduct(product) : product;
+    return formatProduct(row, role);
   }
 
   async update(id, payload) {
@@ -104,12 +124,16 @@ export class ProductService {
       throw new AppError('Ya existe producto con ese código interno o código de barras.', 409);
     }
 
-    const cost = payload.cost ?? Number(existing.cost);
-    const wholesalePrice = payload.wholesalePrice ?? Number(existing.wholesale_price);
+    const cost = payload.cost ?? Number(existing.cost ?? 0);
+    const wholesalePrice = payload.wholesalePrice ?? Number(existing.wholesale_price ?? 0);
     const marginPercentage = payload.marginPercentage ?? computeMargin(cost, wholesalePrice);
 
-    const updated = await productRepository.update(id, { ...payload, marginPercentage });
-    return formatProduct(updated);
+    const updated = await productRepository.update(id, {
+      ...payload,
+      marginPercentage,
+    });
+
+    return formatProduct(updated, 'admin');
   }
 
   async deactivate(id) {
@@ -118,7 +142,7 @@ export class ProductService {
       throw new AppError('Producto no encontrado.', 404);
     }
 
-    return formatProduct(row);
+    return formatProduct(row, 'admin');
   }
 }
 

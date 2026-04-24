@@ -8,8 +8,8 @@ class ProductModel extends Equatable {
     required this.shortDescription,
     required this.longDescription,
     required this.brand,
-    required this.category,
-    required this.segment,
+    required this.categoryId,
+    required this.categoryName,
     required this.barcode,
     required this.unitMeasure,
     required this.presentation,
@@ -23,24 +23,25 @@ class ProductModel extends Equatable {
     required this.isFeatured,
     required this.imageUrl,
     required this.taxRate,
+    required this.notes,
     required this.createdAt,
     required this.updatedAt,
     required this.lowStock,
   });
 
   final String id;
-  final String internalCode;
+  final String? internalCode;
   final String name;
-  final String shortDescription;
+  final String? shortDescription;
   final String? longDescription;
-  final String brand;
-  final String category;
-  final String segment;
+  final String? brand;
+  final String? categoryId;
+  final String? categoryName;
   final String? barcode;
-  final String unitMeasure;
-  final String presentation;
+  final String? unitMeasure;
+  final String? presentation;
   final double? cost;
-  final double? wholesalePrice;
+  final double wholesalePrice;
   final double? retailPrice;
   final double? marginPercentage;
   final double stockCurrent;
@@ -49,6 +50,7 @@ class ProductModel extends Equatable {
   final bool isFeatured;
   final String? imageUrl;
   final double? taxRate;
+  final String? notes;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final bool lowStock;
@@ -56,18 +58,18 @@ class ProductModel extends Equatable {
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     return ProductModel(
       id: json['id'] as String,
-      internalCode: json['internalCode'] as String,
+      internalCode: json['internalCode'] as String?,
       name: json['name'] as String,
-      shortDescription: json['shortDescription'] as String,
+      shortDescription: json['shortDescription'] as String?,
       longDescription: json['longDescription'] as String?,
-      brand: json['brand'] as String,
-      category: json['category'] as String,
-      segment: json['segment'] as String,
+      brand: json['brand'] as String?,
+      categoryId: json['categoryId'] as String?,
+      categoryName: json['categoryName'] as String?,
       barcode: json['barcode'] as String?,
-      unitMeasure: json['unitMeasure'] as String,
-      presentation: json['presentation'] as String,
+      unitMeasure: json['unitMeasure'] as String?,
+      presentation: json['presentation'] as String?,
       cost: (json['cost'] as num?)?.toDouble(),
-      wholesalePrice: (json['wholesalePrice'] as num?)?.toDouble(),
+      wholesalePrice: (json['wholesalePrice'] as num?)?.toDouble() ?? 0,
       retailPrice: (json['retailPrice'] as num?)?.toDouble(),
       marginPercentage: (json['marginPercentage'] as num?)?.toDouble(),
       stockCurrent: (json['stockCurrent'] as num?)?.toDouble() ?? 0,
@@ -76,6 +78,7 @@ class ProductModel extends Equatable {
       isFeatured: json['isFeatured'] as bool? ?? false,
       imageUrl: json['imageUrl'] as String?,
       taxRate: (json['taxRate'] as num?)?.toDouble(),
+      notes: json['notes'] as String?,
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'] as String) : null,
       lowStock: json['lowStock'] as bool? ?? false,
@@ -89,8 +92,7 @@ class ProductModel extends Equatable {
       'shortDescription': shortDescription,
       'longDescription': longDescription,
       'brand': brand,
-      'category': category,
-      'segment': segment,
+      'categoryId': categoryId,
       'barcode': barcode,
       'unitMeasure': unitMeasure,
       'presentation': presentation,
@@ -103,6 +105,7 @@ class ProductModel extends Equatable {
       'isFeatured': isFeatured,
       'imageUrl': imageUrl,
       'taxRate': taxRate,
+      'notes': notes,
     };
   }
 
@@ -111,13 +114,38 @@ class ProductModel extends Equatable {
         id,
         internalCode,
         name,
-        shortDescription,
-        brand,
-        category,
-        segment,
+        categoryId,
+        categoryName,
+        wholesalePrice,
         stockCurrent,
         stockMinimum,
         isActive,
         lowStock,
       ];
+}
+
+class ProductCategory extends Equatable {
+  const ProductCategory({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.isActive,
+  });
+
+  final String id;
+  final String name;
+  final String? description;
+  final bool isActive;
+
+  factory ProductCategory.fromJson(Map<String, dynamic> json) {
+    return ProductCategory(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String?,
+      isActive: json['isActive'] as bool? ?? true,
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, name, description, isActive];
 }
