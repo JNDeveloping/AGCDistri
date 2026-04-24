@@ -1,4 +1,4 @@
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 
 String? buildWhatsappUrl(String? rawPhone) {
   if (rawPhone == null) return null;
@@ -11,6 +11,6 @@ Future<bool> openClientWhatsapp(String? rawPhone) async {
   final url = buildWhatsappUrl(rawPhone);
   if (url == null) return false;
 
-  final uri = Uri.parse(url);
-  return launchUrl(uri, mode: LaunchMode.externalApplication);
+  await Clipboard.setData(ClipboardData(text: url));
+  return true;
 }

@@ -63,7 +63,7 @@ class ClientCard extends StatelessWidget {
                   Expanded(child: Text('Saldo: ${client.currentBalance.toStringAsFixed(2)}')),
                   Expanded(child: Text('Límite: ${client.creditLimit.toStringAsFixed(2)}')),
                   IconButton(
-                    onPressed: whatsappUrl == null ? null : () => openClientWhatsapp(client.phone),
+                    onPressed: whatsappUrl == null ? null : () async { final ok = await openClientWhatsapp(client.phone); if (context.mounted && ok) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enlace de WhatsApp copiado.'))); } },
                     icon: const Icon(Icons.chat),
                     tooltip: 'WhatsApp',
                   ),
