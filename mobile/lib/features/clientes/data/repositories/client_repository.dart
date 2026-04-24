@@ -134,6 +134,17 @@ class ClientRepository {
     }
   }
 
+  Future<ClientZone> activateZone(String id) async {
+    try {
+      final payload = await _remoteDataSource.activateZone(id);
+      final data = payload['data'] as Map<String, dynamic>?;
+      if (data == null) throw ClientException('No se pudo activar la zona.');
+      return ClientZone.fromJson(data);
+    } on DioException catch (error) {
+      throw _extractError(error);
+    }
+  }
+
   Future<int> moveZoneClients({required String id, required String zoneId}) async {
     try {
       final payload = await _remoteDataSource.moveZoneClients(id, zoneId: zoneId);

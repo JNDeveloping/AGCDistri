@@ -75,6 +75,15 @@ export class ProductCategoryRepository {
     return this.findById(id);
   }
 
+  async activate(id) {
+    await pool.query(
+      'UPDATE product_categories SET is_active = TRUE, deactivated_at = NULL, updated_at = NOW() WHERE id = $1',
+      [id],
+    );
+
+    return this.findById(id);
+  }
+
   async countProducts(id) {
     const { rows } = await pool.query('SELECT COUNT(*)::int AS total FROM products WHERE category_id = $1', [id]);
     return rows[0]?.total ?? 0;

@@ -21,8 +21,13 @@ export const deactivateZoneController = async (req, res) => {
   return ok(res, data, 'Zona desactivada correctamente.');
 };
 
+export const activateZoneController = async (req, res) => {
+  const data = await zoneService.activate(req.params.id);
+  return ok(res, data, 'Zona activada correctamente.');
+};
+
 export const moveZoneClientsController = async (req, res) => {
-  const data = await zoneService.moveClients(req.params.id, req.body.zoneId);
+  const data = await zoneService.moveClients(req.params.id, req.body.targetZoneId);
   return ok(res, data, 'Clientes movidos de zona correctamente.');
 };
 

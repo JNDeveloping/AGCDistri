@@ -68,6 +68,10 @@ class ProductsCubit extends Cubit<ProductsState> {
     return _repository.deactivateCategory(id);
   }
 
+  Future<void> activateCategory(String id) {
+    return _repository.activateCategory(id);
+  }
+
   Future<int> moveCategoryProducts({required String id, required String categoryId}) {
     return _repository.moveCategoryProducts(id: id, categoryId: categoryId);
   }

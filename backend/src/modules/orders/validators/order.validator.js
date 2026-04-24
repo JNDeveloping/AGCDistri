@@ -16,7 +16,6 @@ export const createOrderSchema = z.object({
   notes: z.string().max(4000).optional().nullable(),
   paymentTerms: z.enum(paymentTermsValues).optional().default('contado'),
   discountTotal: z.coerce.number().min(0).optional().default(0),
-  taxTotal: z.coerce.number().min(0).optional().default(0),
   estimatedDeliveryDate: z.string().date().optional().nullable(),
   items: z.array(orderItemSchema).min(1),
 });

@@ -81,6 +81,14 @@ class ProductRepository {
     }
   }
 
+  Future<void> activateCategory(String id) async {
+    try {
+      await _remoteDataSource.activateCategory(id);
+    } on DioException catch (error) {
+      throw ProductException(_message(error));
+    }
+  }
+
   Future<int> moveCategoryProducts({required String id, required String categoryId}) async {
     try {
       final payload = await _remoteDataSource.moveCategoryProducts(id, categoryId: categoryId);

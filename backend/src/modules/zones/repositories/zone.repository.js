@@ -68,6 +68,19 @@ export class ZoneRepository {
     return rows[0] ?? null;
   }
 
+  async activate(id) {
+    const { rows } = await pool.query(
+      `
+      UPDATE zones
+      SET is_active = TRUE, deactivated_at = NULL, updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, name, description, is_active, created_at, updated_at, deactivated_at
+      `,
+      [id],
+    );
+    return rows[0] ?? null;
+  }
+
   async countAssignedClients(id) {
     const { rows } = await pool.query('SELECT COUNT(*)::int AS total FROM clients WHERE zone_id = $1', [id]);
     return rows[0]?.total ?? 0;

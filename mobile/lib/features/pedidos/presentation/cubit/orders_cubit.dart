@@ -40,7 +40,6 @@ class OrdersCubit extends Cubit<OrdersState> {
     required String clientId,
     required List<OrderItemInput> items,
     double discountTotal = 0,
-    double taxTotal = 0,
     String? paymentTerms,
     String? notes,
   }) async {
@@ -49,7 +48,6 @@ class OrdersCubit extends Cubit<OrdersState> {
       clientId: clientId,
       items: items,
       discountTotal: discountTotal,
-      taxTotal: taxTotal,
       paymentTerms: paymentTerms,
       notes: notes,
     );

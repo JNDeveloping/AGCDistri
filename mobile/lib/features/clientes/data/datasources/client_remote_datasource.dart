@@ -57,8 +57,12 @@ class ClientRemoteDataSource {
     return _patch('/zones/$id/deactivate');
   }
 
+  Future<Map<String, dynamic>> activateZone(String id) {
+    return _patch('/zones/$id/activate');
+  }
+
   Future<Map<String, dynamic>> moveZoneClients(String id, {required String zoneId}) {
-    return _patch('/zones/$id/move-clients', data: {'zoneId': zoneId});
+    return _patch('/zones/$id/move-clients', data: {'targetZoneId': zoneId});
   }
 
   Future<Map<String, dynamic>> deleteZone(String id) {

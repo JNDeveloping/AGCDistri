@@ -54,6 +54,16 @@ export class ProductCategoryService {
     return mapCategory(updated);
   }
 
+  async activate(id) {
+    const existing = await productCategoryRepository.findById(id);
+    if (!existing) {
+      throw new AppError('Categoría no encontrada.', 404);
+    }
+
+    const updated = await productCategoryRepository.activate(id);
+    return mapCategory(updated);
+  }
+
   async moveProducts(id, destinationCategoryId) {
     if (id === destinationCategoryId) {
       throw new AppError('La categoría destino debe ser distinta a la origen.', 400);

@@ -32,7 +32,6 @@ class OrderRepository {
     required String clientId,
     required List<OrderItemInput> items,
     double discountTotal = 0,
-    double taxTotal = 0,
     String? paymentTerms,
     String? notes,
   }) async {
@@ -41,7 +40,6 @@ class OrderRepository {
         'clientId': clientId,
         'items': items.map((e) => e.toJson()).toList(),
         'discountTotal': discountTotal,
-        'taxTotal': taxTotal,
         'paymentTerms': paymentTerms,
         'notes': notes,
       };

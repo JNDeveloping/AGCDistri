@@ -11,5 +11,5 @@ export const updateZoneSchema = z.object({
 });
 
 export const moveZoneClientsSchema = z.object({
-  zoneId: z.string().uuid(),
+  targetZoneId: z.string().uuid(),
 });

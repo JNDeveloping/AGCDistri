@@ -193,8 +193,8 @@ export class OrderService {
 
     const subtotal = items.reduce((acc, i) => acc + i.subtotal, 0);
     const discountTotal = Number(payload.discountTotal ?? 0);
-    const taxTotal = Number(payload.taxTotal ?? 0);
-    const total = Math.max(0, subtotal - discountTotal + taxTotal);
+    const taxTotal = 0;
+    const total = Math.max(0, subtotal - discountTotal);
     const estimatedMargin = items.reduce((acc, i) => acc + i.estimatedMargin, 0) - discountTotal;
 
     return { items, subtotal, discountTotal, taxTotal, total, estimatedMargin };

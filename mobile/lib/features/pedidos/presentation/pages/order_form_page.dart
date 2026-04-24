@@ -18,8 +18,7 @@ class OrderFormPage extends StatefulWidget {
 class _OrderFormPageState extends State<OrderFormPage> {
   OrderClientLookup? _client;
   final _notes = TextEditingController();
-  final _discountTotal = TextEditingController(text: '0');
-  final _taxTotal = TextEditingController(text: '0');
+  final _discountPercent = TextEditingController(text: '0');
   final Map<String, _CartLine> _cart = {};
   bool _saving = false;
   String _paymentTerms = 'contado';
@@ -33,8 +32,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
   @override
   void dispose() {
     _notes.dispose();
-    _discountTotal.dispose();
-    _taxTotal.dispose();
+    _discountPercent.dispose();
     super.dispose();
   }
 
@@ -42,7 +40,9 @@ class _OrderFormPageState extends State<OrderFormPage> {
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
     final subtotal = _cart.values.fold<double>(0, (acc, l) => acc + l.netSubtotal);
-    final total = subtotal - (double.tryParse(_discountTotal.text) ?? 0) + (double.tryParse(_taxTotal.text) ?? 0);
+    final discountPercent = (double.tryParse(_discountPercent.text) ?? 0).clamp(0, 100);
+    final discountTotal = subtotal * (discountPercent / 100);
+    final total = subtotal - discountTotal;
     final creditWarning = _client != null && _client!.creditLimit > 0 && (_client!.currentBalance + total) > _client!.creditLimit;
 
     return Scaffold(
@@ -110,6 +110,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
                 children: [
                   DropdownButtonFormField<String>(
                     value: _paymentTerms,
+                    isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Condición de pago'),
                     items: const [
                       DropdownMenuItem(value: 'contado', child: Text('Contado')),
@@ -117,8 +118,12 @@ class _OrderFormPageState extends State<OrderFormPage> {
                     ],
                     onChanged: (v) => setState(() => _paymentTerms = v ?? 'contado'),
                   ),
-                  TextField(controller: _discountTotal, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Descuento general')),
-                  TextField(controller: _taxTotal, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Impuestos')),
+                  TextField(
+                    controller: _discountPercent,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Descuento general (%)'),
+                    onChanged: (_) => setState(() {}),
+                  ),
                   TextField(controller: _notes, decoration: const InputDecoration(labelText: 'Observaciones')),
                 ],
               ),
@@ -139,24 +144,39 @@ class _OrderFormPageState extends State<OrderFormPage> {
             Text(line.product.name, style: const TextStyle(fontWeight: FontWeight.w700)),
             Text('Precio unitario: ${line.product.salePrice.toStringAsFixed(2)} · Stock ${line.product.stockCurrent.toStringAsFixed(0)}'),
             const SizedBox(height: 8),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                IconButton(onPressed: () => _changeQty(line.product.id, line.quantity - 1), icon: const Icon(Icons.remove_circle_outline)),
-                SizedBox(
-                  width: 70,
-                  child: TextFormField(
-                    initialValue: line.quantity.toStringAsFixed(0),
-                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    onFieldSubmitted: (v) => _changeQty(line.product.id, double.tryParse(v) ?? line.quantity),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(onPressed: () => _changeQty(line.product.id, line.quantity - 1), icon: const Icon(Icons.remove_circle_outline)),
+                      SizedBox(
+                        width: 70,
+                        child: TextFormField(
+                          initialValue: line.quantity.toStringAsFixed(0),
+                          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
+                          textAlign: TextAlign.center,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          onFieldSubmitted: (v) => _changeQty(line.product.id, double.tryParse(v) ?? line.quantity),
+                        ),
+                      ),
+                      IconButton(onPressed: () => _changeQty(line.product.id, line.quantity + 1), icon: const Icon(Icons.add_circle_outline)),
+                    ],
                   ),
                 ),
-                IconButton(onPressed: () => _changeQty(line.product.id, line.quantity + 1), icon: const Icon(Icons.add_circle_outline)),
-                const SizedBox(width: 8),
-                Expanded(
+                SizedBox(
+                  width: 150,
                   child: DropdownButtonFormField<String>(
                     value: line.discountType,
+                    isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Desc.'),
                     items: const [
                       DropdownMenuItem(value: 'amount', child: Text('Monto')),
@@ -165,13 +185,12 @@ class _OrderFormPageState extends State<OrderFormPage> {
                     onChanged: (v) => _changeDiscountType(line.product.id, v ?? 'amount'),
                   ),
                 ),
-                const SizedBox(width: 8),
                 SizedBox(
-                  width: 80,
+                  width: 96,
                   child: TextFormField(
                     initialValue: line.discountValue.toStringAsFixed(0),
                     style: const TextStyle(color: Colors.black),
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(labelText: 'Valor'),
                     onFieldSubmitted: (v) => _changeDiscountValue(line.product.id, double.tryParse(v) ?? 0),
                   ),
@@ -200,8 +219,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
       _client = OrderClientLookup(id: order.clientId, businessName: order.clientName, currentBalance: 0, creditLimit: 0);
       _notes.text = order.notes ?? '';
       _paymentTerms = order.paymentTerms ?? 'contado';
-      _discountTotal.text = order.discountTotal.toStringAsFixed(2);
-      _taxTotal.text = order.taxTotal.toStringAsFixed(2);
+      _discountPercent.text = order.subtotal > 0 ? ((order.discountTotal / order.subtotal) * 100).toStringAsFixed(2) : '0';
       _cart
         ..clear()
         ..addEntries(
@@ -265,6 +283,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
 
     setState(() => _saving = true);
     try {
+      final subtotal = _cart.values.fold<double>(0, (acc, l) => acc + l.netSubtotal);
       final items = _cart.values
           .map((l) => OrderItemInput(productId: l.product.id, quantity: l.quantity, discountType: l.discountType, discountValue: l.discountValue))
           .toList();
@@ -272,8 +291,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
             id: widget.orderId,
             clientId: _client!.id,
             items: items,
-            discountTotal: double.tryParse(_discountTotal.text) ?? 0,
-            taxTotal: double.tryParse(_taxTotal.text) ?? 0,
+            discountTotal: subtotal * (((double.tryParse(_discountPercent.text) ?? 0).clamp(0, 100)) / 100),
             paymentTerms: _paymentTerms,
             notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
           );

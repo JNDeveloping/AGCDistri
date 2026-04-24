@@ -37,6 +37,9 @@ class ProductRemoteDataSource {
   Future<Map<String, dynamic>> deactivateCategory(String id) async =>
       (await _apiClient.patch('/product-categories/$id/deactivate')).data ?? {};
 
+  Future<Map<String, dynamic>> activateCategory(String id) async =>
+      (await _apiClient.patch('/product-categories/$id/activate')).data ?? {};
+
   Future<Map<String, dynamic>> moveCategoryProducts(String id, {required String categoryId}) async =>
       (await _apiClient.patch('/product-categories/$id/move-products', data: {'categoryId': categoryId})).data ?? {};
 

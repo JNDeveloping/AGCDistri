@@ -22,6 +22,11 @@ export const deactivateProductCategoryController = async (req, res) => {
   return ok(res, data, 'Categoría desactivada correctamente.');
 };
 
+export const activateProductCategoryController = async (req, res) => {
+  const data = await productCategoryService.activate(req.params.id);
+  return ok(res, data, 'Categoría activada correctamente.');
+};
+
 export const moveCategoryProductsController = async (req, res) => {
   const data = await productCategoryService.moveProducts(req.params.id, req.body.categoryId);
   return ok(res, data, 'Productos movidos de categoría correctamente.');

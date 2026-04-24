@@ -91,6 +91,10 @@ class ClientsCubit extends Cubit<ClientsState> {
     return _clientRepository.deactivateZone(id);
   }
 
+  Future<ClientZone> activateZone(String id) {
+    return _clientRepository.activateZone(id);
+  }
+
   Future<int> moveZoneClients({required String id, required String zoneId}) {
     return _clientRepository.moveZoneClients(id: id, zoneId: zoneId);
   }

@@ -39,6 +39,12 @@ export class ZoneService {
     return mapZone(updated);
   }
 
+  async activate(id) {
+    const updated = await zoneRepository.activate(id);
+    if (!updated) throw new AppError('Zona/ruta no encontrada.', 404);
+    return mapZone(updated);
+  }
+
   async moveClients(id, destinationZoneId) {
     if (id === destinationZoneId) {
       throw new AppError('La zona destino debe ser distinta a la zona origen.', 400);

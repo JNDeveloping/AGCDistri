@@ -65,7 +65,7 @@ class OrderModel extends Equatable {
 
   factory OrderModel.fromJson(Map<String, dynamic> json) => OrderModel(
         id: json['id'] as String,
-        orderNumber: json['orderNumber'] as int? ?? 0,
+        orderNumber: _asInt(json['orderNumber']) ?? 0,
         clientId: json['clientId'] as String,
         clientName: json['clientName'] as String? ?? '-',
         sellerId: json['sellerId'] as String,
@@ -87,6 +87,12 @@ class OrderModel extends Equatable {
 
   @override
   List<Object?> get props => [id, orderNumber, clientId, status, total];
+}
+
+int? _asInt(dynamic value) {
+  if (value is int) return value;
+  if (value is String) return int.tryParse(value);
+  return null;
 }
 
 class OrderItemModel extends Equatable {

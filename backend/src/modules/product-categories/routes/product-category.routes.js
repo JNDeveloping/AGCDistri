@@ -6,6 +6,7 @@ import { asyncHandler } from '../../../middlewares/async-handler.js';
 import { authorize } from '../../../middlewares/authorize.js';
 import { validate } from '../../../middlewares/validate.js';
 import {
+  activateProductCategoryController,
   createProductCategoryController,
   deactivateProductCategoryController,
   deleteProductCategoryController,
@@ -27,6 +28,7 @@ productCategoryRouter.get('/', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR),
 productCategoryRouter.post('/', authorize(USER_ROLES.ADMIN), validate(createProductCategorySchema), asyncHandler(createProductCategoryController));
 productCategoryRouter.put('/:id', authorize(USER_ROLES.ADMIN), validate(updateProductCategorySchema), asyncHandler(updateProductCategoryController));
 productCategoryRouter.patch('/:id/deactivate', authorize(USER_ROLES.ADMIN), asyncHandler(deactivateProductCategoryController));
+productCategoryRouter.patch('/:id/activate', authorize(USER_ROLES.ADMIN), asyncHandler(activateProductCategoryController));
 productCategoryRouter.patch('/:id/move-products', authorize(USER_ROLES.ADMIN), validate(moveCategoryProductsSchema), asyncHandler(moveCategoryProductsController));
 productCategoryRouter.delete('/:id', authorize(USER_ROLES.ADMIN), asyncHandler(deleteProductCategoryController));
 
