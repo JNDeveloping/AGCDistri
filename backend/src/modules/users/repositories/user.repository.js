@@ -91,6 +91,34 @@ export class UserRepository {
     const { rows } = await pool.query(query, [id]);
     return rows[0] ?? null;
   }
+
+  async activate(id) {
+    const query = `
+      UPDATE users
+      SET is_active = TRUE, updated_at = NOW()
+      WHERE id = $1
+      RETURNING id, full_name, email, role, is_active, created_at, updated_at
+    `;
+
+    const { rows } = await pool.query(query, [id]);
+    return rows[0] ?? null;
+  }
+
+  async hasAssociatedMovements(id) {
+    const query = `
+      SELECT
+        EXISTS(SELECT 1 FROM orders WHERE seller_id = $1 OR assigned_delivery_user_id = $1) AS has_orders,
+        EXISTS(SELECT 1 FROM audit_logs WHERE user_id = $1) AS has_audit
+    `;
+    const { rows } = await pool.query(query, [id]);
+    const row = rows[0] ?? {};
+    return row.has_orders === true || row.has_audit === true;
+  }
+
+  async remove(id) {
+    const { rowCount } = await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    return rowCount > 0;
+  }
 }
 
 export const userRepository = new UserRepository();

@@ -83,6 +83,42 @@ export class UserService {
 
     return user;
   }
+
+  async activate(id, actorId) {
+    if (id === actorId) {
+      throw new AppError('No podés activar tu propio usuario desde esta acción.', 400);
+    }
+
+    const user = await userRepository.activate(id);
+    if (!user) {
+      throw new AppError('Usuario no encontrado.', 404);
+    }
+
+    return user;
+  }
+
+  async remove(id, actorId) {
+    if (id === actorId) {
+      throw new AppError('No podés eliminar el usuario con el que estás logueado.', 409);
+    }
+
+    const existing = await userRepository.findById(id);
+    if (!existing) {
+      throw new AppError('Usuario no encontrado.', 404);
+    }
+
+    const hasMovements = await userRepository.hasAssociatedMovements(id);
+    if (hasMovements) {
+      throw new AppError(
+        'No se puede eliminar este usuario porque tiene movimientos asociados. Podés desactivarlo.',
+        409,
+        { canDeactivate: true },
+      );
+    }
+
+    await userRepository.remove(id);
+    return { id };
+  }
 }
 
 export const userService = new UserService();

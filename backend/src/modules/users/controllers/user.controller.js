@@ -30,3 +30,13 @@ export const deactivateUserController = async (req, res) => {
   const user = await userService.deactivate(req.params.id, req.user.sub);
   return ok(res, toUserDto(user), 'Usuario desactivado correctamente.');
 };
+
+export const activateUserController = async (req, res) => {
+  const user = await userService.activate(req.params.id, req.user.sub);
+  return ok(res, toUserDto(user), 'Usuario activado correctamente.');
+};
+
+export const deleteUserController = async (req, res) => {
+  const result = await userService.remove(req.params.id, req.user.sub);
+  return ok(res, result, 'Usuario eliminado correctamente.');
+};

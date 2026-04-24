@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../data/repositories/users_repository.dart';
 import '../../domain/models/app_user.dart';
 
@@ -18,6 +20,7 @@ class _UsersPageState extends State<UsersPage> {
   bool _loading = true;
   String? _error;
   List<AppUser> _users = const [];
+  bool? _statusFilter;
 
   @override
   void initState() {
@@ -44,6 +47,12 @@ class _UsersPageState extends State<UsersPage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = context.select((AuthCubit cubit) => cubit.state.session?.user.id);
+    final visibleUsers = _users.where((u) {
+      if (_statusFilter == null) return true;
+      return u.isActive == _statusFilter;
+    }).toList();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Usuarios')),
       floatingActionButton: FloatingActionButton.extended(
@@ -57,30 +66,76 @@ class _UsersPageState extends State<UsersPage> {
               ? Center(child: Text(_error!))
               : RefreshIndicator(
                   onRefresh: _load,
-                  child: ListView.builder(
+                  child: ListView(
                     padding: const EdgeInsets.all(16),
-                    itemCount: _users.length,
-                    itemBuilder: (_, index) {
-                      final user = _users[index];
-                      return Card(
-                        child: ListTile(
-                          leading: CircleAvatar(child: Text(user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : '?')),
-                          title: Text(user.fullName),
-                          subtitle: Text('${user.email}\nRol: ${user.role}${user.isActive ? '' : ' · Inactivo'}'),
-                          isThreeLine: true,
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'edit') _openForm(user: user);
-                              if (value == 'deactivate' && user.isActive) _confirmDeactivate(user);
-                            },
-                            itemBuilder: (_) => [
-                              const PopupMenuItem(value: 'edit', child: Text('Editar')),
-                              if (user.isActive) const PopupMenuItem(value: 'deactivate', child: Text('Desactivar')),
-                            ],
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('Todos'),
+                            selected: _statusFilter == null,
+                            onSelected: (_) => setState(() => _statusFilter = null),
+                          ),
+                          ChoiceChip(
+                            label: const Text('Activos'),
+                            selected: _statusFilter == true,
+                            onSelected: (_) => setState(() => _statusFilter = true),
+                          ),
+                          ChoiceChip(
+                            label: const Text('Inactivos'),
+                            selected: _statusFilter == false,
+                            onSelected: (_) => setState(() => _statusFilter = false),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      ...visibleUsers.map(
+                        (user) => Card(
+                          child: ListTile(
+                            leading: CircleAvatar(child: Text(user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : '?')),
+                            title: Row(
+                              children: [
+                                Expanded(child: Text(user.fullName)),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: user.isActive ? Colors.green.shade100 : Colors.red.shade100,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    user.isActive ? 'Activo' : 'Inactivo',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: user.isActive ? Colors.green.shade900 : Colors.red.shade900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            subtitle: Text('${user.email}\nRol: ${user.role}'),
+                            isThreeLine: true,
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (value) {
+                                if (value == 'edit') _openForm(user: user);
+                                if (value == 'deactivate' && user.isActive) _confirmDeactivate(user);
+                                if (value == 'activate' && !user.isActive) _activate(user);
+                                if (value == 'delete') _confirmDelete(user, currentUserId);
+                              },
+                              itemBuilder: (_) => [
+                                const PopupMenuItem(value: 'edit', child: Text('Editar')),
+                                if (user.isActive) const PopupMenuItem(value: 'deactivate', child: Text('Desactivar')),
+                                if (!user.isActive) const PopupMenuItem(value: 'activate', child: Text('Activar')),
+                                const PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                              ],
+                            ),
+                            titleAlignment: ListTileTitleAlignment.center,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
                 ),
     );
@@ -100,11 +155,87 @@ class _UsersPageState extends State<UsersPage> {
     );
 
     if (ok == true) {
-      await widget.repository.deactivate(user.id);
+      try {
+        await widget.repository.deactivate(user.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario desactivado.')));
+        }
+        await _load();
+      } on UsersException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        }
+      }
+    }
+  }
+
+  Future<void> _activate(AppUser user) async {
+    try {
+      await widget.repository.activate(user.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario desactivado.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario activado.')));
       }
       await _load();
+    } on UsersException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
+  Future<void> _confirmDelete(AppUser user, String? currentUserId) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Eliminar usuario'),
+        content: Text('Esta acción eliminará a ${user.fullName} si no tiene movimientos asociados. ¿Continuar?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton.tonal(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    if (currentUserId != null && currentUserId == user.id) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No podés eliminar el usuario con el que estás logueado.')),
+        );
+      }
+      return;
+    }
+
+    try {
+      await widget.repository.delete(user.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario eliminado correctamente.')));
+      }
+      await _load();
+    } on UsersException catch (e) {
+      if (!mounted) return;
+      if (e.canDeactivate) {
+        final shouldDeactivate = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('No se puede eliminar'),
+            content: const Text('No se puede eliminar este usuario porque tiene movimientos asociados. Podés desactivarlo.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cerrar')),
+              FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Desactivar usuario')),
+            ],
+          ),
+        );
+        if (shouldDeactivate == true) {
+          await widget.repository.deactivate(user.id);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario desactivado.')));
+          }
+          await _load();
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     }
   }
 

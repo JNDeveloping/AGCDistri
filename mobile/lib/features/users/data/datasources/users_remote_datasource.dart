@@ -15,4 +15,10 @@ class UsersRemoteDataSource {
 
   Future<Map<String, dynamic>> deactivateUser(String id) async =>
       (await _apiClient.patch('/users/$id/deactivate')).data ?? {};
+
+  Future<Map<String, dynamic>> activateUser(String id) async =>
+      (await _apiClient.patch('/users/$id/activate')).data ?? {};
+
+  Future<Map<String, dynamic>> deleteUser(String id) async =>
+      (await _apiClient.delete('/users/$id')).data ?? {};
 }

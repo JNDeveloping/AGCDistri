@@ -6,8 +6,10 @@ import { asyncHandler } from '../../../middlewares/async-handler.js';
 import { authorize } from '../../../middlewares/authorize.js';
 import { validate } from '../../../middlewares/validate.js';
 import {
+  activateUserController,
   createUserController,
   deactivateUserController,
+  deleteUserController,
   listUsersController,
   updateUserController,
 } from '../controllers/user.controller.js';
@@ -22,5 +24,7 @@ userRouter.get('/', asyncHandler(listUsersController));
 userRouter.post('/', validate(createUserSchema), asyncHandler(createUserController));
 userRouter.put('/:id', validate(updateUserSchema), asyncHandler(updateUserController));
 userRouter.patch('/:id/deactivate', asyncHandler(deactivateUserController));
+userRouter.patch('/:id/activate', asyncHandler(activateUserController));
+userRouter.delete('/:id', asyncHandler(deleteUserController));
 
 export { userRouter };
