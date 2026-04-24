@@ -1,0 +1,143 @@
+import 'package:equatable/equatable.dart';
+
+class ProductModel extends Equatable {
+  const ProductModel({
+    required this.id,
+    required this.internalCode,
+    required this.name,
+    required this.shortDescription,
+    required this.longDescription,
+    required this.brand,
+    required this.categoryId,
+    required this.categoryName,
+    required this.barcode,
+    required this.unitMeasure,
+    required this.cost,
+    required this.salePrice,
+    required this.marginPercentage,
+    required this.stockCurrent,
+    required this.stockMinimum,
+    required this.isActive,
+    required this.isFeatured,
+    required this.imageUrl,
+    required this.taxRate,
+    required this.notes,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.lowStock,
+  });
+
+  final String id;
+  final String? internalCode;
+  final String name;
+  final String? shortDescription;
+  final String? longDescription;
+  final String? brand;
+  final String? categoryId;
+  final String? categoryName;
+  final String? barcode;
+  final String? unitMeasure;
+  final double? cost;
+  final double salePrice;
+  final double? marginPercentage;
+  final double stockCurrent;
+  final double stockMinimum;
+  final bool isActive;
+  final bool isFeatured;
+  final String? imageUrl;
+  final double? taxRate;
+  final String? notes;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final bool lowStock;
+
+  factory ProductModel.fromJson(Map<String, dynamic> json) {
+    return ProductModel(
+      id: json['id'] as String,
+      internalCode: json['internalCode'] as String?,
+      name: json['name'] as String,
+      shortDescription: json['shortDescription'] as String?,
+      longDescription: json['longDescription'] as String?,
+      brand: json['brand'] as String?,
+      categoryId: json['categoryId'] as String?,
+      categoryName: json['categoryName'] as String?,
+      barcode: json['barcode'] as String?,
+      unitMeasure: json['unitMeasure'] as String?,
+      cost: (json['cost'] as num?)?.toDouble(),
+      salePrice: ((json['salePrice'] as num?) ?? (json['wholesalePrice'] as num?) ?? 0).toDouble(),
+      marginPercentage: (json['marginPercentage'] as num?)?.toDouble(),
+      stockCurrent: (json['stockCurrent'] as num?)?.toDouble() ?? 0,
+      stockMinimum: (json['stockMinimum'] as num?)?.toDouble() ?? 0,
+      isActive: json['isActive'] as bool? ?? true,
+      isFeatured: json['isFeatured'] as bool? ?? false,
+      imageUrl: json['imageUrl'] as String?,
+      taxRate: (json['taxRate'] as num?)?.toDouble(),
+      notes: json['notes'] as String?,
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) : null,
+      updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'] as String) : null,
+      lowStock: json['lowStock'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'internalCode': internalCode,
+      'name': name,
+      'shortDescription': shortDescription,
+      'longDescription': longDescription,
+      'brand': brand,
+      'categoryId': categoryId,
+      'barcode': barcode,
+      'unitMeasure': unitMeasure,
+      'cost': cost,
+      'salePrice': salePrice,
+      'marginPercentage': marginPercentage,
+      'stockCurrent': stockCurrent,
+      'stockMinimum': stockMinimum,
+      'isFeatured': isFeatured,
+      'imageUrl': imageUrl,
+      'taxRate': taxRate,
+      'notes': notes,
+    };
+  }
+
+  @override
+  List<Object?> get props => [
+        id,
+        internalCode,
+        name,
+        categoryId,
+        categoryName,
+        salePrice,
+        stockCurrent,
+        stockMinimum,
+        isActive,
+        lowStock,
+      ];
+}
+
+class ProductCategory extends Equatable {
+  const ProductCategory({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.isActive,
+  });
+
+  final String id;
+  final String name;
+  final String? description;
+  final bool isActive;
+
+  factory ProductCategory.fromJson(Map<String, dynamic> json) {
+    return ProductCategory(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String?,
+      isActive: json['isActive'] as bool? ?? true,
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, name, description, isActive];
+}
