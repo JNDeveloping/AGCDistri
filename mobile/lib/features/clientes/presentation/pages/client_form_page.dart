@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../../data/repositories/client_repository.dart';
+import '../../domain/constants/arg_locations.dart';
 import '../../domain/models/client_model.dart';
 import '../cubit/clients_cubit.dart';
 
@@ -18,7 +20,12 @@ class _ClientFormPageState extends State<ClientFormPage> {
   final _formKey = GlobalKey<FormState>();
   bool _saving = false;
   bool _loadingLocation = false;
+  bool _loadingZones = false;
   String _selectedVat = 'Responsable Inscripto';
+  String? _selectedProvince;
+  String? _selectedLocality;
+  String? _selectedZoneId;
+  List<ClientZone> _zones = const [];
   double? _latitude;
   double? _longitude;
 
@@ -30,9 +37,6 @@ class _ClientFormPageState extends State<ClientFormPage> {
   late final TextEditingController _email;
   late final TextEditingController _taxId;
   late final TextEditingController _address;
-  late final TextEditingController _city;
-  late final TextEditingController _province;
-  late final TextEditingController _routeZone;
   late final TextEditingController _notes;
   late final TextEditingController _creditLimit;
   late final TextEditingController _currentBalance;
@@ -49,15 +53,16 @@ class _ClientFormPageState extends State<ClientFormPage> {
     _email = TextEditingController(text: c?.email ?? '');
     _taxId = TextEditingController(text: c?.taxId ?? '');
     _address = TextEditingController(text: c?.addressLine ?? '');
-    _city = TextEditingController(text: c?.city ?? '');
-    _province = TextEditingController(text: c?.province ?? '');
-    _routeZone = TextEditingController(text: c?.routeZone ?? '');
+    _selectedProvince = c?.province;
+    _selectedLocality = c?.city;
+    _selectedZoneId = c?.zoneId;
     _notes = TextEditingController(text: c?.notes ?? '');
     _selectedVat = c?.vatCondition ?? 'Responsable Inscripto';
     _creditLimit = TextEditingController(text: (c?.creditLimit ?? 0).toStringAsFixed(2));
     _currentBalance = TextEditingController(text: (c?.currentBalance ?? 0).toStringAsFixed(2));
     _latitude = c?.latitude;
     _longitude = c?.longitude;
+    _loadZones();
   }
 
   @override
@@ -71,9 +76,6 @@ class _ClientFormPageState extends State<ClientFormPage> {
       _email,
       _taxId,
       _address,
-      _city,
-      _province,
-      _routeZone,
       _notes,
       _creditLimit,
       _currentBalance,
@@ -101,9 +103,57 @@ class _ClientFormPageState extends State<ClientFormPage> {
               _field(_email, 'Email', isEmail: true),
               _field(_taxId, 'CUIT / Identificación fiscal'),
               _field(_address, 'Dirección', requiredField: true),
-              _field(_city, 'Localidad', requiredField: true),
-              _field(_province, 'Provincia', requiredField: true),
-              _field(_routeZone, 'Zona / Ruta', requiredField: true),
+              DropdownButtonFormField<String>(
+                value: argProvinces.contains(_selectedProvince) ? _selectedProvince : null,
+                decoration: const InputDecoration(labelText: 'Provincia'),
+                items: argProvinces.map((province) => DropdownMenuItem(value: province, child: Text(province))).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedProvince = value;
+                    _selectedLocality = null;
+                  });
+                },
+                validator: (value) => value == null || value.isEmpty ? 'Seleccioná una provincia' : null,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: (_selectedProvince != null && (argProvinceLocalities[_selectedProvince] ?? []).contains(_selectedLocality))
+                    ? _selectedLocality
+                    : null,
+                decoration: const InputDecoration(labelText: 'Localidad'),
+                items: (argProvinceLocalities[_selectedProvince] ?? [])
+                    .map((locality) => DropdownMenuItem(value: locality, child: Text(locality)))
+                    .toList(),
+                onChanged: (value) => setState(() => _selectedLocality = value),
+                validator: (value) => value == null || value.isEmpty ? 'Seleccioná una localidad' : null,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: _zones.where((z) => z.id == _selectedZoneId).isNotEmpty ? _selectedZoneId : null,
+                      decoration: InputDecoration(
+                        labelText: 'Zona / Ruta',
+                        suffixIcon: _loadingZones ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                        ) : null,
+                      ),
+                      items: _zones
+                          .where((zone) => zone.isActive || zone.id == _selectedZoneId)
+                          .map((zone) => DropdownMenuItem(value: zone.id, child: Text(zone.name)))
+                          .toList(),
+                      onChanged: (value) => setState(() => _selectedZoneId = value),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: _createZone,
+                    child: const Text('Crear zona/ruta'),
+                  ),
+                ],
+              ),
               DropdownButtonFormField<String>(
                 value: _selectedVat,
                 decoration: const InputDecoration(labelText: 'Condición IVA'),
@@ -231,9 +281,11 @@ class _ClientFormPageState extends State<ClientFormPage> {
       email: _email.text.trim().isEmpty ? null : _email.text.trim(),
       taxId: _taxId.text.trim().isEmpty ? null : _taxId.text.trim(),
       addressLine: _address.text.trim(),
-      city: _city.text.trim(),
-      province: _province.text.trim(),
-      routeZone: _routeZone.text.trim(),
+      province: _selectedProvince ?? '',
+      city: _selectedLocality ?? '',
+      routeZone: _zones.where((z) => z.id == _selectedZoneId).map((z) => z.name).firstOrNull ?? 'Sin zona',
+      zoneId: _selectedZoneId,
+      zoneName: _zones.where((z) => z.id == _selectedZoneId).map((z) => z.name).firstOrNull,
       notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
       vatCondition: _selectedVat,
       creditLimit: double.parse(_creditLimit.text.trim()),
@@ -255,4 +307,59 @@ class _ClientFormPageState extends State<ClientFormPage> {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  Future<void> _loadZones() async {
+    setState(() => _loadingZones = true);
+    try {
+      final zones = await context.read<ClientsCubit>().listZones(includeInactive: true);
+      if (mounted) {
+        setState(() => _zones = zones);
+      }
+    } finally {
+      if (mounted) setState(() => _loadingZones = false);
+    }
+  }
+
+  Future<void> _createZone() async {
+    final nameController = TextEditingController();
+    final created = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nombre de zona/ruta')),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.trim().isEmpty) return;
+                final zone = await context.read<ClientsCubit>().createZone(name: nameController.text.trim());
+                if (mounted) {
+                  setState(() {
+                    _selectedZoneId = zone.id;
+                  });
+                  Navigator.pop(context, true);
+                }
+              },
+              child: const Text('Guardar zona'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (created == true) {
+      await _loadZones();
+    }
+  }
+}
+
+extension<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }

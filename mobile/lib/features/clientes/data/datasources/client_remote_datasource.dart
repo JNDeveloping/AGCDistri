@@ -33,8 +33,20 @@ class ClientRemoteDataSource {
     return _patch('/clientes/$id/deactivate');
   }
 
+  Future<Map<String, dynamic>> activateClient(String id) {
+    return _patch('/clientes/$id/activate');
+  }
+
   Future<Map<String, dynamic>> deleteClient(String id) {
     return _delete('/clientes/$id');
+  }
+
+  Future<Map<String, dynamic>> listZones({bool includeInactive = false}) {
+    return _get('/zones', queryParameters: {'includeInactive': includeInactive});
+  }
+
+  Future<Map<String, dynamic>> createZone({required String name, String? description}) {
+    return _post('/zones', data: {'name': name, 'description': description});
   }
 
   Future<Map<String, dynamic>> _get(String path, {Map<String, dynamic>? queryParameters}) async {

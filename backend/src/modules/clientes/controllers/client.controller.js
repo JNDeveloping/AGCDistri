@@ -33,6 +33,11 @@ export const deactivateClientController = async (req, res) => {
   return ok(res, client, 'Cliente desactivado correctamente.');
 };
 
+export const activateClientController = async (req, res) => {
+  const client = await clientService.activate(req.params.id);
+  return ok(res, client, 'Cliente activado correctamente.');
+};
+
 export const deleteClientController = async (req, res) => {
   const result = await clientService.remove(req.params.id);
   return ok(res, result, 'Cliente eliminado correctamente.');

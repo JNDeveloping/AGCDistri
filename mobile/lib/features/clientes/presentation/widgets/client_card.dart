@@ -9,6 +9,7 @@ class ClientCard extends StatelessWidget {
     required this.onEdit,
     required this.onDeactivate,
     required this.onDelete,
+    required this.onActivate,
     this.canEdit = true,
     super.key,
   });
@@ -18,6 +19,7 @@ class ClientCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDeactivate;
   final VoidCallback onDelete;
+  final VoidCallback onActivate;
   final bool canEdit;
 
   @override
@@ -74,6 +76,12 @@ class ClientCard extends StatelessWidget {
                         onPressed: onDeactivate,
                         icon: const Icon(Icons.block_rounded),
                         label: const Text('Desactivar'),
+                      )
+                    else
+                      TextButton.icon(
+                        onPressed: onActivate,
+                        icon: const Icon(Icons.check_circle_outline_rounded),
+                        label: const Text('Activar'),
                       ),
                     const SizedBox(width: 8),
                     TextButton.icon(

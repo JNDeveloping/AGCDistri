@@ -15,6 +15,7 @@ import { operationsRouter } from './modules/operations/routes/operations.routes.
 import { productCategoryRouter } from './modules/product-categories/routes/product-category.routes.js';
 import { productRouter } from './modules/productos/routes/product.routes.js';
 import { userRouter } from './modules/users/routes/user.routes.js';
+import { zoneRouter } from './modules/zones/routes/zone.routes.js';
 
 export const createApp = () => {
   const app = express();
@@ -34,6 +35,7 @@ export const createApp = () => {
   app.use('/api/v1/productos', productRouter);
   app.use('/api/v1/operaciones', operationsRouter);
   app.use('/api/v1/users', userRouter);
+  app.use('/api/v1/zones', zoneRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

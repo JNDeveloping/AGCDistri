@@ -1,0 +1,32 @@
+const argProvinceLocalities = {
+  'Buenos Aires': ['Adolfo Gonzales Chaves', 'Tres Arroyos', 'Benito Juárez', 'Tandil', 'Necochea', 'Bahía Blanca', 'Mar del Plata', 'La Plata'],
+  'CABA': ['CABA'],
+  'Catamarca': ['San Fernando del Valle de Catamarca'],
+  'Chaco': ['Resistencia'],
+  'Chubut': ['Comodoro Rivadavia'],
+  'Córdoba': ['Córdoba'],
+  'Corrientes': ['Corrientes'],
+  'Entre Ríos': ['Paraná'],
+  'Formosa': ['Formosa'],
+  'Jujuy': ['San Salvador de Jujuy'],
+  'La Pampa': ['Santa Rosa'],
+  'La Rioja': ['La Rioja'],
+  'Mendoza': ['Mendoza'],
+  'Misiones': ['Posadas'],
+  'Neuquén': ['Neuquén'],
+  'Río Negro': ['Viedma'],
+  'Salta': ['Salta'],
+  'San Juan': ['San Juan'],
+  'San Luis': ['San Luis'],
+  'Santa Cruz': ['Río Gallegos'],
+  'Santa Fe': ['Santa Fe'],
+  'Santiago del Estero': ['Santiago del Estero'],
+  'Tierra del Fuego': ['Ushuaia'],
+  'Tucumán': ['San Miguel de Tucumán'],
+};
+
+const argProvinces = [
+  'Buenos Aires','CABA','Catamarca','Chaco','Chubut','Córdoba','Corrientes','Entre Ríos','Formosa','Jujuy',
+  'La Pampa','La Rioja','Mendoza','Misiones','Neuquén','Río Negro','Salta','San Juan','San Luis','Santa Cruz',
+  'Santa Fe','Santiago del Estero','Tierra del Fuego','Tucumán',
+];

@@ -2,29 +2,32 @@ import { pool } from '../../../database/pool.js';
 
 const baseSelect = `
   SELECT
-    id,
-    internal_code,
-    business_name,
-    contact_name,
-    phone,
-    alternate_phone,
-    email,
-    tax_id,
-    address_line,
-    city,
-    province,
-    route_zone,
-    notes,
-    vat_condition,
-    credit_limit,
-    current_balance,
-    latitude,
-    longitude,
-    is_active,
-    created_at,
-    updated_at,
-    deactivated_at
-  FROM clients
+    c.id,
+    c.internal_code,
+    c.business_name,
+    c.contact_name,
+    c.phone,
+    c.alternate_phone,
+    c.email,
+    c.tax_id,
+    c.address_line,
+    c.city,
+    c.province,
+    c.route_zone,
+    c.zone_id,
+    z.name AS zone_name,
+    c.notes,
+    c.vat_condition,
+    c.credit_limit,
+    c.current_balance,
+    c.latitude,
+    c.longitude,
+    c.is_active,
+    c.created_at,
+    c.updated_at,
+    c.deactivated_at
+  FROM clients c
+  LEFT JOIN zones z ON z.id = c.zone_id
 `;
 
 export class ClientRepository {
@@ -32,14 +35,14 @@ export class ClientRepository {
     const query = `
       INSERT INTO clients (
         internal_code, business_name, contact_name, phone, alternate_phone,
-        email, tax_id, address_line, city, province, route_zone,
+        email, tax_id, address_line, city, province, route_zone, zone_id,
         notes, vat_condition, credit_limit, current_balance,
         latitude, longitude
       ) VALUES (
         $1, $2, $3, $4, $5,
-        $6, $7, $8, $9, $10, $11,
-        $12, $13, $14, $15,
-        $16, $17
+        $6, $7, $8, $9, $10, $11, $12,
+        $13, $14, $15, $16,
+        $17, $18
       )
       RETURNING *
     `;
@@ -56,6 +59,7 @@ export class ClientRepository {
       payload.city,
       payload.province,
       payload.routeZone,
+      payload.zoneId,
       payload.notes,
       payload.vatCondition,
       payload.creditLimit,
@@ -69,7 +73,7 @@ export class ClientRepository {
   }
 
   async findById(id) {
-    const { rows } = await pool.query(`${baseSelect} WHERE id = $1 LIMIT 1`, [id]);
+    const { rows } = await pool.query(`${baseSelect} WHERE c.id = $1 LIMIT 1`, [id]);
     return rows[0] ?? null;
   }
 
@@ -96,17 +100,18 @@ export class ClientRepository {
       values.push(`%${q}%`);
       const idx = values.length;
       filters.push(`(
-        business_name ILIKE $${idx}
-        OR contact_name ILIKE $${idx}
-        OR phone ILIKE $${idx}
-        OR city ILIKE $${idx}
-        OR internal_code ILIKE $${idx}
+        c.business_name ILIKE $${idx}
+        OR c.contact_name ILIKE $${idx}
+        OR c.phone ILIKE $${idx}
+        OR c.city ILIKE $${idx}
+        OR c.internal_code ILIKE $${idx}
+        OR z.name ILIKE $${idx}
       )`);
     }
 
     if (typeof isActive === 'boolean') {
       values.push(isActive);
-      filters.push(`is_active = $${values.length}`);
+      filters.push(`c.is_active = $${values.length}`);
     }
 
     const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
@@ -117,12 +122,12 @@ export class ClientRepository {
     const dataQuery = `
       ${baseSelect}
       ${whereClause}
-      ORDER BY business_name ASC
+      ORDER BY c.business_name ASC
       LIMIT $${values.length - 1}
       OFFSET $${values.length}
     `;
 
-    const countQuery = `SELECT COUNT(*)::int AS total FROM clients ${whereClause}`;
+    const countQuery = `SELECT COUNT(*)::int AS total FROM clients c LEFT JOIN zones z ON z.id = c.zone_id ${whereClause}`;
 
     const [dataResult, countResult] = await Promise.all([
       pool.query(dataQuery, values),
@@ -153,6 +158,7 @@ export class ClientRepository {
       city: 'city',
       province: 'province',
       routeZone: 'route_zone',
+      zoneId: 'zone_id',
       notes: 'notes',
       vatCondition: 'vat_condition',
       creditLimit: 'credit_limit',
@@ -188,6 +194,18 @@ export class ClientRepository {
     const query = `
       UPDATE clients
       SET is_active = FALSE, deactivated_at = NOW(), updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `;
+
+    const { rows } = await pool.query(query, [id]);
+    return rows[0] ?? null;
+  }
+
+  async activate(id) {
+    const query = `
+      UPDATE clients
+      SET is_active = TRUE, deactivated_at = NULL, updated_at = NOW()
       WHERE id = $1
       RETURNING *
     `;

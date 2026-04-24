@@ -116,6 +116,7 @@ class _ClientesPageState extends State<ClientesPage> {
                       onEdit: () => _openForm(context, client: client),
                       onDeactivate: () => _confirmDeactivate(context, client.id),
                       onDelete: () => _confirmDelete(context, client.id),
+                      onActivate: () => _confirmActivate(context, client.id),
                     );
                   },
                 );
@@ -158,6 +159,24 @@ class _ClientesPageState extends State<ClientesPage> {
 
   Future<void> _openDetail(BuildContext context, String id) async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => ClientDetailPage(clientId: id)));
+  }
+
+  Future<void> _confirmActivate(BuildContext context, String id) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Activar cliente'),
+        content: const Text('¿Querés volver a activar este cliente?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Activar')),
+        ],
+      ),
+    );
+
+    if (result == true && context.mounted) {
+      await context.read<ClientsCubit>().activate(id);
+    }
   }
 
   Future<void> _confirmDelete(BuildContext context, String id) async {

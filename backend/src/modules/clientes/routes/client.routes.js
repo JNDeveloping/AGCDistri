@@ -8,6 +8,7 @@ import { validate } from '../../../middlewares/validate.js';
 import {
   createClientController,
   deleteClientController,
+  activateClientController,
   deactivateClientController,
   getClientController,
   listClientsController,
@@ -35,6 +36,7 @@ clientRouter.get(
 clientRouter.post('/', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), validate(createClientSchema), asyncHandler(createClientController));
 clientRouter.put('/:id', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), validate(updateClientSchema), asyncHandler(updateClientController));
 clientRouter.patch('/:id/deactivate', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), asyncHandler(deactivateClientController));
+clientRouter.patch('/:id/activate', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), asyncHandler(activateClientController));
 clientRouter.delete('/:id', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), asyncHandler(deleteClientController));
 
 export { clientRouter };

@@ -51,6 +51,11 @@ class ClientsCubit extends Cubit<ClientsState> {
     await load();
   }
 
+  Future<void> activate(String id) async {
+    await _clientRepository.activate(id);
+    await load();
+  }
+
   Future<void> delete(String id) async {
     await _clientRepository.delete(id);
     await load();
@@ -68,6 +73,14 @@ class ClientsCubit extends Cubit<ClientsState> {
     }
 
     await load();
+  }
+
+  Future<List<ClientZone>> listZones({bool includeInactive = false}) {
+    return _clientRepository.listZones(includeInactive: includeInactive);
+  }
+
+  Future<ClientZone> createZone({required String name, String? description}) {
+    return _clientRepository.createZone(name: name, description: description);
   }
 
   @override

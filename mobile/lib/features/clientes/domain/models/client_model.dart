@@ -14,6 +14,8 @@ class ClientModel extends Equatable {
     required this.city,
     required this.province,
     required this.routeZone,
+    required this.zoneId,
+    required this.zoneName,
     required this.notes,
     required this.vatCondition,
     required this.creditLimit,
@@ -36,6 +38,8 @@ class ClientModel extends Equatable {
   final String city;
   final String province;
   final String routeZone;
+  final String? zoneId;
+  final String? zoneName;
   final String? notes;
   final String vatCondition;
   final double creditLimit;
@@ -59,6 +63,8 @@ class ClientModel extends Equatable {
       city: json['city'] as String,
       province: json['province'] as String,
       routeZone: json['routeZone'] as String,
+      zoneId: json['zoneId'] as String?,
+      zoneName: json['zoneName'] as String?,
       notes: json['notes'] as String?,
       vatCondition: json['vatCondition'] as String? ?? 'No especificado',
       creditLimit: (json['creditLimit'] as num?)?.toDouble() ?? 0,
@@ -83,6 +89,7 @@ class ClientModel extends Equatable {
       'city': city,
       'province': province,
       'routeZone': routeZone,
+      'zoneId': zoneId,
       'notes': notes,
       'vatCondition': vatCondition,
       'creditLimit': creditLimit,
@@ -106,6 +113,8 @@ class ClientModel extends Equatable {
         city,
         province,
         routeZone,
+        zoneId,
+        zoneName,
         notes,
         vatCondition,
         creditLimit,

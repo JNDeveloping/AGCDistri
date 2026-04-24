@@ -79,9 +79,44 @@ class ClientRepository {
     }
   }
 
+  Future<ClientModel> activate(String id) async {
+    try {
+      final payload = await _remoteDataSource.activateClient(id);
+      final data = payload['data'] as Map<String, dynamic>?;
+      if (data == null) {
+        throw ClientException('No se pudo activar el cliente.');
+      }
+      return ClientModel.fromJson(data);
+    } on DioException catch (error) {
+      throw ClientException(_extractMessage(error));
+    }
+  }
+
   Future<void> delete(String id) async {
     try {
       await _remoteDataSource.deleteClient(id);
+    } on DioException catch (error) {
+      throw ClientException(_extractMessage(error));
+    }
+  }
+
+  Future<List<ClientZone>> listZones({bool includeInactive = false}) async {
+    try {
+      final payload = await _remoteDataSource.listZones(includeInactive: includeInactive);
+      return (payload['data'] as List<dynamic>? ?? [])
+          .map((raw) => ClientZone.fromJson(raw as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (error) {
+      throw ClientException(_extractMessage(error));
+    }
+  }
+
+  Future<ClientZone> createZone({required String name, String? description}) async {
+    try {
+      final payload = await _remoteDataSource.createZone(name: name, description: description);
+      final data = payload['data'] as Map<String, dynamic>?;
+      if (data == null) throw ClientException('No se pudo crear la zona.');
+      return ClientZone.fromJson(data);
     } on DioException catch (error) {
       throw ClientException(_extractMessage(error));
     }
@@ -112,4 +147,22 @@ class ClientListResponse {
 class ClientException implements Exception {
   ClientException(this.message);
   final String message;
+}
+
+class ClientZone {
+  const ClientZone({
+    required this.id,
+    required this.name,
+    required this.isActive,
+  });
+
+  final String id;
+  final String name;
+  final bool isActive;
+
+  factory ClientZone.fromJson(Map<String, dynamic> json) => ClientZone(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        isActive: json['isActive'] as bool? ?? true,
+      );
 }

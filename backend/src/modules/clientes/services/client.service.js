@@ -1,5 +1,6 @@
 import { AppError } from '../../../errors/app-error.js';
 import { clientRepository } from '../repositories/client.repository.js';
+import { zoneRepository } from '../../zones/repositories/zone.repository.js';
 
 const formatClient = (row) => {
   if (!row) {
@@ -19,6 +20,8 @@ const formatClient = (row) => {
     city: row.city,
     province: row.province,
     routeZone: row.route_zone,
+    zoneId: row.zone_id,
+    zoneName: row.zone_name,
     notes: row.notes,
     vatCondition: row.vat_condition,
     creditLimit: Number(row.credit_limit),
@@ -42,12 +45,24 @@ const basicProjection = (client) => ({
   city: client.city,
   province: client.province,
   routeZone: client.routeZone,
+  zoneName: client.zoneName,
   latitude: client.latitude,
   longitude: client.longitude,
   isActive: client.isActive,
 });
 
 export class ClientService {
+  async resolveZone(zoneId) {
+    if (!zoneId) {
+      return null;
+    }
+    const zone = await zoneRepository.findById(zoneId);
+    if (!zone) {
+      throw new AppError('La zona/ruta seleccionada no existe.', 400);
+    }
+    return zone;
+  }
+
   async create(payload) {
     const duplicated = await clientRepository.findByCodeOrTaxId({
       internalCode: payload.internalCode,
@@ -58,7 +73,12 @@ export class ClientService {
       throw new AppError('Ya existe un cliente con ese código interno o CUIT.', 409);
     }
 
-    const created = await clientRepository.create(payload);
+    const zone = await this.resolveZone(payload.zoneId ?? null);
+    const created = await clientRepository.create({
+      ...payload,
+      routeZone: zone?.name ?? payload.routeZone ?? 'Sin zona',
+      zoneId: zone?.id ?? null,
+    });
     return formatClient(created);
   }
 
@@ -102,12 +122,27 @@ export class ClientService {
       throw new AppError('Ya existe un cliente con ese código interno o CUIT.', 409);
     }
 
-    const updated = await clientRepository.update(id, payload);
+    const zoneId = payload.zoneId === undefined ? existing.zone_id : payload.zoneId;
+    const zone = await this.resolveZone(zoneId ?? null);
+    const updated = await clientRepository.update(id, {
+      ...payload,
+      routeZone: zone?.name ?? payload.routeZone ?? existing.route_zone,
+      zoneId: zone?.id ?? null,
+    });
     return formatClient(updated);
   }
 
   async deactivate(id) {
     const row = await clientRepository.deactivate(id);
+    if (!row) {
+      throw new AppError('Cliente no encontrado.', 404);
+    }
+
+    return formatClient(row);
+  }
+
+  async activate(id) {
+    const row = await clientRepository.activate(id);
     if (!row) {
       throw new AppError('Cliente no encontrado.', 404);
     }
