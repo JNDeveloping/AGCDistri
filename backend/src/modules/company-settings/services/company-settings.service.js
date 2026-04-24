@@ -91,6 +91,10 @@ export class CompanySettingsService {
       ...previous,
       ...payload,
       companyName: payload.companyName ?? previous.companyName,
+      primaryColor: payload.primaryColor ?? previous.primaryColor,
+      secondaryColor: payload.secondaryColor ?? previous.secondaryColor,
+      buttonColor: payload.buttonColor ?? previous.buttonColor,
+      backgroundColor: payload.backgroundColor ?? previous.backgroundColor,
       logoUrl: sanitizeOptional(payload.logoUrl ?? previous.logoUrl),
       phone: sanitizeOptional(payload.phone ?? previous.phone),
       email: sanitizeOptional(payload.email ?? previous.email),
@@ -99,6 +103,9 @@ export class CompanySettingsService {
       province: sanitizeOptional(payload.province ?? previous.province),
       taxId: sanitizeOptional(payload.taxId ?? previous.taxId),
       slogan: sanitizeOptional(payload.slogan ?? previous.slogan),
+      defaultProfitPercentage: payload.defaultProfitPercentage ?? previous.defaultProfitPercentage,
+      priceRoundingEnabled: payload.priceRoundingEnabled ?? previous.priceRoundingEnabled,
+      priceRoundingMultiple: payload.priceRoundingMultiple ?? previous.priceRoundingMultiple,
     };
 
     const contrastPrimary = contrastRatio(merged.primaryColor, merged.backgroundColor);

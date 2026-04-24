@@ -55,7 +55,27 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
     _slogan = TextEditingController();
     _profit = TextEditingController();
 
+    _syncFromModel(context.read<CompanySettingsCubit>().state.settings);
     context.read<CompanySettingsCubit>().load();
+  }
+
+  @override
+  void dispose() {
+    _companyName.dispose();
+    _logoUrl.dispose();
+    _primaryColor.dispose();
+    _secondaryColor.dispose();
+    _buttonColor.dispose();
+    _backgroundColor.dispose();
+    _phone.dispose();
+    _email.dispose();
+    _address.dispose();
+    _city.dispose();
+    _province.dispose();
+    _taxId.dispose();
+    _slogan.dispose();
+    _profit.dispose();
+    super.dispose();
   }
 
   void _syncFromModel(CompanySettingsModel settings) {
@@ -89,7 +109,11 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Configuración de Empresa')),
       body: BlocConsumer<CompanySettingsCubit, CompanySettingsState>(
-        listenWhen: (prev, curr) => prev.settings != curr.settings,
+        listenWhen: (prev, curr) {
+          final enteredSuccess = prev.status != CompanySettingsStatus.success && curr.status == CompanySettingsStatus.success;
+          final settingsChanged = prev.settings != curr.settings && curr.status == CompanySettingsStatus.success;
+          return enteredSuccess || settingsChanged;
+        },
         listener: (_, state) => _syncFromModel(state.settings),
         builder: (context, state) {
           if (state.status == CompanySettingsStatus.loading) {
