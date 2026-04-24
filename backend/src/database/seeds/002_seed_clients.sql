@@ -52,7 +52,7 @@ VALUES
     'San Juan',
     'Ruta Oeste',
     NULL,
-    'Monotributo',
+    'Monotributista',
     80000,
     0,
     NULL,

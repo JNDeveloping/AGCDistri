@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/navigation/app_bottom_nav_bar.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../domain/models/product_model.dart';
 import '../cubit/products_cubit.dart';
@@ -35,6 +36,7 @@ class _ProductosPageState extends State<ProductosPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Productos')),
+      bottomNavigationBar: AppBottomNavBar(currentRoute: ProductosPage.path, role: role),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
               onPressed: () => _openForm(context),

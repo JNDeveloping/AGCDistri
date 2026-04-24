@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../../../core/navigation/app_bottom_nav_bar.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
-import '../../../auth/presentation/cubit/auth_state.dart';
 import '../../domain/models/client_model.dart';
 import '../cubit/clients_cubit.dart';
 import '../cubit/clients_state.dart';
@@ -42,15 +41,8 @@ class _ClientesPageState extends State<ClientesPage> {
     final canEdit = role == 'admin' || role == 'vendedor';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Clientes'),
-        actions: [
-          IconButton(
-            onPressed: () => context.go('/home'),
-            icon: const Icon(Icons.home_rounded),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Clientes')),
+      bottomNavigationBar: AppBottomNavBar(currentRoute: ClientesPage.path, role: role),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
               onPressed: () => _openForm(context),
@@ -67,19 +59,9 @@ class _ClientesPageState extends State<ClientesPage> {
                 TextField(
                   controller: _searchController,
                   onChanged: context.read<ClientsCubit>().onSearchChanged,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText: 'Buscar por nombre, negocio, teléfono, localidad o código',
-                    prefixIcon: const Icon(Icons.search_rounded),
-                    suffixIcon: _searchController.text.isEmpty
-                        ? null
-                        : IconButton(
-                            onPressed: () {
-                              _searchController.clear();
-                              context.read<ClientsCubit>().onSearchChanged('');
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.clear_rounded),
-                          ),
+                    prefixIcon: Icon(Icons.search_rounded),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -115,42 +97,26 @@ class _ClientesPageState extends State<ClientesPage> {
                 }
 
                 if (state.status == ClientsStatus.failure) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline_rounded, size: 36),
-                        const SizedBox(height: 10),
-                        Text(state.errorMessage ?? 'No se pudieron cargar clientes'),
-                        TextButton(
-                          onPressed: () => context.read<ClientsCubit>().load(),
-                          child: const Text('Reintentar'),
-                        ),
-                      ],
-                    ),
-                  );
+                  return Center(child: Text(state.errorMessage ?? 'No se pudieron cargar clientes'));
                 }
 
                 if (state.items.isEmpty) {
                   return const Center(child: Text('No hay clientes para mostrar.'));
                 }
 
-                return RefreshIndicator(
-                  onRefresh: () => context.read<ClientsCubit>().load(),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
-                    itemCount: state.items.length,
-                    itemBuilder: (context, index) {
-                      final client = state.items[index];
-                      return ClientCard(
-                        client: client,
-                        canEdit: canEdit,
-                        onTap: () => _openDetail(context, client.id),
-                        onEdit: () => _openForm(context, client: client),
-                        onDeactivate: () => _confirmDeactivate(context, client.id),
-                      );
-                    },
-                  ),
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
+                  itemCount: state.items.length,
+                  itemBuilder: (context, index) {
+                    final client = state.items[index];
+                    return ClientCard(
+                      client: client,
+                      canEdit: canEdit,
+                      onTap: () => _openDetail(context, client.id),
+                      onEdit: () => _openForm(context, client: client),
+                      onDeactivate: () => _confirmDeactivate(context, client.id),
+                    );
+                  },
                 );
               },
             ),
@@ -190,9 +156,6 @@ class _ClientesPageState extends State<ClientesPage> {
   }
 
   Future<void> _openDetail(BuildContext context, String id) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ClientDetailPage(clientId: id)),
-    );
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => ClientDetailPage(clientId: id)));
   }
 }

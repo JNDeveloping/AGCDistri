@@ -8,6 +8,7 @@ import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
 import { authRouter } from './modules/auth/routes/auth.routes.js';
 import { clientRouter } from './modules/clientes/routes/client.routes.js';
+import { dashboardRouter } from './modules/dashboard/routes/dashboard.routes.js';
 import { healthRouter } from './modules/health/routes/health.routes.js';
 import { operationsRouter } from './modules/operations/routes/operations.routes.js';
 import { productRouter } from './modules/productos/routes/product.routes.js';
@@ -22,6 +23,7 @@ export const createApp = () => {
 
   app.use('/api/v1/health', healthRouter);
   app.use('/api/v1/auth', authRouter);
+  app.use('/api/v1/dashboard', dashboardRouter);
   app.use('/api/v1/clientes', clientRouter);
   app.use('/api/v1/productos', productRouter);
   app.use('/api/v1/operaciones', operationsRouter);

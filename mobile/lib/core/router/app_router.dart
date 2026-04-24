@@ -8,7 +8,7 @@ import '../../features/auth/presentation/cubit/auth_state.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/clientes/presentation/pages/clientes_page.dart';
-import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/productos/presentation/pages/productos_page.dart';
 
 class AppRouter {
@@ -19,7 +19,7 @@ class AppRouter {
           routes: [
             GoRoute(path: SplashPage.path, name: SplashPage.name, builder: (_, __) => const SplashPage()),
             GoRoute(path: LoginPage.path, name: LoginPage.name, builder: (_, __) => const LoginPage()),
-            GoRoute(path: HomePage.path, name: HomePage.name, builder: (_, __) => const HomePage()),
+            GoRoute(path: DashboardPage.path, name: DashboardPage.name, builder: (_, __) => const DashboardPage()),
             GoRoute(path: ClientesPage.path, name: ClientesPage.name, builder: (_, __) => const ClientesPage()),
             GoRoute(path: ProductosPage.path, name: ProductosPage.name, builder: (_, __) => const ProductosPage()),
           ],
@@ -36,11 +36,10 @@ class AppRouter {
             }
 
             if (status == AuthStatus.authenticated) {
-              final allowed = [HomePage.path, ClientesPage.path, ProductosPage.path];
+              final allowed = [DashboardPage.path, ClientesPage.path, ProductosPage.path];
               if (!allowed.contains(location)) {
-                return HomePage.path;
+                return DashboardPage.path;
               }
-              return null;
             }
 
             return null;

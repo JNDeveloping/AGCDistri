@@ -7,6 +7,9 @@ import '../../features/auth/presentation/cubit/auth_cubit.dart';
 import '../../features/clientes/data/datasources/client_remote_datasource.dart';
 import '../../features/clientes/data/repositories/client_repository.dart';
 import '../../features/clientes/presentation/cubit/clients_cubit.dart';
+import '../../features/dashboard/data/datasources/dashboard_remote_datasource.dart';
+import '../../features/dashboard/data/repositories/dashboard_repository.dart';
+import '../../features/dashboard/presentation/cubit/dashboard_cubit.dart';
 import '../../features/productos/data/datasources/product_remote_datasource.dart';
 import '../../features/productos/data/repositories/product_repository.dart';
 import '../../features/productos/presentation/cubit/products_cubit.dart';
@@ -32,11 +35,16 @@ Future<void> bootstrap() async {
     remoteDataSource: ProductRemoteDataSource(apiClient: apiClient),
   );
 
+  final dashboardRepository = DashboardRepository(
+    remoteDataSource: DashboardRemoteDataSource(apiClient: apiClient),
+  );
+
   runApp(
     AppRoot(
       authRepository: authRepository,
       clientRepository: clientRepository,
       productRepository: productRepository,
+      dashboardRepository: dashboardRepository,
     ),
   );
 }
@@ -46,12 +54,14 @@ class AppRoot extends StatelessWidget {
     required this.authRepository,
     required this.clientRepository,
     required this.productRepository,
+    required this.dashboardRepository,
     super.key,
   });
 
   final AuthRepository authRepository;
   final ClientRepository clientRepository;
   final ProductRepository productRepository;
+  final DashboardRepository dashboardRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +70,7 @@ class AppRoot extends StatelessWidget {
         BlocProvider(create: (_) => AuthCubit(authRepository: authRepository)..initialize()),
         BlocProvider(create: (_) => ClientsCubit(clientRepository: clientRepository)),
         BlocProvider(create: (_) => ProductsCubit(repository: productRepository)),
+        BlocProvider(create: (_) => DashboardCubit(repository: dashboardRepository)),
       ],
       child: Builder(
         builder: (context) {

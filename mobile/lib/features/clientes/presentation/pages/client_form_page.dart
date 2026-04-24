@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../domain/models/client_model.dart';
 import '../cubit/clients_cubit.dart';
@@ -16,6 +17,10 @@ class ClientFormPage extends StatefulWidget {
 class _ClientFormPageState extends State<ClientFormPage> {
   final _formKey = GlobalKey<FormState>();
   bool _saving = false;
+  bool _loadingLocation = false;
+  String _selectedVat = 'Responsable Inscripto';
+  double? _latitude;
+  double? _longitude;
 
   late final TextEditingController _internalCode;
   late final TextEditingController _businessName;
@@ -29,11 +34,8 @@ class _ClientFormPageState extends State<ClientFormPage> {
   late final TextEditingController _province;
   late final TextEditingController _routeZone;
   late final TextEditingController _notes;
-  late final TextEditingController _vat;
   late final TextEditingController _creditLimit;
   late final TextEditingController _currentBalance;
-  late final TextEditingController _lat;
-  late final TextEditingController _lng;
 
   @override
   void initState() {
@@ -51,11 +53,11 @@ class _ClientFormPageState extends State<ClientFormPage> {
     _province = TextEditingController(text: c?.province ?? '');
     _routeZone = TextEditingController(text: c?.routeZone ?? '');
     _notes = TextEditingController(text: c?.notes ?? '');
-    _vat = TextEditingController(text: c?.vatCondition ?? 'Responsable Inscripto');
+    _selectedVat = c?.vatCondition ?? 'Responsable Inscripto';
     _creditLimit = TextEditingController(text: (c?.creditLimit ?? 0).toStringAsFixed(2));
     _currentBalance = TextEditingController(text: (c?.currentBalance ?? 0).toStringAsFixed(2));
-    _lat = TextEditingController(text: c?.latitude?.toString() ?? '');
-    _lng = TextEditingController(text: c?.longitude?.toString() ?? '');
+    _latitude = c?.latitude;
+    _longitude = c?.longitude;
   }
 
   @override
@@ -73,11 +75,8 @@ class _ClientFormPageState extends State<ClientFormPage> {
       _province,
       _routeZone,
       _notes,
-      _vat,
       _creditLimit,
       _currentBalance,
-      _lat,
-      _lng,
     ]) {
       controller.dispose();
     }
@@ -105,11 +104,41 @@ class _ClientFormPageState extends State<ClientFormPage> {
               _field(_city, 'Localidad', requiredField: true),
               _field(_province, 'Provincia', requiredField: true),
               _field(_routeZone, 'Zona / Ruta', requiredField: true),
-              _field(_vat, 'Condición IVA', requiredField: true),
+              DropdownButtonFormField<String>(
+                value: _selectedVat,
+                decoration: const InputDecoration(labelText: 'Condición IVA'),
+                items: const [
+                  DropdownMenuItem(value: 'Responsable Inscripto', child: Text('Responsable Inscripto')),
+                  DropdownMenuItem(value: 'Monotributista', child: Text('Monotributista')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedVat = value);
+                  }
+                },
+                validator: (value) => value == null || value.isEmpty ? 'Seleccioná una condición de IVA' : null,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _latitude == null || _longitude == null
+                          ? 'Ubicación no guardada'
+                          : 'Ubicación: ${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _loadingLocation ? null : _saveLocation,
+                    icon: const Icon(Icons.my_location_rounded),
+                    label: Text(_loadingLocation ? 'Obteniendo...' : 'Guardar ubicación'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
               _field(_creditLimit, 'Límite de crédito', isNumber: true, requiredField: true),
               _field(_currentBalance, 'Saldo actual', isNumber: true, requiredField: true),
-              _field(_lat, 'Latitud', isNumber: true),
-              _field(_lng, 'Longitud', isNumber: true),
               _field(_notes, 'Observaciones', maxLines: 3),
               const SizedBox(height: 20),
               ElevatedButton(
@@ -121,6 +150,42 @@ class _ClientFormPageState extends State<ClientFormPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _saveLocation() async {
+    setState(() => _loadingLocation = true);
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('GPS desactivado. Activá el servicio de ubicación.');
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        throw Exception('Permiso de ubicación denegado.');
+      }
+
+      final position = await Geolocator.getCurrentPosition();
+      setState(() {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ubicación guardada correctamente.')));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingLocation = false);
+    }
   }
 
   Widget _field(
@@ -140,15 +205,9 @@ class _ClientFormPageState extends State<ClientFormPage> {
         decoration: InputDecoration(labelText: label),
         validator: (value) {
           final text = value?.trim() ?? '';
-          if (requiredField && text.isEmpty) {
-            return 'Campo obligatorio';
-          }
-          if (isEmail && text.isNotEmpty && !text.contains('@')) {
-            return 'Email inválido';
-          }
-          if (isNumber && text.isNotEmpty && double.tryParse(text) == null) {
-            return 'Valor numérico inválido';
-          }
+          if (requiredField && text.isEmpty) return 'Campo obligatorio';
+          if (isEmail && text.isNotEmpty && !text.contains('@')) return 'Email inválido';
+          if (isNumber && text.isNotEmpty && double.tryParse(text) == null) return 'Número inválido';
           return null;
         },
       ),
@@ -176,28 +235,24 @@ class _ClientFormPageState extends State<ClientFormPage> {
       province: _province.text.trim(),
       routeZone: _routeZone.text.trim(),
       notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-      vatCondition: _vat.text.trim(),
+      vatCondition: _selectedVat,
       creditLimit: double.parse(_creditLimit.text.trim()),
       currentBalance: double.parse(_currentBalance.text.trim()),
-      latitude: _lat.text.trim().isEmpty ? null : double.parse(_lat.text.trim()),
-      longitude: _lng.text.trim().isEmpty ? null : double.parse(_lng.text.trim()),
+      latitude: _latitude,
+      longitude: _longitude,
       isActive: widget.client?.isActive ?? true,
       createdAt: widget.client?.createdAt,
     );
 
     try {
       await context.read<ClientsCubit>().saveClient(payload: payload, id: widget.client?.id);
-      if (mounted) {
-        Navigator.pop(context, true);
-      }
+      if (mounted) Navigator.pop(context, true);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
       }
     } finally {
-      if (mounted) {
-        setState(() => _saving = false);
-      }
+      if (mounted) setState(() => _saving = false);
     }
   }
 }

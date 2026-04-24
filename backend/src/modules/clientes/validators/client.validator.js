@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 const positiveAmount = z.number().min(0).max(999999999999.99);
 
+export const vatConditionValues = ['Responsable Inscripto', 'Monotributista'];
+
 export const createClientSchema = z.object({
   internalCode: z.string().min(2).max(30),
   businessName: z.string().min(2).max(180),
@@ -15,7 +17,7 @@ export const createClientSchema = z.object({
   province: z.string().min(2).max(120),
   routeZone: z.string().min(1).max(80),
   notes: z.string().max(2000).optional().nullable(),
-  vatCondition: z.string().min(2).max(80),
+  vatCondition: z.enum(vatConditionValues),
   creditLimit: positiveAmount,
   currentBalance: z.number().min(-999999999999.99).max(999999999999.99).optional(),
   latitude: z.number().min(-90).max(90).optional().nullable(),
