@@ -20,17 +20,22 @@ class ProductDetailPage extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           final p = snapshot.data!;
+          final subtitleParts = [
+            if ((p.internalCode ?? '').isNotEmpty) p.internalCode!,
+            if ((p.brand ?? '').isNotEmpty) p.brand!,
+            if ((p.categoryName ?? '').isNotEmpty) p.categoryName!,
+          ];
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               Text(p.name, style: Theme.of(context).textTheme.headlineSmall),
-              Text('${p.internalCode} · ${p.brand} · ${p.category}'),
+              Text(subtitleParts.join(' · ')),
               const SizedBox(height: 12),
-              Text(p.shortDescription),
+              if ((p.shortDescription ?? '').isNotEmpty) Text(p.shortDescription!),
               if (p.longDescription != null) Text(p.longDescription!),
               const Divider(height: 30),
               Text('Costo: ${(p.cost ?? 0).toStringAsFixed(2)}'),
-              Text('Mayorista: ${(p.wholesalePrice ?? 0).toStringAsFixed(2)}'),
+              Text('Mayorista: ${p.wholesalePrice.toStringAsFixed(2)}'),
               Text('Minorista: ${(p.retailPrice ?? 0).toStringAsFixed(2)}'),
               Text('Margen: ${(p.marginPercentage ?? 0).toStringAsFixed(2)}%'),
               const Divider(height: 30),

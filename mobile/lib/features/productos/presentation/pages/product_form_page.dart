@@ -21,8 +21,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
   late final TextEditingController _name;
   late final TextEditingController _shortDescription;
   late final TextEditingController _brand;
-  late final TextEditingController _category;
-  late final TextEditingController _segment;
+  late final TextEditingController _categoryName;
   late final TextEditingController _presentation;
   late final TextEditingController _unit;
   late final TextEditingController _cost;
@@ -39,8 +38,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _name = TextEditingController(text: p?.name ?? '');
     _shortDescription = TextEditingController(text: p?.shortDescription ?? '');
     _brand = TextEditingController(text: p?.brand ?? '');
-    _category = TextEditingController(text: p?.category ?? '');
-    _segment = TextEditingController(text: p?.segment ?? '');
+    _categoryName = TextEditingController(text: p?.categoryName ?? '');
     _presentation = TextEditingController(text: p?.presentation ?? '');
     _unit = TextEditingController(text: p?.unitMeasure ?? 'unidad');
     _cost = TextEditingController(text: (p?.cost ?? 0).toStringAsFixed(2));
@@ -64,8 +62,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
               _field(_name, 'Nombre'),
               _field(_shortDescription, 'Descripción corta'),
               _field(_brand, 'Marca'),
-              _field(_category, 'Categoría'),
-              _field(_segment, 'Rubro'),
+              _field(_categoryName, 'Categoría', requiredField: false),
               _field(_presentation, 'Presentación'),
               _field(_unit, 'Unidad de medida'),
               _field(_cost, 'Costo', number: true),
@@ -113,8 +110,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
       shortDescription: _shortDescription.text.trim(),
       longDescription: null,
       brand: _brand.text.trim(),
-      category: _category.text.trim(),
-      segment: _segment.text.trim(),
+      categoryId: widget.product?.categoryId,
+      categoryName: _categoryName.text.trim().isEmpty ? null : _categoryName.text.trim(),
       barcode: null,
       unitMeasure: _unit.text.trim(),
       presentation: _presentation.text.trim(),
@@ -128,6 +125,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
       isFeatured: widget.product?.isFeatured ?? false,
       imageUrl: null,
       taxRate: 21,
+      notes: widget.product?.notes,
       createdAt: widget.product?.createdAt,
       updatedAt: widget.product?.updatedAt,
       lowStock: false,
