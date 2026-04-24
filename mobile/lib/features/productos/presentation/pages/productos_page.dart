@@ -7,6 +7,7 @@ import '../../domain/models/product_model.dart';
 import '../cubit/products_cubit.dart';
 import '../cubit/products_state.dart';
 import '../widgets/product_card.dart';
+import 'product_categories_page.dart';
 import 'product_detail_page.dart';
 import 'product_form_page.dart';
 
@@ -35,7 +36,17 @@ class _ProductosPageState extends State<ProductosPage> {
     final canEdit = role == 'admin';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Productos')),
+      appBar: AppBar(
+        title: const Text('Productos'),
+        actions: [
+          if (canEdit)
+            TextButton.icon(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductCategoriesPage())),
+              icon: const Icon(Icons.category),
+              label: const Text('Categorías'),
+            ),
+        ],
+      ),
       bottomNavigationBar: AppBottomNavBar(currentRoute: ProductosPage.path, role: role),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(

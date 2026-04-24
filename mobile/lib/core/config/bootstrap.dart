@@ -92,7 +92,7 @@ class AppRoot extends StatelessWidget {
           return BlocListener<AuthCubit, AuthState>(
             listenWhen: (previous, current) => previous.status != current.status || previous.session != current.session,
             listener: (context, state) {
-              if (state.status == AuthStatus.authenticated && state.session?.user.role == 'admin') {
+              if (state.status == AuthStatus.authenticated) {
                 context.read<CompanySettingsCubit>().load();
               }
             },

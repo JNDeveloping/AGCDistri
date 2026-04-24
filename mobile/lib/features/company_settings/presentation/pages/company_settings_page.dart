@@ -237,6 +237,14 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
 
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    final isHex = RegExp(r'^#[0-9A-Fa-f]{6}$');
+    if (!isHex.hasMatch(_primaryColor.text.trim())
+        || !isHex.hasMatch(_secondaryColor.text.trim())
+        || !isHex.hasMatch(_buttonColor.text.trim())
+        || !isHex.hasMatch(_backgroundColor.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresá colores HEX válidos (#RRGGBB).')));
+      return;
+    }
 
     final model = CompanySettingsModel(
       companyName: _companyName.text.trim(),

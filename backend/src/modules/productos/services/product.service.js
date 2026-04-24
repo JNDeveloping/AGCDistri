@@ -45,9 +45,7 @@ const formatProduct = (row, role) => {
     brand: row.brand,
     barcode: row.barcode,
     unitMeasure: row.unit_measure,
-    presentation: row.presentation,
-    wholesalePrice: row.wholesale_price == null ? null : Number(row.wholesale_price),
-    retailPrice: row.retail_price == null ? null : Number(row.retail_price),
+    salePrice: row.wholesale_price == null ? null : Number(row.wholesale_price),
     stockCurrent: row.stock_current == null ? 0 : Number(row.stock_current),
     stockMinimum: row.stock_minimum == null ? 0 : Number(row.stock_minimum),
     isActive: row.is_active,
@@ -86,7 +84,7 @@ const formatProduct = (row, role) => {
     name: base.name,
     shortDescription: base.shortDescription,
     unitMeasure: base.unitMeasure,
-    presentation: base.presentation,
+    salePrice: base.salePrice,
     stockCurrent: base.stockCurrent,
     stockMinimum: base.stockMinimum,
     isActive: base.isActive,
@@ -107,7 +105,8 @@ export class ProductService {
     }
 
     const settings = await getPricingSettings();
-    const effectiveWholesalePrice = payload.wholesalePrice
+    const inputSalePrice = payload.salePrice ?? payload.wholesalePrice;
+    const effectiveWholesalePrice = inputSalePrice
       ?? (payload.cost != null
         ? applyRounding(
             payload.cost + (payload.cost * settings.defaultProfitPercentage) / 100,
@@ -166,11 +165,13 @@ export class ProductService {
       cost + (cost * settings.defaultProfitPercentage) / 100,
       settings.priceRoundingEnabled ? settings.priceRoundingMultiple : 0,
     );
-    const wholesalePrice = payload.wholesalePrice ?? (storedWholesale > 0 ? storedWholesale : suggestedWholesale);
+    const inputSalePrice = payload.salePrice ?? payload.wholesalePrice;
+    const wholesalePrice = inputSalePrice ?? (storedWholesale > 0 ? storedWholesale : suggestedWholesale);
     const marginPercentage = payload.marginPercentage ?? computeMargin(cost, wholesalePrice);
 
     const updated = await productRepository.update(id, {
       ...payload,
+      wholesalePrice,
       marginPercentage,
     });
 

@@ -12,10 +12,8 @@ class ProductModel extends Equatable {
     required this.categoryName,
     required this.barcode,
     required this.unitMeasure,
-    required this.presentation,
     required this.cost,
-    required this.wholesalePrice,
-    required this.retailPrice,
+    required this.salePrice,
     required this.marginPercentage,
     required this.stockCurrent,
     required this.stockMinimum,
@@ -39,10 +37,8 @@ class ProductModel extends Equatable {
   final String? categoryName;
   final String? barcode;
   final String? unitMeasure;
-  final String? presentation;
   final double? cost;
-  final double wholesalePrice;
-  final double? retailPrice;
+  final double salePrice;
   final double? marginPercentage;
   final double stockCurrent;
   final double stockMinimum;
@@ -67,10 +63,8 @@ class ProductModel extends Equatable {
       categoryName: json['categoryName'] as String?,
       barcode: json['barcode'] as String?,
       unitMeasure: json['unitMeasure'] as String?,
-      presentation: json['presentation'] as String?,
       cost: (json['cost'] as num?)?.toDouble(),
-      wholesalePrice: (json['wholesalePrice'] as num?)?.toDouble() ?? 0,
-      retailPrice: (json['retailPrice'] as num?)?.toDouble(),
+      salePrice: ((json['salePrice'] as num?) ?? (json['wholesalePrice'] as num?) ?? 0).toDouble(),
       marginPercentage: (json['marginPercentage'] as num?)?.toDouble(),
       stockCurrent: (json['stockCurrent'] as num?)?.toDouble() ?? 0,
       stockMinimum: (json['stockMinimum'] as num?)?.toDouble() ?? 0,
@@ -95,10 +89,8 @@ class ProductModel extends Equatable {
       'categoryId': categoryId,
       'barcode': barcode,
       'unitMeasure': unitMeasure,
-      'presentation': presentation,
       'cost': cost,
-      'wholesalePrice': wholesalePrice,
-      'retailPrice': retailPrice,
+      'salePrice': salePrice,
       'marginPercentage': marginPercentage,
       'stockCurrent': stockCurrent,
       'stockMinimum': stockMinimum,
@@ -116,7 +108,7 @@ class ProductModel extends Equatable {
         name,
         categoryId,
         categoryName,
-        wholesalePrice,
+        salePrice,
         stockCurrent,
         stockMinimum,
         isActive,

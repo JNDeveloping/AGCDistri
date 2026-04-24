@@ -56,6 +56,18 @@ class ProductsCubit extends Cubit<ProductsState> {
     await load();
   }
 
+  Future<List<ProductCategory>> listCategories({bool includeInactive = false}) {
+    return _repository.listCategories(includeInactive: includeInactive);
+  }
+
+  Future<void> saveCategory({String? id, required String name, String? description}) {
+    return _repository.saveCategory(id: id, name: name, description: description);
+  }
+
+  Future<void> deactivateCategory(String id) {
+    return _repository.deactivateCategory(id);
+  }
+
   @override
   Future<void> close() {
     _debounce?.cancel();

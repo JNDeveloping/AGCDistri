@@ -21,27 +21,25 @@ const optionalTrimmedString = z.string().transform((value) => value.trim()).pipe
 
 export const createProductSchema = z.object({
   internalCode: optionalTrimmedString,
-  name: z.string().trim().min(2).max(180),
+  name: z.string().trim().min(1).max(180),
   shortDescription: z.string().trim().max(220).optional().nullable(),
   longDescription: z.string().trim().max(4000).optional().nullable(),
   brand: z.string().trim().max(120).optional().nullable(),
   categoryId: z.string().uuid().optional().nullable(),
   barcode: optionalTrimmedString,
   unitMeasure: z.enum(unitMeasureValues).optional().nullable(),
-  presentation: z.string().trim().max(80).optional().nullable(),
-  cost: money,
-  wholesalePrice: money.optional().nullable(),
-  retailPrice: money.optional().nullable(),
+  cost: money.optional().nullable(),
+  salePrice: money,
   marginPercentage: z.number().min(0).max(999).optional().nullable(),
-  stockCurrent: quantity.optional().default(0),
-  stockMinimum: quantity.optional().default(0),
+  stockCurrent: quantity.optional().nullable(),
+  stockMinimum: quantity.optional().nullable(),
   isFeatured: z.boolean().optional().default(false),
   imageUrl: z.string().url().optional().nullable(),
   taxRate: z.number().min(0).max(100).optional().nullable(),
   notes: z.string().trim().max(2000).optional().nullable(),
 });
 
-export const updateProductSchema = createProductSchema.partial();
+export const updateProductSchema = createProductSchema;
 
 export const listProductQuerySchema = z.object({
   q: z.string().optional(),

@@ -15,9 +15,8 @@ import { upsertCompanySettingsSchema } from '../validators/company-settings.vali
 const companySettingsRouter = Router();
 
 companySettingsRouter.use(authenticate);
+companySettingsRouter.get('/', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), asyncHandler(getCompanySettingsController));
 companySettingsRouter.use(authorize(USER_ROLES.ADMIN));
-
-companySettingsRouter.get('/', asyncHandler(getCompanySettingsController));
 companySettingsRouter.put('/', validate(upsertCompanySettingsSchema), asyncHandler(upsertCompanySettingsController));
 companySettingsRouter.post('/reset', asyncHandler(resetCompanySettingsController));
 

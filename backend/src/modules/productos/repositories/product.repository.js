@@ -3,8 +3,8 @@ import { pool } from '../../../database/pool.js';
 const baseSelect = `
   SELECT
     p.id, p.internal_code, p.name, p.short_description, p.long_description,
-    p.brand, p.barcode, p.unit_measure, p.presentation,
-    p.cost, p.wholesale_price, p.retail_price, p.margin_percentage,
+    p.brand, p.barcode, p.unit_measure,
+    p.cost, p.wholesale_price, p.margin_percentage,
     p.stock_current, p.stock_minimum, p.is_active, p.is_featured, p.image_url,
     p.tax_rate, p.notes, p.created_at, p.updated_at, p.deactivated_at,
     p.category_id,
@@ -19,13 +19,13 @@ export class ProductRepository {
     const query = `
       INSERT INTO products (
         internal_code, name, short_description, long_description,
-        brand, barcode, unit_measure, presentation,
-        cost, wholesale_price, retail_price, margin_percentage,
+        brand, barcode, unit_measure,
+        cost, wholesale_price, margin_percentage,
         stock_current, stock_minimum, is_featured, image_url, tax_rate,
         category_id, notes
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-        $11,$12,$13,$14,$15,$16,$17,$18,$19
+        $11,$12,$13,$14,$15,$16,$17
       )
       RETURNING *
     `;
@@ -38,10 +38,8 @@ export class ProductRepository {
       payload.brand,
       payload.barcode,
       payload.unitMeasure,
-      payload.presentation,
       payload.cost,
       payload.wholesalePrice,
-      payload.retailPrice,
       payload.marginPercentage,
       payload.stockCurrent,
       payload.stockMinimum,
@@ -138,10 +136,8 @@ export class ProductRepository {
       brand: 'brand',
       barcode: 'barcode',
       unitMeasure: 'unit_measure',
-      presentation: 'presentation',
       cost: 'cost',
       wholesalePrice: 'wholesale_price',
-      retailPrice: 'retail_price',
       marginPercentage: 'margin_percentage',
       stockCurrent: 'stock_current',
       stockMinimum: 'stock_minimum',
