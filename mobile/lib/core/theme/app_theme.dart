@@ -49,7 +49,7 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: button,
           foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 54),
+          minimumSize: const Size(0, 54),
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
