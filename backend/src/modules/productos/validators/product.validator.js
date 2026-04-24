@@ -30,7 +30,7 @@ export const createProductSchema = z.object({
   unitMeasure: z.enum(unitMeasureValues).optional().nullable(),
   presentation: z.string().trim().max(80).optional().nullable(),
   cost: money,
-  wholesalePrice: money,
+  wholesalePrice: money.optional().nullable(),
   retailPrice: money.optional().nullable(),
   marginPercentage: z.number().min(0).max(999).optional().nullable(),
   stockCurrent: quantity.optional().default(0),

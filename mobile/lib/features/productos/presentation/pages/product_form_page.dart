@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../company_settings/presentation/cubit/company_settings_cubit.dart';
 import '../../domain/models/product_model.dart';
 import '../cubit/products_cubit.dart';
 
@@ -29,6 +30,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
   late final TextEditingController _retail;
   late final TextEditingController _stock;
   late final TextEditingController _stockMin;
+  bool _manualWholesale = false;
 
   @override
   void initState() {
@@ -46,6 +48,17 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _retail = TextEditingController(text: (p?.retailPrice ?? 0).toStringAsFixed(2));
     _stock = TextEditingController(text: p?.stockCurrent.toStringAsFixed(2) ?? '0');
     _stockMin = TextEditingController(text: p?.stockMinimum.toStringAsFixed(2) ?? '0');
+    _manualWholesale = widget.product != null;
+    _cost.addListener(_onCostChanged);
+    if (widget.product == null) {
+      _wholesale.text = _suggestedWholesale().toStringAsFixed(2);
+    }
+  }
+
+  @override
+  void dispose() {
+    _cost.removeListener(_onCostChanged);
+    super.dispose();
   }
 
   @override
@@ -66,7 +79,22 @@ class _ProductFormPageState extends State<ProductFormPage> {
               _field(_presentation, 'Presentación'),
               _field(_unit, 'Unidad de medida'),
               _field(_cost, 'Costo', number: true),
-              _field(_wholesale, 'Precio mayorista', number: true),
+              _field(
+                _wholesale,
+                'Precio mayorista sugerido',
+                number: true,
+                onChanged: (_) => _manualWholesale = true,
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Sugerido: ${_suggestedWholesale().toStringAsFixed(2)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+              ),
               _field(_retail, 'Precio minorista', number: true, requiredField: false),
               _field(_stock, 'Stock actual', number: true),
               _field(_stockMin, 'Stock mínimo', number: true),
@@ -82,13 +110,20 @@ class _ProductFormPageState extends State<ProductFormPage> {
     );
   }
 
-  Widget _field(TextEditingController controller, String label, {bool number = false, bool requiredField = true}) {
+  Widget _field(
+    TextEditingController controller,
+    String label, {
+    bool number = false,
+    bool requiredField = true,
+    ValueChanged<String>? onChanged,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
         controller: controller,
         keyboardType: number ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
         decoration: InputDecoration(labelText: label),
+        onChanged: onChanged,
         validator: (value) {
           final text = value?.trim() ?? '';
           if (requiredField && text.isEmpty) return 'Campo obligatorio';
@@ -97,6 +132,16 @@ class _ProductFormPageState extends State<ProductFormPage> {
         },
       ),
     );
+  }
+
+  void _onCostChanged() {
+    if (_manualWholesale) return;
+    _wholesale.text = _suggestedWholesale().toStringAsFixed(2);
+  }
+
+  double _suggestedWholesale() {
+    final cost = double.tryParse(_cost.text.trim()) ?? 0;
+    return context.read<CompanySettingsCubit>().suggestedWholesalePrice(cost);
   }
 
   Future<void> _save() async {

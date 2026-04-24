@@ -4,9 +4,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/auth/data/repositories/auth_repository.dart';
 import '../../features/auth/presentation/cubit/auth_cubit.dart';
+import '../../features/auth/presentation/cubit/auth_state.dart';
 import '../../features/clientes/data/datasources/client_remote_datasource.dart';
 import '../../features/clientes/data/repositories/client_repository.dart';
 import '../../features/clientes/presentation/cubit/clients_cubit.dart';
+import '../../features/company_settings/data/datasources/company_settings_remote_datasource.dart';
+import '../../features/company_settings/data/repositories/company_settings_repository.dart';
+import '../../features/company_settings/presentation/cubit/company_settings_cubit.dart';
+import '../../features/company_settings/presentation/cubit/company_settings_state.dart';
 import '../../features/dashboard/data/datasources/dashboard_remote_datasource.dart';
 import '../../features/dashboard/data/repositories/dashboard_repository.dart';
 import '../../features/dashboard/presentation/cubit/dashboard_cubit.dart';
@@ -39,12 +44,17 @@ Future<void> bootstrap() async {
     remoteDataSource: DashboardRemoteDataSource(apiClient: apiClient),
   );
 
+  final companySettingsRepository = CompanySettingsRepository(
+    remoteDataSource: CompanySettingsRemoteDataSource(apiClient: apiClient),
+  );
+
   runApp(
     AppRoot(
       authRepository: authRepository,
       clientRepository: clientRepository,
       productRepository: productRepository,
       dashboardRepository: dashboardRepository,
+      companySettingsRepository: companySettingsRepository,
     ),
   );
 }
@@ -55,6 +65,7 @@ class AppRoot extends StatelessWidget {
     required this.clientRepository,
     required this.productRepository,
     required this.dashboardRepository,
+    required this.companySettingsRepository,
     super.key,
   });
 
@@ -62,6 +73,7 @@ class AppRoot extends StatelessWidget {
   final ClientRepository clientRepository;
   final ProductRepository productRepository;
   final DashboardRepository dashboardRepository;
+  final CompanySettingsRepository companySettingsRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -71,16 +83,29 @@ class AppRoot extends StatelessWidget {
         BlocProvider(create: (_) => ClientsCubit(clientRepository: clientRepository)),
         BlocProvider(create: (_) => ProductsCubit(repository: productRepository)),
         BlocProvider(create: (_) => DashboardCubit(repository: dashboardRepository)),
+        BlocProvider(create: (_) => CompanySettingsCubit(repository: companySettingsRepository)),
       ],
       child: Builder(
         builder: (context) {
           final router = AppRouter(authCubit: context.read<AuthCubit>()).router;
 
-          return MaterialApp.router(
-            debugShowCheckedModeBanner: false,
-            title: 'AGC Distribuidora',
-            theme: AppTheme.light,
-            routerConfig: router,
+          return BlocListener<AuthCubit, AuthState>(
+            listenWhen: (previous, current) => previous.status != current.status || previous.session != current.session,
+            listener: (context, state) {
+              if (state.status == AuthStatus.authenticated && state.session?.user.role == 'admin') {
+                context.read<CompanySettingsCubit>().load();
+              }
+            },
+            child: BlocBuilder<CompanySettingsCubit, CompanySettingsState>(
+              builder: (context, settingsState) {
+                return MaterialApp.router(
+                  debugShowCheckedModeBanner: false,
+                  title: 'AGC Distribuidora',
+                  theme: AppTheme.light(settingsState.settings),
+                  routerConfig: router,
+                );
+              },
+            ),
           );
         },
       ),

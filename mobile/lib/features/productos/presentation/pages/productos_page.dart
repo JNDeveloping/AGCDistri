@@ -52,7 +52,7 @@ class _ProductosPageState extends State<ProductosPage> {
               controller: _search,
               onChanged: context.read<ProductsCubit>().onSearch,
               decoration: const InputDecoration(
-                labelText: 'Buscar por nombre, código, rubro, marca, categoría o barras',
+                labelText: 'Buscar por nombre, código, marca, categoría o barras',
                 prefixIcon: Icon(Icons.search),
               ),
             ),

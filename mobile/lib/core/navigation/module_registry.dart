@@ -41,7 +41,15 @@ class ModuleRegistry {
     roles: ['admin', 'vendedor', 'repartidor'],
   );
 
-  static const modules = [dashboard, clients, products];
+  static const companySettings = AppModule(
+    key: 'company-settings',
+    label: 'Empresa',
+    route: '/company-settings',
+    icon: Icons.settings_business_rounded,
+    roles: ['admin'],
+  );
+
+  static const modules = [dashboard, clients, products, companySettings];
 
   static List<AppModule> modulesForRole(String role) {
     return modules.where((module) => module.roles.contains(role)).toList();

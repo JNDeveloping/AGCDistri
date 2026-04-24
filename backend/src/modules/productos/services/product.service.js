@@ -1,4 +1,5 @@
 import { AppError } from '../../../errors/app-error.js';
+import { pool } from '../../../database/pool.js';
 import { productRepository } from '../repositories/product.repository.js';
 
 const computeMargin = (cost, wholesalePrice) => {
@@ -7,6 +8,31 @@ const computeMargin = (cost, wholesalePrice) => {
   }
 
   return Number((((wholesalePrice - cost) / cost) * 100).toFixed(2));
+};
+
+const applyRounding = (value, multiple) => {
+  if (!multiple || multiple <= 0) return value;
+  return Math.ceil(value / multiple) * multiple;
+};
+
+const getPricingSettings = async () => {
+  const { rows } = await pool.query(
+    'SELECT default_profit_percentage, price_rounding_enabled, price_rounding_multiple FROM company_settings WHERE id = 1 LIMIT 1',
+  );
+
+  if (!rows[0]) {
+    return {
+      defaultProfitPercentage: 45,
+      priceRoundingEnabled: true,
+      priceRoundingMultiple: 10,
+    };
+  }
+
+  return {
+    defaultProfitPercentage: Number(rows[0].default_profit_percentage ?? 45),
+    priceRoundingEnabled: rows[0].price_rounding_enabled === true,
+    priceRoundingMultiple: Number(rows[0].price_rounding_multiple ?? 10),
+  };
 };
 
 const formatProduct = (row, role) => {
@@ -80,9 +106,18 @@ export class ProductService {
       throw new AppError('Ya existe producto con ese código interno o código de barras.', 409);
     }
 
-    const marginPercentage = payload.marginPercentage ?? computeMargin(payload.cost, payload.wholesalePrice);
+    const settings = await getPricingSettings();
+    const effectiveWholesalePrice = payload.wholesalePrice
+      ?? (payload.cost != null
+        ? applyRounding(
+            payload.cost + (payload.cost * settings.defaultProfitPercentage) / 100,
+            settings.priceRoundingEnabled ? settings.priceRoundingMultiple : 0,
+          )
+        : null);
+    const marginPercentage = payload.marginPercentage ?? computeMargin(payload.cost, effectiveWholesalePrice);
     const created = await productRepository.create({
       ...payload,
+      wholesalePrice: effectiveWholesalePrice,
       marginPercentage,
       shortDescription: payload.shortDescription ?? null,
       stockCurrent: payload.stockCurrent ?? 0,
@@ -125,7 +160,13 @@ export class ProductService {
     }
 
     const cost = payload.cost ?? Number(existing.cost ?? 0);
-    const wholesalePrice = payload.wholesalePrice ?? Number(existing.wholesale_price ?? 0);
+    const settings = await getPricingSettings();
+    const storedWholesale = Number(existing.wholesale_price ?? 0);
+    const suggestedWholesale = applyRounding(
+      cost + (cost * settings.defaultProfitPercentage) / 100,
+      settings.priceRoundingEnabled ? settings.priceRoundingMultiple : 0,
+    );
+    const wholesalePrice = payload.wholesalePrice ?? (storedWholesale > 0 ? storedWholesale : suggestedWholesale);
     const marginPercentage = payload.marginPercentage ?? computeMargin(cost, wholesalePrice);
 
     const updated = await productRepository.update(id, {
