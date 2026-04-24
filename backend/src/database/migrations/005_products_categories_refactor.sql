@@ -42,17 +42,39 @@ BEGIN
   END IF;
 END $$;
 
-ALTER TABLE products
-  ALTER COLUMN internal_code DROP NOT NULL,
-  ALTER COLUMN brand DROP NOT NULL,
-  ALTER COLUMN category DROP NOT NULL,
-  ALTER COLUMN segment DROP NOT NULL,
-  ALTER COLUMN unit_measure DROP NOT NULL,
-  ALTER COLUMN presentation DROP NOT NULL,
-  ALTER COLUMN cost DROP NOT NULL,
-  ALTER COLUMN wholesale_price DROP NOT NULL,
-  ALTER COLUMN stock_current DROP NOT NULL,
-  ALTER COLUMN stock_minimum DROP NOT NULL;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'internal_code') THEN
+    ALTER TABLE products ALTER COLUMN internal_code DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'brand') THEN
+    ALTER TABLE products ALTER COLUMN brand DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'category') THEN
+    ALTER TABLE products ALTER COLUMN category DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'segment') THEN
+    ALTER TABLE products ALTER COLUMN segment DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'unit_measure') THEN
+    ALTER TABLE products ALTER COLUMN unit_measure DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'presentation') THEN
+    ALTER TABLE products ALTER COLUMN presentation DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'cost') THEN
+    ALTER TABLE products ALTER COLUMN cost DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'wholesale_price') THEN
+    ALTER TABLE products ALTER COLUMN wholesale_price DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'stock_current') THEN
+    ALTER TABLE products ALTER COLUMN stock_current DROP NOT NULL;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'stock_minimum') THEN
+    ALTER TABLE products ALTER COLUMN stock_minimum DROP NOT NULL;
+  END IF;
+END $$;
 
 UPDATE products SET internal_code = NULL WHERE internal_code = '';
 UPDATE products SET barcode = NULL WHERE barcode = '';
