@@ -7,6 +7,7 @@ import { env } from './config/env.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { notFoundHandler } from './middlewares/not-found.js';
 import { authRouter } from './modules/auth/routes/auth.routes.js';
+import { accountRouter, paymentRouter } from './modules/accounts/routes/account.routes.js';
 import { clientRouter } from './modules/clientes/routes/client.routes.js';
 import { companySettingsRouter } from './modules/company-settings/routes/company-settings.routes.js';
 import { dashboardRouter } from './modules/dashboard/routes/dashboard.routes.js';
@@ -15,6 +16,7 @@ import { operationsRouter } from './modules/operations/routes/operations.routes.
 import { orderRouter } from './modules/orders/routes/order.routes.js';
 import { productCategoryRouter } from './modules/product-categories/routes/product-category.routes.js';
 import { productRouter } from './modules/productos/routes/product.routes.js';
+import { stockMovementRouter, stockRouter } from './modules/stock/routes/stock.routes.js';
 import { userRouter } from './modules/users/routes/user.routes.js';
 import { zoneRouter } from './modules/zones/routes/zone.routes.js';
 
@@ -28,12 +30,16 @@ export const createApp = () => {
 
   app.use('/api/v1/health', healthRouter);
   app.use('/api/v1/auth', authRouter);
+  app.use('/api/v1', accountRouter);
+  app.use('/api/v1', paymentRouter);
   app.use('/api/v1/dashboard', dashboardRouter);
   app.use('/api/v1/clientes', clientRouter);
   app.use('/api/v1/clients', clientRouter);
   app.use('/api/v1/company-settings', companySettingsRouter);
   app.use('/api/v1/product-categories', productCategoryRouter);
   app.use('/api/v1/productos', productRouter);
+  app.use('/api/v1/stock', stockRouter);
+  app.use('/api/v1/stock-movements', stockMovementRouter);
   app.use('/api/v1/operaciones', operationsRouter);
   app.use('/api/v1/orders', orderRouter);
   app.use('/api/v1/users', userRouter);

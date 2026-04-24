@@ -50,12 +50,41 @@ export class DashboardService {
         `)
       : Promise.resolve({ rows: [] });
 
-    const [clientsResult, productsResult, lowStockResult, clientsRecentResult, productsRecentResult] = await Promise.all([
+    const stockMovementsExists = await relationExists('public.stock_movements');
+    const accountMovementsExists = await relationExists('public.account_movements');
+    const paymentsExists = await relationExists('public.client_payments');
+
+    const recentStockMovements = stockMovementsExists
+      ? pool.query(`SELECT id, product_id, movement_type, quantity, created_at FROM stock_movements ORDER BY created_at DESC LIMIT 5`)
+      : Promise.resolve({ rows: [] });
+    const stockMovementsToday = stockMovementsExists
+      ? pool.query('SELECT COUNT(*)::int AS total FROM stock_movements WHERE created_at::date = CURRENT_DATE')
+      : Promise.resolve({ rows: [{ total: 0 }] });
+    const outOfStockCount = productsTableExists
+      ? pool.query('SELECT COUNT(*)::int AS total FROM products WHERE stock_current <= 0 AND is_active = TRUE')
+      : Promise.resolve({ rows: [{ total: 0 }] });
+    const debtSummary = accountMovementsExists
+      ? pool.query('SELECT COALESCE(SUM(current_balance),0)::numeric AS total FROM clients WHERE current_balance > 0')
+      : Promise.resolve({ rows: [{ total: 0 }] });
+    const debtorsCount = accountMovementsExists
+      ? pool.query('SELECT COUNT(*)::int AS total FROM clients WHERE current_balance > 0')
+      : Promise.resolve({ rows: [{ total: 0 }] });
+    const paymentsToday = paymentsExists
+      ? pool.query('SELECT COALESCE(SUM(amount),0)::numeric AS total, COUNT(*)::int AS count FROM client_payments WHERE created_at::date = CURRENT_DATE AND is_annulled = FALSE')
+      : Promise.resolve({ rows: [{ total: 0, count: 0 }] });
+
+    const [clientsResult, productsResult, lowStockResult, clientsRecentResult, productsRecentResult, stockRecentResult, stockTodayResult, outOfStockResult, debtSummaryResult, debtorsResult, paymentsTodayResult] = await Promise.all([
       clientsCount,
       productsCount,
       lowStockCount,
       recentClients,
       recentProducts,
+      recentStockMovements,
+      stockMovementsToday,
+      outOfStockCount,
+      debtSummary,
+      debtorsCount,
+      paymentsToday,
     ]);
 
     return {
@@ -78,6 +107,24 @@ export class DashboardService {
         stockCurrent: Number(row.stock_current),
         createdAt: row.created_at,
       })),
+      stock: {
+        lowStockProducts: lowStockResult.rows[0].low_stock,
+        outOfStockProducts: outOfStockResult.rows[0].total,
+        stockMovementsToday: stockTodayResult.rows[0].total,
+        recentMovements: stockRecentResult.rows.map((r) => ({
+          id: r.id,
+          productId: r.product_id,
+          movementType: r.movement_type,
+          quantity: Number(r.quantity),
+          createdAt: r.created_at,
+        })),
+      },
+      accounts: {
+        totalDebt: Number(debtSummaryResult.rows[0].total),
+        debtors: debtorsResult.rows[0].total,
+        paymentsTodayCount: paymentsTodayResult.rows[0].count,
+        paymentsTodayTotal: Number(paymentsTodayResult.rows[0].total),
+      },
     };
   }
 }

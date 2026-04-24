@@ -1,5 +1,7 @@
 import { AppError } from '../../../errors/app-error.js';
 import { pool } from '../../../database/pool.js';
+import { accountService } from '../../accounts/services/account.service.js';
+import { stockService } from '../../stock/services/stock.service.js';
 import { orderRepository } from '../repositories/order.repository.js';
 
 const editableStatuses = ['pendiente'];
@@ -75,7 +77,7 @@ export class OrderService {
     const created = await this.getById(orderId, user.role, user.sub);
 
     if (created.paymentTerms === 'cuenta_corriente') {
-      await this.adjustClientBalance(created.clientId, created.total);
+      await accountService.applyOrderDebt({ orderId, clientId: created.clientId, total: created.total, userId: user.sub });
       return this.getById(orderId, user.role, user.sub);
     }
 
@@ -100,10 +102,10 @@ export class OrderService {
     const updated = await this.getById(id, user.role, user.sub);
 
     if (existing.payment_terms === 'cuenta_corriente') {
-      await this.adjustClientBalance(existing.client_id, -Number(existing.total));
+      await accountService.reverseOrderDebt({ orderId: id, clientId: existing.client_id, total: Number(existing.total), userId: user.sub });
     }
     if (updated.paymentTerms === 'cuenta_corriente') {
-      await this.adjustClientBalance(updated.clientId, updated.total);
+      await accountService.applyOrderDebt({ orderId: id, clientId: updated.clientId, total: updated.total, userId: user.sub });
       return this.getById(id, user.role, user.sub);
     }
 
@@ -119,7 +121,11 @@ export class OrderService {
 
     if (existing.stock_discounted) await orderRepository.restoreStock(id);
     if (existing.payment_terms === 'cuenta_corriente') {
-      await this.adjustClientBalance(existing.client_id, -Number(existing.total));
+      await accountService.reverseOrderDebt({ orderId: id, clientId: existing.client_id, total: Number(existing.total), userId: user.sub });
+    }
+    if (existing.stock_discounted) {
+      const items = await orderRepository.listItems(id);
+      await stockService.applyOrderStockMovement(id, items, user.sub, 'devolucion', 'Reversión por cancelación de pedido');
     }
 
     await orderRepository.cancel(id);
@@ -135,7 +141,9 @@ export class OrderService {
 
     if (stockCommitStatuses.includes(status) && !existing.stock_discounted) {
       await this.ensureStockForOrder(id);
-      await orderRepository.applyStockDiscount(id);
+      const items = await orderRepository.listItems(id);
+      await stockService.applyOrderStockMovement(id, items, user.sub, 'salida', `Descuento por cambio de estado a ${status}`);
+      await pool.query('UPDATE orders SET stock_discounted = TRUE, updated_at = NOW() WHERE id = $1', [id]);
     }
 
     await orderRepository.updateStatus(id, status);
@@ -205,11 +213,6 @@ export class OrderService {
     const client = rows[0];
     if (!client) throw new AppError('Cliente no encontrado.', 404);
     return client;
-  }
-
-  async adjustClientBalance(clientId, delta) {
-    if (!delta || delta === 0) return;
-    await pool.query('UPDATE clients SET current_balance = current_balance + $2, updated_at = NOW() WHERE id = $1', [clientId, delta]);
   }
 
   ensureAccess(order, role, userId) {
