@@ -121,6 +121,7 @@ npm run reset:dev  # SOLO desarrollo, requiere confirmación manual
   - si el backup falla, no migra;
   - aplica `.sql` pendientes en `src/database/migrations`;
   - registra ejecución en `schema_migrations`.
+  - en Windows, si `pg_dump` no está en `PATH`, podés definir `PG_DUMP_BIN` en `backend/.env` con la ruta completa al ejecutable.
 - `npm run seed`:
   - aplica seeds de `src/database/seeds` sin borrar datos existentes;
   - usa `INSERT ... ON CONFLICT DO NOTHING`.

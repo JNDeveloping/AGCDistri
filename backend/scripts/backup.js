@@ -23,29 +23,80 @@ const timestamp = () => {
   return `${year}-${month}-${day}_${hours}${minutes}${seconds}`;
 };
 
-const runPgDump = async (outputPath, databaseUrl) => new Promise((resolve, reject) => {
-  const child = spawn('pg_dump', ['--no-owner', '--no-privileges', '--file', outputPath, databaseUrl], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+const resolveWindowsPgDumpCandidates = async () => {
+  if (process.platform !== 'win32') return [];
+
+  const roots = [process.env['ProgramFiles'], process.env['ProgramFiles(x86)']].filter(Boolean);
+  const candidates = [];
+
+  for (const root of roots) {
+    const postgresDir = path.join(root, 'PostgreSQL');
+    try {
+      const versions = await fs.readdir(postgresDir, { withFileTypes: true });
+      for (const entry of versions) {
+        if (!entry.isDirectory()) continue;
+        candidates.push(path.join(postgresDir, entry.name, 'bin', 'pg_dump.exe'));
+      }
+    } catch {
+      // ignore missing directories
+    }
+  }
+
+  return candidates.sort((a, b) => b.localeCompare(a));
+};
+
+const resolvePgDumpCommand = async () => {
+  if (process.env.PG_DUMP_BIN) {
+    return process.env.PG_DUMP_BIN;
+  }
+
+  if (process.platform === 'win32') {
+    const windowsCandidates = await resolveWindowsPgDumpCandidates();
+    for (const candidate of windowsCandidates) {
+      try {
+        await fs.access(candidate);
+        return candidate;
+      } catch {
+        // keep searching
+      }
+    }
+  }
+
+  return 'pg_dump';
+};
+
+const runPgDump = async (outputPath, databaseUrl) => {
+  const pgDumpCmd = await resolvePgDumpCommand();
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(pgDumpCmd, ['--no-owner', '--no-privileges', '--file', outputPath, databaseUrl], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
 
   let stderr = '';
-  child.stderr.on('data', (chunk) => {
-    stderr += chunk.toString();
-  });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
 
-  child.on('error', (error) => {
-    reject(new Error(`No se pudo ejecutar pg_dump: ${error.message}`));
-  });
+    child.on('error', (error) => {
+      reject(
+        new Error(
+          `No se pudo ejecutar pg_dump (${pgDumpCmd}): ${error.message}. `
+          + 'Instalá PostgreSQL client tools o definí PG_DUMP_BIN con la ruta a pg_dump.',
+        ),
+      );
+    });
 
-  child.on('close', (code) => {
-    if (code === 0) {
-      resolve();
-      return;
-    }
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
 
-    reject(new Error(`pg_dump finalizó con código ${code}. ${stderr}`.trim()));
+      reject(new Error(`pg_dump finalizó con código ${code}. ${stderr}`.trim()));
+    });
   });
-});
+};
 
 const createBackup = async () => {
   const databaseUrl = process.env.DATABASE_URL;
