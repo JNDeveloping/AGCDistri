@@ -40,4 +40,4 @@ VALUES
     NULL,
     21
   )
-ON CONFLICT (internal_code) DO NOTHING;
+ON CONFLICT DO NOTHING;
