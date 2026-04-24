@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS products (
   deactivated_at TIMESTAMPTZ
 );
 
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS category VARCHAR(120),
+  ADD COLUMN IF NOT EXISTS segment VARCHAR(120);
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_products_internal_code ON products (internal_code);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_products_barcode_not_null ON products (barcode) WHERE barcode IS NOT NULL;
 
