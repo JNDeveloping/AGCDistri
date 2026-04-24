@@ -117,10 +117,10 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
                     _field(_slogan, 'Slogan', requiredField: false),
                   ]),
                   _sectionCard('Apariencia', [
-                    _field(_primaryColor, 'Color principal (#RRGGBB)'),
-                    _field(_secondaryColor, 'Color secundario (#RRGGBB)'),
-                    _field(_buttonColor, 'Color de botones (#RRGGBB)'),
-                    _field(_backgroundColor, 'Color de fondo (#RRGGBB)'),
+                    _field(_primaryColor, 'Color principal (#RRGGBB)', requiredField: false),
+                    _field(_secondaryColor, 'Color secundario (#RRGGBB)', requiredField: false),
+                    _field(_buttonColor, 'Color de botones (#RRGGBB)', requiredField: false),
+                    _field(_backgroundColor, 'Color de fondo (#RRGGBB)', requiredField: false),
                     const SizedBox(height: 8),
                     _preview(),
                     const SizedBox(height: 8),
@@ -238,10 +238,16 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final isHex = RegExp(r'^#[0-9A-Fa-f]{6}$');
-    if (!isHex.hasMatch(_primaryColor.text.trim())
-        || !isHex.hasMatch(_secondaryColor.text.trim())
-        || !isHex.hasMatch(_buttonColor.text.trim())
-        || !isHex.hasMatch(_backgroundColor.text.trim())) {
+    final current = context.read<CompanySettingsCubit>().state.settings;
+    final primaryColor = _primaryColor.text.trim().isEmpty ? current.primaryColor : _primaryColor.text.trim();
+    final secondaryColor = _secondaryColor.text.trim().isEmpty ? current.secondaryColor : _secondaryColor.text.trim();
+    final buttonColor = _buttonColor.text.trim().isEmpty ? current.buttonColor : _buttonColor.text.trim();
+    final backgroundColor = _backgroundColor.text.trim().isEmpty ? current.backgroundColor : _backgroundColor.text.trim();
+
+    if (!isHex.hasMatch(primaryColor)
+        || !isHex.hasMatch(secondaryColor)
+        || !isHex.hasMatch(buttonColor)
+        || !isHex.hasMatch(backgroundColor)) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresá colores HEX válidos (#RRGGBB).')));
       return;
     }
@@ -249,10 +255,10 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
     final model = CompanySettingsModel(
       companyName: _companyName.text.trim(),
       logoUrl: _logoUrl.text.trim().isEmpty ? null : _logoUrl.text.trim(),
-      primaryColor: _primaryColor.text.trim(),
-      secondaryColor: _secondaryColor.text.trim(),
-      buttonColor: _buttonColor.text.trim(),
-      backgroundColor: _backgroundColor.text.trim(),
+      primaryColor: primaryColor,
+      secondaryColor: secondaryColor,
+      buttonColor: buttonColor,
+      backgroundColor: backgroundColor,
       phone: _phone.text.trim().isEmpty ? null : _phone.text.trim(),
       email: _email.text.trim().isEmpty ? null : _email.text.trim(),
       address: _address.text.trim().isEmpty ? null : _address.text.trim(),
