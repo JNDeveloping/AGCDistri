@@ -18,6 +18,7 @@ class CompanySettingsPage extends StatefulWidget {
 
 class _CompanySettingsPageState extends State<CompanySettingsPage> {
   final _formKey = GlobalKey<FormState>();
+  CompanySettingsModel? _lastAppliedSettings;
 
   late final TextEditingController _companyName;
   late final TextEditingController _logoUrl;
@@ -55,8 +56,15 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
     _slogan = TextEditingController();
     _profit = TextEditingController();
 
-    _syncFromModel(context.read<CompanySettingsCubit>().state.settings);
-    context.read<CompanySettingsCubit>().load();
+    final cubit = context.read<CompanySettingsCubit>();
+    if (cubit.state.status == CompanySettingsStatus.success) {
+      _syncFromModel(cubit.state.settings);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<CompanySettingsCubit>().load();
+      }
+    });
   }
 
   @override
@@ -79,6 +87,7 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
   }
 
   void _syncFromModel(CompanySettingsModel settings) {
+    _lastAppliedSettings = settings;
     _companyName.text = settings.companyName;
     _logoUrl.text = settings.logoUrl ?? '';
     _primaryColor.text = settings.primaryColor;
@@ -118,6 +127,10 @@ class _CompanySettingsPageState extends State<CompanySettingsPage> {
         builder: (context, state) {
           if (state.status == CompanySettingsStatus.loading) {
             return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state.status == CompanySettingsStatus.success && _lastAppliedSettings != state.settings) {
+            _syncFromModel(state.settings);
           }
 
           return SingleChildScrollView(
