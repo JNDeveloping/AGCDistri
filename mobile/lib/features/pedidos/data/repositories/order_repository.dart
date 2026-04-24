@@ -68,6 +68,14 @@ class OrderRepository {
     }
   }
 
+  Future<void> delete(String id) async {
+    try {
+      await _remoteDataSource.deleteOrder(id);
+    } on DioException catch (e) {
+      throw OrderException(_message(e));
+    }
+  }
+
   Future<List<OrderClientLookup>> searchClients(String query) async {
     final payload = await _remoteDataSource.searchClients(query);
     final data = payload['data'] as Map<String, dynamic>? ?? {};

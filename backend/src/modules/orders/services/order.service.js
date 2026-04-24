@@ -132,6 +132,28 @@ export class OrderService {
     return this.getById(id, user.role, user.sub);
   }
 
+  async remove(id, user) {
+    const existing = await orderRepository.findById(id);
+    if (!existing) throw new AppError('Pedido no encontrado.', 404);
+    this.ensureAccess(existing, user.role, user.sub);
+
+    if (user.role === 'vendedor' && existing.seller_id !== user.sub) {
+      throw new AppError('Solo podés eliminar tus propios pedidos.', 403);
+    }
+
+    if (existing.status !== 'pendiente') {
+      throw new AppError('Solo se pueden eliminar pedidos pendientes.', 409);
+    }
+
+    const hasAssociatedMovements = await orderRepository.hasAccountOrStockMovements(id);
+    if (hasAssociatedMovements || existing.stock_discounted || existing.payment_terms === 'cuenta_corriente') {
+      throw new AppError('No se puede eliminar este pedido porque tiene movimientos asociados. Podés cancelarlo.', 409);
+    }
+
+    await orderRepository.remove(id);
+    return { id };
+  }
+
   async changeStatus(id, status, user) {
     const existing = await orderRepository.findById(id);
     if (!existing) throw new AppError('Pedido no encontrado.', 404);

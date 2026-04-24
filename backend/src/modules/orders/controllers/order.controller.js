@@ -46,3 +46,8 @@ export const changeOrderStatusController = async (req, res) => {
   const data = await orderService.changeStatus(req.params.id, req.body.status, req.user);
   return ok(res, data, 'Estado de pedido actualizado correctamente.');
 };
+
+export const deleteOrderController = async (req, res) => {
+  const data = await orderService.remove(req.params.id, req.user);
+  return ok(res, data, 'Pedido eliminado correctamente.');
+};

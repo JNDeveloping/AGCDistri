@@ -29,7 +29,7 @@ class OrdersCubit extends Cubit<OrdersState> {
   }
 
   Future<void> setStatusFilter(String? status) async {
-    emit(state.copyWith(statusFilter: status));
+    emit(state.copyWith(statusFilter: status, clearStatusFilter: status == null));
     await load();
   }
 
@@ -65,6 +65,11 @@ class OrdersCubit extends Cubit<OrdersState> {
     final updated = await _repository.changeStatus(id, status);
     await load();
     return updated;
+  }
+
+  Future<void> delete(String id) async {
+    await _repository.delete(id);
+    await load();
   }
 
   Future<List<OrderClientLookup>> searchClients(String query) => _repository.searchClients(query);

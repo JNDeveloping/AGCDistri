@@ -19,13 +19,20 @@ class OrdersState extends Equatable {
   final String query;
   final String? statusFilter;
 
-  OrdersState copyWith({OrdersStatus? status, List<OrderModel>? items, String? errorMessage, String? query, String? statusFilter}) {
+  OrdersState copyWith({
+    OrdersStatus? status,
+    List<OrderModel>? items,
+    String? errorMessage,
+    String? query,
+    String? statusFilter,
+    bool clearStatusFilter = false,
+  }) {
     return OrdersState(
       status: status ?? this.status,
       items: items ?? this.items,
       errorMessage: errorMessage,
       query: query ?? this.query,
-      statusFilter: statusFilter ?? this.statusFilter,
+      statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
     );
   }
 

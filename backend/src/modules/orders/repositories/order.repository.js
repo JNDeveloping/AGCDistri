@@ -249,6 +249,22 @@ export class OrderRepository {
     return rows[0] ?? null;
   }
 
+  async hasAccountOrStockMovements(id) {
+    const { rows } = await pool.query(
+      `SELECT
+        EXISTS(SELECT 1 FROM stock_movements WHERE reference_type = 'order' AND reference_id = $1) AS has_stock,
+        EXISTS(SELECT 1 FROM account_movements WHERE reference_type = 'order' AND reference_id = $1) AS has_account`,
+      [id],
+    );
+    const row = rows[0] ?? {};
+    return row.has_stock === true || row.has_account === true;
+  }
+
+  async remove(id) {
+    const { rowCount } = await pool.query('DELETE FROM orders WHERE id = $1', [id]);
+    return rowCount > 0;
+  }
+
   async applyStockDiscount(orderId) {
     await pool.query(
       `
