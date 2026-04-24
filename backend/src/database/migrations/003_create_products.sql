@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+
 CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   internal_code VARCHAR(30) NOT NULL,

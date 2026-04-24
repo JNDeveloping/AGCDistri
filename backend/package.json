@@ -7,8 +7,12 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "lint": "eslint .",
-    "db:migrate": "node scripts/migrate.js",
-    "db:seed": "node scripts/seed.js"
+    "migrate": "node scripts/migrate.js",
+    "backup": "node scripts/backup.js",
+    "seed": "node scripts/seed.js",
+    "reset:dev": "node scripts/reset-dev.js",
+    "db:migrate": "npm run migrate",
+    "db:seed": "npm run seed"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

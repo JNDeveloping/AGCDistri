@@ -80,11 +80,5 @@ UPDATE products SET internal_code = NULL WHERE internal_code = '';
 UPDATE products SET barcode = NULL WHERE barcode = '';
 UPDATE products SET unit_measure = NULL WHERE unit_measure = '';
 
-DROP INDEX IF EXISTS uq_products_internal_code;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_products_internal_code_not_null ON products (internal_code) WHERE internal_code IS NOT NULL;
-
-DROP INDEX IF EXISTS uq_products_barcode_not_null;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_products_barcode_not_null ON products (barcode) WHERE barcode IS NOT NULL;
-
-ALTER TABLE products DROP COLUMN IF EXISTS segment;
-ALTER TABLE products DROP COLUMN IF EXISTS category;
