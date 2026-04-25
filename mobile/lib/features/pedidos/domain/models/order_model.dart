@@ -167,3 +167,44 @@ class OrderProductLookup {
         stockCurrent: (json['stockCurrent'] as num?)?.toDouble() ?? 0,
       );
 }
+
+class OrderStockValidation {
+  const OrderStockValidation({
+    required this.hasInsufficientStock,
+    required this.items,
+  });
+
+  final bool hasInsufficientStock;
+  final List<OrderStockValidationItem> items;
+
+  factory OrderStockValidation.fromJson(Map<String, dynamic> json) => OrderStockValidation(
+        hasInsufficientStock: json['hasInsufficientStock'] as bool? ?? false,
+        items: (json['items'] as List<dynamic>? ?? [])
+            .map((item) => OrderStockValidationItem.fromJson(item as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class OrderStockValidationItem {
+  const OrderStockValidationItem({
+    required this.productId,
+    required this.productName,
+    required this.requiredQuantity,
+    required this.availableStock,
+    required this.hasStock,
+  });
+
+  final String productId;
+  final String productName;
+  final double requiredQuantity;
+  final double availableStock;
+  final bool hasStock;
+
+  factory OrderStockValidationItem.fromJson(Map<String, dynamic> json) => OrderStockValidationItem(
+        productId: json['productId'] as String? ?? '',
+        productName: json['productName'] as String? ?? '-',
+        requiredQuantity: (json['requiredQuantity'] as num?)?.toDouble() ?? 0,
+        availableStock: (json['availableStock'] as num?)?.toDouble() ?? 0,
+        hasStock: json['hasStock'] as bool? ?? false,
+      );
+}

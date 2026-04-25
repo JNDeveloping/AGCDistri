@@ -67,6 +67,8 @@ class OrdersCubit extends Cubit<OrdersState> {
     return updated;
   }
 
+  Future<OrderStockValidation> validateStock(String id) => _repository.validateStock(id);
+
   Future<void> delete(String id) async {
     await _repository.delete(id);
     await load();

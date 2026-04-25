@@ -20,6 +20,7 @@ class OrderRemoteDataSource {
   Future<Map<String, dynamic>> updateOrder(String id, Map<String, dynamic> data) async => (await _apiClient.put('/orders/$id', data: data)).data ?? {};
   Future<Map<String, dynamic>> cancelOrder(String id) async => (await _apiClient.patch('/orders/$id/cancel')).data ?? {};
   Future<Map<String, dynamic>> changeStatus(String id, String status) async => (await _apiClient.patch('/orders/$id/status', data: {'status': status})).data ?? {};
+  Future<Map<String, dynamic>> validateStock(String id) async => (await _apiClient.get('/orders/$id/stock-validation')).data ?? {};
   Future<Map<String, dynamic>> deleteOrder(String id) async => (await _apiClient.delete('/orders/$id')).data ?? {};
 
   Future<Map<String, dynamic>> searchClients(String query) async {

@@ -5,6 +5,8 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../stock/presentation/pages/stock_product_detail_page.dart';
+import '../../data/repositories/order_repository.dart';
 import '../../domain/models/order_model.dart';
 import '../cubit/orders_cubit.dart';
 import 'order_form_page.dart';
@@ -21,11 +23,14 @@ class OrderDetailPage extends StatefulWidget {
 class _OrderDetailPageState extends State<OrderDetailPage> {
   late Future<OrderModel> _future;
   bool _changingStatus = false;
+  bool _validatingStock = false;
+  OrderStockValidation? _stockValidation;
 
   @override
   void initState() {
     super.initState();
     _future = context.read<OrdersCubit>().getById(widget.orderId);
+    _refreshStockValidation();
   }
 
   @override
@@ -97,6 +102,9 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   Widget _actions(OrderModel o) {
     final canEditPending = o.status == 'pendiente';
     final canStatus = o.status != 'entregado' && o.status != 'cancelado';
+    final role = context.select((AuthCubit cubit) => cubit.state.session?.user.role ?? 'vendedor');
+    final blockedItem = _firstBlockedItem();
+    final canPrepare = blockedItem == null && !_validatingStock;
 
     return Wrap(
       spacing: 8,
@@ -125,8 +133,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         if (o.status != 'cancelado')
           TextButton.icon(
             onPressed: () async {
-              await context.read<OrdersCubit>().cancel(o.id);
-              if (mounted) setState(() => _future = context.read<OrdersCubit>().getById(widget.orderId));
+              await _runOrderAction(
+                action: () => context.read<OrdersCubit>().cancel(o.id),
+                successMessage: 'Pedido cancelado correctamente.',
+              );
             },
             icon: const Icon(Icons.cancel_outlined),
             label: const Text('Cancelar pedido'),
@@ -134,26 +144,62 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         if (canStatus)
           for (final status in const ['confirmado', 'preparado', 'en_reparto', 'entregado'])
             FilledButton.tonal(
-              onPressed: _changingStatus ? null : () => _changeStatus(o.id, status),
+              onPressed: _changingStatus || (status == 'preparado' && !canPrepare) ? null : () => _changeStatus(o.id, status, role),
               child: Text(_changingStatus ? 'Actualizando...' : status),
             ),
+        if (_validatingStock)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                SizedBox(width: 8),
+                Text('Validando stock...'),
+              ],
+            ),
+          ),
+        if (blockedItem != null)
+          Card(
+            color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.45),
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'No hay stock suficiente para preparar este pedido.',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text('Producto: ${blockedItem.productName}'),
+                  Text('Disponible: ${blockedItem.availableStock.toStringAsFixed(0)}'),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
 
-  Future<void> _changeStatus(String orderId, String status) async {
-    setState(() => _changingStatus = true);
-    try {
-      await context.read<OrdersCubit>().changeStatus(orderId, status);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Estado actualizado.')));
-        setState(() => _future = context.read<OrdersCubit>().getById(widget.orderId));
+  Future<void> _changeStatus(String orderId, String status, String role) async {
+    if (status == 'preparado') {
+      final blocked = _firstBlockedItem();
+      if (blocked != null) {
+        await _showInsufficientStockDialog(
+          role: role,
+          productId: blocked.productId,
+          productName: blocked.productName,
+          availableStock: blocked.availableStock,
+        );
+        return;
       }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-    } finally {
-      if (mounted) setState(() => _changingStatus = false);
     }
+
+    await _runOrderAction(
+      action: () => context.read<OrdersCubit>().changeStatus(orderId, status),
+      successMessage: 'Estado actualizado.',
+    );
   }
 
   Future<void> _confirmDelete(OrderModel order) async {
@@ -183,6 +229,135 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         );
       }
     }
+  }
+
+  Future<void> _refreshOrderAndStockValidation() async {
+    if (!mounted) return;
+    setState(() => _future = context.read<OrdersCubit>().getById(widget.orderId));
+    await _refreshStockValidation();
+  }
+
+  Future<void> _refreshStockValidation() async {
+    if (!mounted) return;
+    setState(() => _validatingStock = true);
+    try {
+      final validation = await context.read<OrdersCubit>().validateStock(widget.orderId);
+      if (!mounted) return;
+      setState(() => _stockValidation = validation);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _stockValidation = null);
+    } finally {
+      if (!mounted) return;
+      setState(() => _validatingStock = false);
+    }
+  }
+
+  Future<void> _runOrderAction({
+    required Future<dynamic> Function() action,
+    required String successMessage,
+  }) async {
+    setState(() => _changingStatus = true);
+    try {
+      await action();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMessage)));
+      await _refreshOrderAndStockValidation();
+    } on OrderException catch (error) {
+      if (!mounted) return;
+      if (error.isInsufficientStock) {
+        await _showInsufficientStockDialog(
+          role: context.read<AuthCubit>().state.session?.user.role ?? 'vendedor',
+          productId: _resolveProductId(error.productName),
+          productName: error.productName ?? 'Producto',
+          availableStock: error.availableStock ?? 0,
+        );
+        await _refreshStockValidation();
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo completar la acción. Intentá nuevamente.')),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => _changingStatus = false);
+    }
+  }
+
+  String? _resolveProductId(String? productName) {
+    if (productName == null) return null;
+    final order = _stockValidation;
+    if (order == null) return null;
+    for (final item in order.items) {
+      if (item.productName == productName) return item.productId;
+    }
+    return null;
+  }
+
+  OrderStockValidationItem? _firstBlockedItem() {
+    final items = _stockValidation?.items ?? const <OrderStockValidationItem>[];
+    for (final item in items) {
+      if (!item.hasStock) return item;
+    }
+    return null;
+  }
+
+  Future<void> _showInsufficientStockDialog({
+    required String role,
+    required String productName,
+    required double availableStock,
+    String? productId,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        final isAdmin = role == 'admin';
+        return AlertDialog(
+          title: const Text('Stock insuficiente'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('No hay stock suficiente para preparar este pedido.'),
+              const SizedBox(height: 8),
+              Text('Producto: $productName'),
+              Text('Disponible: ${availableStock.toStringAsFixed(0)}'),
+            ],
+          ),
+          actions: [
+            if (isAdmin && productId != null)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => StockProductDetailPage(productId: productId)),
+                  );
+                },
+                child: const Text('Ver producto'),
+              ),
+            if (isAdmin && productId != null)
+              FilledButton.tonal(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => StockProductDetailPage(productId: productId)),
+                  );
+                },
+                child: const Text('Ajustar stock'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Volver al pedido'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _showPdf(OrderModel order) async {

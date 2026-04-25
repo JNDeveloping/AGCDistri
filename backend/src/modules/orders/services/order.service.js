@@ -172,13 +172,45 @@ export class OrderService {
     return this.getById(id, user.role, user.sub);
   }
 
+  async validateStockForOrder(orderId, role, userId) {
+    const order = await orderRepository.findById(orderId);
+    if (!order) throw new AppError('Pedido no encontrado.', 404);
+    this.ensureAccess(order, role, userId);
+
+    const items = await orderRepository.listItems(orderId);
+    const validationItems = [];
+
+    for (const item of items) {
+      const { rows } = await pool.query('SELECT stock_current FROM products WHERE id = $1 LIMIT 1', [item.product_id]);
+      const availableStock = Number(rows[0]?.stock_current ?? 0);
+      const requiredQuantity = Number(item.quantity);
+
+      validationItems.push({
+        productId: item.product_id,
+        productName: item.product_name,
+        requiredQuantity,
+        availableStock,
+        hasStock: availableStock >= requiredQuantity,
+      });
+    }
+
+    return {
+      hasInsufficientStock: validationItems.some((item) => !item.hasStock),
+      items: validationItems,
+    };
+  }
+
   async ensureStockForOrder(orderId) {
     const items = await orderRepository.listItems(orderId);
     for (const item of items) {
       const { rows } = await pool.query('SELECT stock_current FROM products WHERE id = $1 LIMIT 1', [item.product_id]);
-      const stock = Number(rows[0]?.stock_current ?? 0);
-      if (stock < Number(item.quantity)) {
-        throw new AppError(`Stock insuficiente para ${item.product_name}. Disponible: ${stock}.`, 409);
+      const availableStock = Number(rows[0]?.stock_current ?? 0);
+      if (availableStock < Number(item.quantity)) {
+        throw new AppError(
+          `Stock insuficiente para ${item.product_name}. Disponible: ${availableStock}.`,
+          409,
+          { code: 'INSUFFICIENT_STOCK', productName: item.product_name, availableStock },
+        );
       }
     }
   }
