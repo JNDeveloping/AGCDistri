@@ -106,6 +106,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
+
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.account_balance_wallet_outlined),
+              title: const Text('Cuentas corrientes'),
+              subtitle: const Text('Abrir clientes para ver saldos y movimientos'),
+              onTap: () => context.push('/clientes'),
+            ),
+          ),
           Card(
             child: ListTile(
               leading: const Icon(Icons.inventory_rounded),

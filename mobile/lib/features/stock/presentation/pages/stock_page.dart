@@ -28,39 +28,120 @@ class _StockPageState extends State<StockPage> {
   }
 
   @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final role = context.select((AuthCubit cubit) => cubit.state.session?.user.role ?? 'vendedor');
+
     return Scaffold(
       appBar: AppBar(title: const Text('Stock')),
       bottomNavigationBar: AppBottomNavBar(currentRoute: StockPage.path, role: role),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
             child: TextField(
               controller: _search,
-              onChanged: context.read<StockCubit>().onSearch,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Buscar producto, código o barras'),
+              onChanged: (v) {
+                context.read<StockCubit>().onSearch(v);
+                setState(() {});
+              },
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search_rounded),
+                hintText: 'Buscar por nombre, código o barras',
+                suffixIcon: _search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          _search.clear();
+                          context.read<StockCubit>().onSearch('');
+                          setState(() {});
+                        },
+                      ),
+              ),
             ),
           ),
-          Wrap(spacing: 8, children: [
-            _chip('Todos', 'all'),
-            _chip('Stock bajo', 'low'),
-            _chip('Sin stock', 'out'),
-          ]),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _chip('Todos', 'all', Icons.inventory_2_outlined),
+                  const SizedBox(width: 8),
+                  _chip('Stock bajo', 'low', Icons.warning_amber_rounded),
+                  const SizedBox(width: 8),
+                  _chip('Sin stock', 'out', Icons.remove_shopping_cart_rounded),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 8),
           Expanded(
             child: BlocBuilder<StockCubit, StockState>(
               builder: (_, state) {
-                if (state.status == StockStatus.loading && state.items.isEmpty) return const Center(child: CircularProgressIndicator());
-                if (state.status == StockStatus.failure) return Center(child: Text(state.error ?? 'Error de stock'));
-                if (state.items.isEmpty) return const Center(child: Text('No hay productos para mostrar.'));
-                return ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: state.items.length,
-                  itemBuilder: (_, i) => StockProductCard(
-                    item: state.items[i],
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StockProductDetailPage(productId: state.items[i].productId))),
+                if (state.status == StockStatus.loading && state.items.isEmpty) {
+                  return _StockSkeletonList();
+                }
+
+                if (state.status == StockStatus.failure) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline_rounded, size: 36),
+                          const SizedBox(height: 8),
+                          Text(state.error ?? 'No se pudo cargar el stock', textAlign: TextAlign.center),
+                          const SizedBox(height: 12),
+                          FilledButton.icon(
+                            onPressed: context.read<StockCubit>().load,
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('Reintentar'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                if (state.items.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.inbox_outlined, size: 36),
+                          SizedBox(height: 8),
+                          Text('No hay productos para este filtro.'),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: context.read<StockCubit>().load,
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(12),
+                    itemCount: state.items.length,
+                    itemBuilder: (_, i) => StockProductCard(
+                      item: state.items[i],
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => StockProductDetailPage(productId: state.items[i].productId),
+                        ),
+                      ),
+                    ),
                   ),
                 );
               },
@@ -71,8 +152,34 @@ class _StockPageState extends State<StockPage> {
     );
   }
 
-  Widget _chip(String label, String value) {
+  Widget _chip(String label, String value, IconData icon) {
     final selected = context.watch<StockCubit>().state.filter == value;
-    return ChoiceChip(label: Text(label), selected: selected, onSelected: (_) => context.read<StockCubit>().setFilter(value));
+    return ChoiceChip(
+      avatar: Icon(icon, size: 18),
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => context.read<StockCubit>().setFilter(value),
+    );
+  }
+}
+
+class _StockSkeletonList extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: 5,
+      itemBuilder: (_, __) => Card(
+        elevation: 0,
+        child: Container(
+          height: 132,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          margin: const EdgeInsets.only(bottom: 10),
+        ),
+      ),
+    );
   }
 }
