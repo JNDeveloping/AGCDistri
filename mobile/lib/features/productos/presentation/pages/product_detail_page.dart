@@ -5,6 +5,7 @@ import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../domain/models/product_model.dart';
 import '../cubit/products_cubit.dart';
 import 'product_form_page.dart';
+import '../../../stock/presentation/pages/stock_product_detail_page.dart';
 
 class ProductDetailPage extends StatefulWidget {
   const ProductDetailPage({required this.productId, super.key});
@@ -79,6 +80,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               Text('Stock actual: ${p.stockCurrent.toStringAsFixed(2)}'),
               Text('Stock mínimo: ${p.stockMinimum.toStringAsFixed(2)}'),
               Text('Estado: ${p.isActive ? 'Activo' : 'Inactivo'}'),
+              const SizedBox(height: 10),
+              FilledButton.tonalIcon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => StockProductDetailPage(productId: p.id)),
+                ),
+                icon: const Icon(Icons.inventory_2_outlined),
+                label: const Text('Ver historial de stock'),
+              ),
             ],
           );
         },

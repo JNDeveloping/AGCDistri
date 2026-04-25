@@ -21,6 +21,11 @@ import '../../features/productos/presentation/cubit/products_cubit.dart';
 import '../../features/pedidos/data/datasources/order_remote_datasource.dart';
 import '../../features/pedidos/data/repositories/order_repository.dart';
 import '../../features/pedidos/presentation/cubit/orders_cubit.dart';
+import '../../features/stock/data/datasources/stock_remote_datasource.dart';
+import '../../features/stock/data/repositories/stock_repository.dart';
+import '../../features/stock/presentation/cubit/stock_cubit.dart';
+import '../../features/accounts/data/datasources/accounts_remote_datasource.dart';
+import '../../features/accounts/data/repositories/accounts_repository.dart';
 import '../../services/api/api_client.dart';
 import '../../services/storage/token_storage.dart';
 import '../router/app_router.dart';
@@ -61,6 +66,14 @@ Future<void> bootstrap() async {
     remoteDataSource: UsersRemoteDataSource(apiClient: apiClient),
   );
 
+  final stockRepository = StockRepository(
+    remoteDataSource: StockRemoteDataSource(apiClient: apiClient),
+  );
+
+  final accountsRepository = AccountsRepository(
+    remoteDataSource: AccountsRemoteDataSource(apiClient: apiClient),
+  );
+
   runApp(
     AppRoot(
       authRepository: authRepository,
@@ -70,6 +83,8 @@ Future<void> bootstrap() async {
       orderRepository: orderRepository,
       companySettingsRepository: companySettingsRepository,
       usersRepository: usersRepository,
+      stockRepository: stockRepository,
+      accountsRepository: accountsRepository,
     ),
   );
 }
@@ -83,6 +98,8 @@ class AppRoot extends StatelessWidget {
     required this.orderRepository,
     required this.companySettingsRepository,
     required this.usersRepository,
+    required this.stockRepository,
+    required this.accountsRepository,
     super.key,
   });
 
@@ -93,17 +110,25 @@ class AppRoot extends StatelessWidget {
   final OrderRepository orderRepository;
   final CompanySettingsRepository companySettingsRepository;
   final UsersRepository usersRepository;
+  final StockRepository stockRepository;
+  final AccountsRepository accountsRepository;
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
+    return MultiRepositoryProvider(
       providers: [
+        RepositoryProvider.value(value: stockRepository),
+        RepositoryProvider.value(value: accountsRepository),
+      ],
+      child: MultiBlocProvider(
+        providers: [
         BlocProvider(create: (_) => AuthCubit(authRepository: authRepository)..initialize()),
         BlocProvider(create: (_) => ClientsCubit(clientRepository: clientRepository)),
         BlocProvider(create: (_) => ProductsCubit(repository: productRepository)),
         BlocProvider(create: (_) => DashboardCubit(repository: dashboardRepository)),
         BlocProvider(create: (_) => OrdersCubit(repository: orderRepository)),
         BlocProvider(create: (_) => CompanySettingsCubit(repository: companySettingsRepository)),
+        BlocProvider(create: (_) => StockCubit(repository: stockRepository)),
       ],
       child: Builder(
         builder: (context) {
@@ -131,6 +156,7 @@ class AppRoot extends StatelessWidget {
             ),
           );
         },
+      ),
       ),
     );
   }

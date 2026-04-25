@@ -7,6 +7,7 @@ import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../company_settings/presentation/pages/company_settings_page.dart';
 import '../../../clientes/presentation/pages/zones_management_page.dart';
 import '../../../productos/presentation/pages/product_categories_page.dart';
+import '../../../stock/presentation/pages/stock_page.dart';
 import '../../../users/data/repositories/users_repository.dart';
 import '../../../users/presentation/pages/users_page.dart';
 
@@ -105,6 +106,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.inventory_rounded),
+              title: const Text('Stock'),
+              subtitle: const Text('Stock general, bajo stock y ajustes'),
+              onTap: () => context.push(StockPage.path),
+            ),
+          ),
 
           if (isAdmin)
             Card(

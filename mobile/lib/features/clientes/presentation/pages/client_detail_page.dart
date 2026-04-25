@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../accounts/presentation/pages/client_account_page.dart';
 import '../../domain/models/client_model.dart';
 import '../utils/whatsapp_utils.dart';
 import '../cubit/clients_cubit.dart';
@@ -70,6 +71,21 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
               Text('Límite crédito: ${client.creditLimit.toStringAsFixed(2)}'),
               Text('Saldo actual: ${client.currentBalance.toStringAsFixed(2)}'),
               Text('Estado: ${client.isActive ? 'Activo' : 'Inactivo'}'),
+              const SizedBox(height: 10),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.account_balance_wallet_outlined),
+                  title: const Text('Cuenta corriente'),
+                  subtitle: Text(client.currentBalance > 0 ? 'Con deuda' : 'Al día'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ClientAccountPage(clientId: client.id, clientName: client.businessName),
+                    ),
+                  ),
+                ),
+              ),
               if (client.notes != null) ...[
                 const SizedBox(height: 16),
                 const Text('Observaciones'),
