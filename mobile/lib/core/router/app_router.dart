@@ -17,6 +17,7 @@ import '../../features/productos/presentation/pages/productos_page.dart';
 import '../../features/stock/presentation/pages/stock_page.dart';
 import '../../features/reports/presentation/pages/reports_page.dart';
 import '../../features/users/data/repositories/users_repository.dart';
+import '../navigation/module_registry.dart';
 
 class AppRouter {
   AppRouter({required AuthCubit authCubit, required UsersRepository usersRepository})
@@ -49,18 +50,19 @@ class AppRouter {
             }
 
             if (status == AuthStatus.authenticated) {
-              final role = authCubit.state.session?.user.role;
-              final allowed = [
-                DashboardPage.path,
-                AccountsOverviewPage.path,
-                ClientesPage.path,
-                ProductosPage.path,
-                PedidosPage.path,
-                StockPage.path,
-                ReportsPage.path,
-                ProfilePage.path,
-                if (role == 'admin') CompanySettingsPage.path,
+              final role = authCubit.state.session?.user.role ?? 'vendedor';
+              final roleModules = [
+                ...ModuleRegistry.bottomModules,
+                ...ModuleRegistry.managementForRole(role),
+                ModuleRegistry.profile,
               ];
+              final allowed = {
+                ...roleModules.map((module) => module.route),
+                '/profile/users',
+                '/profile/zones',
+                '/profile/categories',
+              };
+
               if (!allowed.contains(location)) {
                 return DashboardPage.path;
               }
