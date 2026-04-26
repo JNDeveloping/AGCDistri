@@ -23,13 +23,22 @@ export const errorHandler = (error, req, res, _next) => {
       }
     : {};
 
-  logger.error('Unhandled API error', {
+  const logContext = {
     path: req.path,
     method: req.method,
+    statusCode,
     message: normalizedError.message,
-    stack: normalizedError.stack,
     postgresCode: error?.code,
-  });
+  };
+
+  if (!isAppError || statusCode >= 500) {
+    logger.error('Unhandled API error', {
+      ...logContext,
+      stack: normalizedError.stack,
+    });
+  } else {
+    logger.info('Handled API error', logContext);
+  }
 
   return res.status(statusCode).json({
     success: false,
