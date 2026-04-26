@@ -62,6 +62,7 @@ const formatProduct = (row, role) => {
     stockCurrent: row.stock_current == null ? 0 : Number(row.stock_current),
     stockMinimum: row.stock_minimum == null ? 0 : Number(row.stock_minimum),
     isActive: row.is_active,
+    hasVariants: row.has_variants === true,
     isFeatured: row.is_featured,
     imageUrl: row.image_url,
     taxRate: row.tax_rate == null ? null : Number(row.tax_rate),

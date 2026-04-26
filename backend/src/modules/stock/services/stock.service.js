@@ -7,6 +7,7 @@ const mapMovement = (row) => ({
   productId: row.product_id,
   productName: row.product_name,
   movementType: row.movement_type,
+  productVariantId: row.product_variant_id ?? null,
   quantity: Number(row.quantity),
   previousStock: Number(row.previous_stock),
   newStock: Number(row.new_stock),
@@ -62,21 +63,32 @@ export class StockService {
     const product = await stockRepository.findProduct(payload.productId);
     if (!product) throw new AppError('Producto no encontrado.', 404);
 
-    const previous = Number(product.stock_current);
+    const variant = payload.productVariantId ? await stockRepository.findVariant(payload.productVariantId) : null;
+    if (payload.productVariantId && (!variant || variant.product_id !== product.id)) {
+      throw new AppError('Variante no encontrada para el producto seleccionado.', 404);
+    }
+
+    const previous = variant && variant.stock != null ? Number(variant.stock) : Number(product.stock_current);
     const isDecrease = affectsDecrease.has(payload.movementType);
     const next = isDecrease ? previous - quantity : previous + quantity;
     if (next < 0) throw new AppError('Stock insuficiente para realizar la salida.', 409);
 
-    await stockRepository.updateStock(product.id, next);
+    if (variant && variant.stock != null) {
+      await stockRepository.updateVariantStock(variant.id, next);
+    } else {
+      await stockRepository.updateStock(product.id, next);
+    }
+
     const saved = await stockRepository.insertMovement({
       ...payload,
+      productVariantId: variant?.id ?? null,
       quantity,
       previousStock: previous,
       newStock: next,
       userId: user.sub,
     });
 
-    return mapMovement({ ...saved, product_name: product.name, user_name: user.fullName });
+    return mapMovement({ ...saved, product_name: variant ? `${product.name} - ${variant.name}` : product.name, user_name: user.fullName });
   }
 
   async adjust(payload, user) {
@@ -108,17 +120,34 @@ export class StockService {
 
   async applyOrderStockMovement(orderId, items, userId, movementType, reason) {
     for (const item of items) {
-      const exists = await stockRepository.findMovementByReference({ referenceType: 'order', referenceId: orderId, productId: item.product_id, movementType });
+      const exists = await stockRepository.findMovementByReference({
+        referenceType: 'order',
+        referenceId: orderId,
+        productId: item.product_id,
+        productVariantId: item.product_variant_id,
+        movementType,
+      });
       if (exists) continue;
+
       const product = await stockRepository.findProduct(item.product_id);
       if (!product) continue;
-      const previous = Number(product.stock_current);
+
+      const variant = item.product_variant_id ? await stockRepository.findVariant(item.product_variant_id) : null;
+      const trackVariantStock = variant && variant.stock != null;
+      const previous = trackVariantStock ? Number(variant.stock) : Number(product.stock_current);
       const quantity = Number(item.quantity);
       const next = movementType === 'salida' ? previous - quantity : previous + quantity;
       if (next < 0) throw new AppError(`Stock insuficiente para ${item.product_name}.`, 409);
-      await stockRepository.updateStock(item.product_id, next);
+
+      if (trackVariantStock) {
+        await stockRepository.updateVariantStock(variant.id, next);
+      } else {
+        await stockRepository.updateStock(item.product_id, next);
+      }
+
       await stockRepository.insertMovement({
         productId: item.product_id,
+        productVariantId: item.product_variant_id,
         movementType,
         quantity,
         previousStock: previous,

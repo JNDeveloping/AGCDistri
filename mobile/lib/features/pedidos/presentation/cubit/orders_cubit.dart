@@ -67,6 +67,8 @@ class OrdersCubit extends Cubit<OrdersState> {
     return updated;
   }
 
+  Future<OrderStockValidation> validateStock(String id) => _repository.validateStock(id);
+
   Future<void> delete(String id) async {
     await _repository.delete(id);
     await load();
@@ -74,6 +76,7 @@ class OrdersCubit extends Cubit<OrdersState> {
 
   Future<List<OrderClientLookup>> searchClients(String query) => _repository.searchClients(query);
   Future<List<OrderProductLookup>> searchProducts(String query) => _repository.searchProducts(query);
+  Future<List<OrderProductVariantLookup>> searchProductVariants(String productId) => _repository.searchProductVariants(productId);
 
   @override
   Future<void> close() {

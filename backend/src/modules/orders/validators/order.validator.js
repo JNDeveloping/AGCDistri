@@ -5,6 +5,7 @@ export const paymentTermsValues = ['contado', 'cuenta_corriente'];
 
 const orderItemSchema = z.object({
   productId: z.string().uuid(),
+  productVariantId: z.string().uuid().optional().nullable(),
   quantity: z.coerce.number().positive(),
   discountType: z.enum(['amount', 'percentage']).optional().default('amount'),
   discountValue: z.coerce.number().min(0).optional().default(0),

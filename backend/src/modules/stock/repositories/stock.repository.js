@@ -35,15 +35,25 @@ export class StockRepository {
     await pool.query('UPDATE products SET stock_current = $2, updated_at = NOW() WHERE id = $1', [productId, newStock]);
   }
 
+  async findVariant(variantId) {
+    const { rows } = await pool.query('SELECT id, product_id, name, stock, is_active FROM product_variants WHERE id = $1 LIMIT 1', [variantId]);
+    return rows[0] ?? null;
+  }
+
+  async updateVariantStock(variantId, newStock) {
+    await pool.query('UPDATE product_variants SET stock = $2, updated_at = NOW() WHERE id = $1', [variantId, newStock]);
+  }
+
   async insertMovement(movement) {
     const { rows } = await pool.query(
       `INSERT INTO stock_movements (
-        product_id, movement_type, quantity, previous_stock, new_stock, reason, notes,
+        product_id, product_variant_id, movement_type, quantity, previous_stock, new_stock, reason, notes,
         user_id, reference_type, reference_id, source_location, destination_location
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
       RETURNING *`,
       [
         movement.productId,
+        movement.productVariantId ?? null,
         movement.movementType,
         movement.quantity,
         movement.previousStock,
@@ -81,12 +91,14 @@ export class StockRepository {
     return rows;
   }
 
-  async findMovementByReference({ referenceType, referenceId, productId, movementType }) {
+  async findMovementByReference({ referenceType, referenceId, productId, productVariantId = null, movementType }) {
     const { rows } = await pool.query(
       `SELECT id FROM stock_movements
-       WHERE reference_type = $1 AND reference_id = $2 AND product_id = $3 AND movement_type = $4
+       WHERE reference_type = $1 AND reference_id = $2 AND product_id = $3
+         AND COALESCE(product_variant_id::text, '') = COALESCE($4::text, '')
+         AND movement_type = $5
        LIMIT 1`,
-      [referenceType, referenceId, productId, movementType],
+      [referenceType, referenceId, productId, productVariantId, movementType],
     );
     return rows[0] ?? null;
   }

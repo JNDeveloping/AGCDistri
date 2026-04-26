@@ -13,6 +13,7 @@ const mapOrder = (row, items = []) => ({
   orderNumber: row.order_number,
   clientId: row.client_id,
   clientName: row.client_name,
+  clientPhone: row.client_phone,
   sellerId: row.seller_id,
   sellerName: row.seller_name,
   assignedDeliveryUserId: row.assigned_delivery_user_id,
@@ -26,6 +27,8 @@ const mapOrder = (row, items = []) => ({
   taxTotal: Number(row.tax_total),
   total: Number(row.total),
   estimatedMargin: Number(row.estimated_margin),
+  itemsCount: Number(row.items_count ?? 0),
+  totalUnits: Number(row.total_units ?? 0),
   deliveryAddress: row.delivery_address,
   estimatedDeliveryDate: row.estimated_delivery_date,
   stockDiscounted: row.stock_discounted,
@@ -33,14 +36,20 @@ const mapOrder = (row, items = []) => ({
   updatedAt: row.updated_at,
   canceledAt: row.canceled_at,
   items,
+  creditNotes: row.credit_notes ?? [],
+  totalCredited: Number(row.total_credited ?? 0),
+  netTotal: Number(row.net_total ?? row.total),
+  hasCreditNotes: Number(row.total_credited ?? 0) > 0,
 });
 
 const mapItem = (row) => ({
   id: row.id,
   orderId: row.order_id,
   productId: row.product_id,
+  productVariantId: row.product_variant_id ?? null,
   productCode: row.product_code,
-  productName: row.product_name,
+  productName: row.product_name_snapshot ?? row.product_name,
+  variantNameSnapshot: row.variant_name_snapshot ?? null,
   quantity: Number(row.quantity),
   unitMeasure: row.unit_measure,
   unitPrice: Number(row.unit_price),
@@ -62,8 +71,24 @@ export class OrderService {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError('Pedido no encontrado.', 404);
     this.ensureAccess(order, role, userId);
-    const items = (await orderRepository.listItems(id)).map(mapItem);
-    return mapOrder(order, items);
+    const [items, creditSummary, creditNotes] = await Promise.all([
+      orderRepository.listItems(id),
+      orderRepository.getCreditNotesSummary(id),
+      orderRepository.listCreditNotesByOrder(id),
+    ]);
+    const enriched = {
+      ...order,
+      total_credited: Number(creditSummary.total_credited ?? 0),
+      net_total: Number(order.total) - Number(creditSummary.total_credited ?? 0),
+      credit_notes: creditNotes.map((note) => ({
+        id: note.id,
+        number: Number(note.number),
+        reason: note.reason,
+        totalAmount: Number(note.total_amount),
+        createdAt: note.created_at,
+      })),
+    };
+    return mapOrder(enriched, items.map(mapItem));
   }
 
   async create(payload, user) {
@@ -172,21 +197,54 @@ export class OrderService {
     return this.getById(id, user.role, user.sub);
   }
 
+  async validateStockForOrder(orderId, role, userId) {
+    const order = await orderRepository.findById(orderId);
+    if (!order) throw new AppError('Pedido no encontrado.', 404);
+    this.ensureAccess(order, role, userId);
+
+    const items = await orderRepository.listItems(orderId);
+    const validationItems = [];
+
+    for (const item of items) {
+      const availableStock = await this.resolveAvailableStock(item.product_id, item.product_variant_id);
+      const requiredQuantity = Number(item.quantity);
+
+      validationItems.push({
+        productId: item.product_id,
+        productName: item.product_name,
+        requiredQuantity,
+        availableStock,
+        hasStock: availableStock >= requiredQuantity,
+      });
+    }
+
+    return {
+      hasInsufficientStock: validationItems.some((item) => !item.hasStock),
+      items: validationItems,
+    };
+  }
+
   async ensureStockForOrder(orderId) {
     const items = await orderRepository.listItems(orderId);
     for (const item of items) {
-      const { rows } = await pool.query('SELECT stock_current FROM products WHERE id = $1 LIMIT 1', [item.product_id]);
-      const stock = Number(rows[0]?.stock_current ?? 0);
-      if (stock < Number(item.quantity)) {
-        throw new AppError(`Stock insuficiente para ${item.product_name}. Disponible: ${stock}.`, 409);
+      const availableStock = await this.resolveAvailableStock(item.product_id, item.product_variant_id);
+      if (availableStock < Number(item.quantity)) {
+        throw new AppError(
+          `Stock insuficiente para ${item.product_name}. Disponible: ${availableStock}.`,
+          409,
+          { code: 'INSUFFICIENT_STOCK', productName: item.product_name, availableStock },
+        );
       }
     }
   }
 
   async computeTotals(payload) {
     const productIds = payload.items.map((i) => i.productId);
+    const variantIds = payload.items.map((i) => i.productVariantId).filter(Boolean);
     const products = await orderRepository.findProductsByIds(productIds);
+    const variants = variantIds.length ? await orderRepository.findVariantsByIds(variantIds) : [];
     const map = new Map(products.map((p) => [p.id, p]));
+    const variantMap = new Map(variants.map((v) => [v.id, v]));
 
     const items = payload.items.map((raw) => {
       const quantity = Number(raw.quantity);
@@ -195,20 +253,38 @@ export class OrderService {
       const product = map.get(raw.productId);
       if (!product || !product.is_active) throw new AppError('Hay productos inexistentes o inactivos en el pedido.', 400);
 
-      const unitPrice = Number(product.wholesale_price ?? 0);
+      const hasVariants = product.has_variants === true;
+      const variantId = raw.productVariantId ?? null;
+      let variant = null;
+
+      if (hasVariants && !variantId) {
+        throw new AppError(`Debe seleccionar variante para ${product.name}.`, 400);
+      }
+
+      if (variantId) {
+        variant = variantMap.get(variantId);
+        if (!variant || variant.product_id !== product.id || variant.is_active !== true) {
+          throw new AppError(`La variante seleccionada no es válida para ${product.name}.`, 400);
+        }
+      }
+
+      const unitPrice = Number(variant?.price ?? product.wholesale_price ?? 0);
       const discountType = raw.discountType ?? 'amount';
       const discountValue = Number(raw.discountValue ?? raw.discountAmount ?? 0);
       const discountAmount = discountType === 'percentage'
         ? Math.max(0, (unitPrice * quantity * discountValue) / 100)
         : Math.max(0, discountValue);
       const subtotal = Math.max(0, unitPrice * quantity - discountAmount);
-      const cost = product.cost == null ? null : Number(product.cost);
-      const estimatedMargin = cost == null ? 0 : subtotal - (cost * quantity);
+      const unitCost = Number(variant?.cost ?? product.cost ?? 0);
+      const estimatedMargin = subtotal - (unitCost * quantity);
 
       return {
         productId: product.id,
-        productCode: product.internal_code,
-        productName: product.name,
+        productVariantId: variant?.id ?? null,
+        productCode: variant?.internal_code ?? product.internal_code,
+        productName: variant ? `${product.name} - ${variant.name}` : product.name,
+        productNameSnapshot: product.name,
+        variantNameSnapshot: variant?.name ?? null,
         quantity,
         unitMeasure: product.unit_measure,
         unitPrice,
@@ -216,7 +292,7 @@ export class OrderService {
         discountValue,
         discountAmount,
         subtotal,
-        cost,
+        cost: unitCost,
         estimatedMargin,
       };
     });
@@ -228,6 +304,17 @@ export class OrderService {
     const estimatedMargin = items.reduce((acc, i) => acc + i.estimatedMargin, 0) - discountTotal;
 
     return { items, subtotal, discountTotal, taxTotal, total, estimatedMargin };
+  }
+
+
+  async resolveAvailableStock(productId, productVariantId) {
+    if (productVariantId) {
+      const { rows: variantRows } = await pool.query('SELECT stock FROM product_variants WHERE id = $1 LIMIT 1', [productVariantId]);
+      const variantStock = variantRows[0]?.stock;
+      if (variantStock != null) return Number(variantStock);
+    }
+    const { rows } = await pool.query('SELECT stock_current FROM products WHERE id = $1 LIMIT 1', [productId]);
+    return Number(rows[0]?.stock_current ?? 0);
   }
 
   async loadClient(clientId) {

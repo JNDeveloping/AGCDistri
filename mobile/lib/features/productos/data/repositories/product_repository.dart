@@ -99,6 +99,48 @@ class ProductRepository {
     }
   }
 
+  Future<List<ProductVariantModel>> listVariants(String productId) async {
+    try {
+      final payload = await _remoteDataSource.listVariants(productId);
+      final data = payload['data'] as List<dynamic>? ?? [];
+      return data.map((raw) => ProductVariantModel.fromJson(raw as Map<String, dynamic>)).toList();
+    } on DioException catch (error) {
+      throw ProductException(_message(error));
+    }
+  }
+
+  Future<void> saveVariant(String productId, ProductVariantModel variant, {String? variantId}) async {
+    try {
+      if (variantId == null) {
+        await _remoteDataSource.createVariant(productId, variant.toJson());
+      } else {
+        await _remoteDataSource.updateVariant(variantId, variant.toJson());
+      }
+    } on DioException catch (error) {
+      throw ProductException(_message(error));
+    }
+  }
+
+  Future<void> setVariantActive(String variantId, bool active) async {
+    try {
+      if (active) {
+        await _remoteDataSource.activateVariant(variantId);
+      } else {
+        await _remoteDataSource.deactivateVariant(variantId);
+      }
+    } on DioException catch (error) {
+      throw ProductException(_message(error));
+    }
+  }
+
+  Future<void> deleteVariant(String variantId) async {
+    try {
+      await _remoteDataSource.deleteVariant(variantId);
+    } on DioException catch (error) {
+      throw ProductException(_message(error));
+    }
+  }
+
   Future<void> deleteCategory(String id) async {
     try {
       await _remoteDataSource.deleteCategory(id);

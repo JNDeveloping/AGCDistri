@@ -53,6 +53,12 @@ export class AccountRepository {
     await pool.query('UPDATE clients SET current_balance = $2, updated_at = NOW() WHERE id = $1', [clientId, newBalance]);
   }
 
+
+  async findMovementById(id) {
+    const { rows } = await pool.query('SELECT * FROM account_movements WHERE id = $1 LIMIT 1', [id]);
+    return rows[0] ?? null;
+  }
+
   async findMovementByReference({ referenceType, referenceId, movementType }) {
     const { rows } = await pool.query(
       'SELECT id FROM account_movements WHERE reference_type = $1 AND reference_id = $2 AND movement_type = $3 LIMIT 1',

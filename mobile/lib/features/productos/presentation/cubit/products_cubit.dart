@@ -80,6 +80,11 @@ class ProductsCubit extends Cubit<ProductsState> {
     return _repository.deleteCategory(id);
   }
 
+  Future<List<ProductVariantModel>> listVariants(String productId) => _repository.listVariants(productId);
+  Future<void> saveVariant(String productId, ProductVariantModel variant, {String? variantId}) => _repository.saveVariant(productId, variant, variantId: variantId);
+  Future<void> setVariantActive(String variantId, bool active) => _repository.setVariantActive(variantId, active);
+  Future<void> deleteVariant(String variantId) => _repository.deleteVariant(variantId);
+
   @override
   Future<void> close() {
     _debounce?.cancel();

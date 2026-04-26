@@ -50,4 +50,7 @@ class AccountsRepository {
 class AccountsException implements Exception {
   AccountsException(this.message);
   final String message;
+
+  @override
+  String toString() => message;
 }
