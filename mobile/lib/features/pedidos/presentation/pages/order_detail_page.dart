@@ -70,7 +70,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                 ),
               ),
               const SizedBox(height: 10),
-              if (canManage) _actions(o),
+              if (canManage) _actions(o, role),
               const SizedBox(height: 10),
               Card(
                 child: Padding(
@@ -99,12 +99,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
   }
 
-  Widget _actions(OrderModel o) {
+  Widget _actions(OrderModel o, String role) {
     final canEditPending = o.status == 'pendiente';
     final canStatus = o.status != 'entregado' && o.status != 'cancelado';
-    final role = context.select((AuthCubit cubit) => cubit.state.session?.user.role ?? 'vendedor');
     final blockedItem = _firstBlockedItem();
-    final canPrepare = blockedItem == null && !_validatingStock;
+    final hasStockConflict = blockedItem != null || _validatingStock;
 
     return Wrap(
       spacing: 8,
@@ -136,6 +135,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               await _runOrderAction(
                 action: () => context.read<OrdersCubit>().cancel(o.id),
                 successMessage: 'Pedido cancelado correctamente.',
+                role: role,
               );
             },
             icon: const Icon(Icons.cancel_outlined),
@@ -144,7 +144,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         if (canStatus)
           for (final status in const ['confirmado', 'preparado', 'en_reparto', 'entregado'])
             FilledButton.tonal(
-              onPressed: _changingStatus || (status == 'preparado' && !canPrepare) ? null : () => _changeStatus(o.id, status, role),
+              onPressed: _changingStatus || (_statusRequiresStock(status) && hasStockConflict) ? null : () => _changeStatus(o.id, status, role),
               child: Text(_changingStatus ? 'Actualizando...' : status),
             ),
         if (_validatingStock)
@@ -183,7 +183,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   Future<void> _changeStatus(String orderId, String status, String role) async {
-    if (status == 'preparado') {
+    if (_statusRequiresStock(status)) {
       final blocked = _firstBlockedItem();
       if (blocked != null) {
         await _showInsufficientStockDialog(
@@ -199,6 +199,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     await _runOrderAction(
       action: () => context.read<OrdersCubit>().changeStatus(orderId, status),
       successMessage: 'Estado actualizado.',
+      role: role,
     );
   }
 
@@ -256,6 +257,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   Future<void> _runOrderAction({
     required Future<dynamic> Function() action,
     required String successMessage,
+    required String role,
   }) async {
     setState(() => _changingStatus = true);
     try {
@@ -267,7 +269,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       if (!mounted) return;
       if (error.isInsufficientStock) {
         await _showInsufficientStockDialog(
-          role: context.read<AuthCubit>().state.session?.user.role ?? 'vendedor',
+          role: role,
           productId: _resolveProductId(error.productName),
           productName: error.productName ?? 'Producto',
           availableStock: error.availableStock ?? 0,
@@ -286,6 +288,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       setState(() => _changingStatus = false);
     }
   }
+
+  bool _statusRequiresStock(String status) => status == 'confirmado' || status == 'preparado';
 
   String? _resolveProductId(String? productName) {
     if (productName == null) return null;

@@ -15,7 +15,13 @@ export const errorHandler = (error, req, res, _next) => {
   const isAppError = normalizedError instanceof AppError;
   const statusCode = isAppError ? normalizedError.statusCode : 500;
   const details = isAppError ? normalizedError.details : undefined;
-  const publicDetails = details && typeof details === 'object' && !Array.isArray(details) ? details : {};
+  const stockError = details?.code === 'INSUFFICIENT_STOCK'
+    ? {
+        code: details.code,
+        productName: details.productName,
+        availableStock: details.availableStock,
+      }
+    : {};
 
   logger.error('Unhandled API error', {
     path: req.path,
@@ -28,7 +34,6 @@ export const errorHandler = (error, req, res, _next) => {
   return res.status(statusCode).json({
     success: false,
     message: normalizedError.message || 'Internal server error',
-    details,
-    ...publicDetails,
+    ...stockError,
   });
 };
