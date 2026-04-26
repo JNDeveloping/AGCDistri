@@ -27,19 +27,31 @@ class DeliveryModel {
 
   factory DeliveryModel.fromJson(Map<String, dynamic> json) => DeliveryModel(
         id: json['id'] as String,
-        number: (json['number'] as num?)?.toInt() ?? 0,
+        number: _toInt(json['number']),
         date: (json['date'] as String?) ?? '',
         status: (json['status'] as String?) ?? 'pendiente',
         driverId: json['driver_id'] as String?,
         driverName: json['driver_name'] as String?,
         notes: json['notes'] as String?,
         zone: json['zone'] as String?,
-        totalOrders: (json['total_orders'] as num?)?.toInt() ?? 0,
-        totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0,
+        totalOrders: _toInt(json['total_orders']),
+        totalAmount: _toDouble(json['total_amount']),
         orders: (json['orders'] as List<dynamic>? ?? [])
             .map((item) => DeliveryOrderModel.fromJson(item as Map<String, dynamic>))
             .toList(),
       );
+
+  static double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static int _toInt(dynamic value) {
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
 }
 
 class DeliveryOrderModel {
@@ -84,11 +96,23 @@ class DeliveryOrderModel {
         clientPhone: json['client_phone'] as String?,
         addressLine: json['address_line'] as String?,
         city: json['city'] as String?,
-        latitude: (json['latitude'] as num?)?.toDouble(),
-        longitude: (json['longitude'] as num?)?.toDouble(),
-        total: (json['total'] as num?)?.toDouble() ?? 0,
+        latitude: json['latitude'] == null ? null : _toDouble(json['latitude']),
+        longitude: json['longitude'] == null ? null : _toDouble(json['longitude']),
+        total: _toDouble(json['total']),
         paymentTerms: json['payment_terms'] as String?,
-        currentBalance: (json['current_balance'] as num?)?.toDouble(),
-        visitOrder: (json['visit_order'] as num?)?.toInt(),
+        currentBalance: json['current_balance'] == null ? null : _toDouble(json['current_balance']),
+        visitOrder: json['visit_order'] == null ? null : _toInt(json['visit_order']),
       );
+
+  static double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static int _toInt(dynamic value) {
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
 }
