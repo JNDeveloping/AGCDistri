@@ -105,6 +105,14 @@ class ModuleRegistry {
     roles: ['admin'],
   );
 
+  static const deliveries = AppModule(
+    key: 'repartos',
+    label: 'Repartos',
+    route: '/repartos',
+    icon: Icons.route_rounded,
+    roles: ['admin', 'vendedor', 'repartidor'],
+  );
+
   static const profile = AppModule(
     key: 'profile',
     label: 'Perfil',
@@ -114,7 +122,7 @@ class ModuleRegistry {
   );
 
   static const bottomModules = [dashboard, orders, clients, stock];
-  static const managementModules = [accounts, reports, products, users, zones, categories, company];
+  static const managementModules = [accounts, reports, products, deliveries, users, zones, categories, company];
 
   static List<AppModule> modulesForRole(String role) {
     return bottomModules.where((module) => module.roles.contains(role)).toList();

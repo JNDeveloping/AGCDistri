@@ -143,6 +143,8 @@ class _ProfilePageState extends State<ProfilePage> {
         return 'Ventas, ganancias y métricas del negocio';
       case 'productos':
         return 'Listado, edición y altas de productos';
+      case 'repartos':
+        return 'Organizar hojas de ruta y entregas del día';
       case 'usuarios':
         return 'Crear, editar y asignar roles';
       case 'zonas':

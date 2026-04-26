@@ -22,6 +22,7 @@ import { stockMovementRouter, stockRouter } from './modules/stock/routes/stock.r
 import { userRouter } from './modules/users/routes/user.routes.js';
 import { zoneRouter } from './modules/zones/routes/zone.routes.js';
 import { reportRouter } from './modules/reports/routes/report.routes.js';
+import { deliveryRouter } from './modules/deliveries/routes/delivery.routes.js';
 
 const buildCorsOptions = () => {
   const configuredOrigins = (env.corsOrigin ?? '')
@@ -73,6 +74,7 @@ export const createApp = () => {
   app.use('/api/v1/stock', stockRouter);
   app.use('/api/v1/stock-movements', stockMovementRouter);
   app.use('/api/v1/operaciones', operationsRouter);
+  app.use('/api/v1', deliveryRouter);
   app.use('/api/v1/orders', orderRouter);
   app.use('/api/v1', creditNoteRouter);
   app.use('/api/v1', productVariantRouter);

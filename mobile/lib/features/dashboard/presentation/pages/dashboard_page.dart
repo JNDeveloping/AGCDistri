@@ -7,6 +7,7 @@ import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../accounts/presentation/pages/accounts_overview_page.dart';
 import '../../../clientes/presentation/pages/clientes_page.dart';
 import '../../../pedidos/presentation/pages/pedidos_page.dart';
+import '../../../deliveries/presentation/pages/deliveries_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../cubit/dashboard_cubit.dart';
 import '../cubit/dashboard_state.dart';
@@ -113,6 +114,11 @@ class _DashboardPageState extends State<DashboardPage> {
                             onPressed: () => context.go(AccountsOverviewPage.path),
                             icon: const Icon(Icons.payments_rounded),
                             label: const Text('Registrar pago'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => context.go(DeliveriesPage.path),
+                            icon: const Icon(Icons.local_shipping_rounded),
+                            label: const Text('Repartos'),
                           ),
                         ],
                       ),

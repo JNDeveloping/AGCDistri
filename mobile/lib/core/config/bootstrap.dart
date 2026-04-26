@@ -30,6 +30,8 @@ import '../../features/credit_notes/data/datasources/credit_note_remote_datasour
 import '../../features/credit_notes/data/repositories/credit_note_repository.dart';
 import '../../features/reports/data/datasources/reports_remote_datasource.dart';
 import '../../features/reports/data/repositories/reports_repository.dart';
+import '../../features/deliveries/data/datasources/delivery_remote_datasource.dart';
+import '../../features/deliveries/data/repositories/delivery_repository.dart';
 import '../../services/api/api_client.dart';
 import '../../services/storage/token_storage.dart';
 import '../router/app_router.dart';
@@ -86,6 +88,10 @@ Future<void> bootstrap() async {
     remoteDataSource: ReportsRemoteDataSource(apiClient: apiClient),
   );
 
+  final deliveryRepository = DeliveryRepository(
+    remoteDataSource: DeliveryRemoteDataSource(apiClient: apiClient),
+  );
+
   runApp(
     AppRoot(
       authRepository: authRepository,
@@ -99,6 +105,7 @@ Future<void> bootstrap() async {
       accountsRepository: accountsRepository,
       creditNoteRepository: creditNoteRepository,
       reportsRepository: reportsRepository,
+      deliveryRepository: deliveryRepository,
     ),
   );
 }
@@ -116,6 +123,7 @@ class AppRoot extends StatelessWidget {
     required this.accountsRepository,
     required this.creditNoteRepository,
     required this.reportsRepository,
+    required this.deliveryRepository,
     super.key,
   });
 
@@ -130,6 +138,7 @@ class AppRoot extends StatelessWidget {
   final AccountsRepository accountsRepository;
   final CreditNoteRepository creditNoteRepository;
   final ReportsRepository reportsRepository;
+  final DeliveryRepository deliveryRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -140,6 +149,7 @@ class AppRoot extends StatelessWidget {
         RepositoryProvider.value(value: clientRepository),
         RepositoryProvider.value(value: creditNoteRepository),
         RepositoryProvider.value(value: reportsRepository),
+        RepositoryProvider.value(value: deliveryRepository),
       ],
       child: MultiBlocProvider(
         providers: [
