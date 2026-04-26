@@ -20,14 +20,43 @@ import { stockMovementRouter, stockRouter } from './modules/stock/routes/stock.r
 import { userRouter } from './modules/users/routes/user.routes.js';
 import { zoneRouter } from './modules/zones/routes/zone.routes.js';
 
+const buildCorsOptions = () => {
+  const configuredOrigins = (env.corsOrigin ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (env.nodeEnv !== 'production') {
+    return {
+      origin(origin, callback) {
+        if (!origin) return callback(null, true);
+
+        const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+        const isConfigured = configuredOrigins.includes(origin);
+        return callback(null, isLocalhost || isConfigured);
+      },
+      credentials: true,
+    };
+  }
+
+  return {
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      return callback(null, configuredOrigins.includes(origin));
+    },
+    credentials: true,
+  };
+};
+
 export const createApp = () => {
   const app = express();
 
   app.use(helmet());
-  app.use(cors({ origin: env.corsOrigin }));
+  app.use(cors(buildCorsOptions()));
   app.use(morgan('dev'));
   app.use(express.json({ limit: '1mb' }));
 
+  app.use('/health', healthRouter);
   app.use('/api/v1/health', healthRouter);
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1', accountRouter);

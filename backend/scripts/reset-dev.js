@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import dotenv from 'dotenv';
 import pg from 'pg';
+import { getDatabaseConnectionConfig } from '../src/config/database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,12 +24,7 @@ const run = async () => {
     );
   }
 
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL no está definido. Configuralo en .env o variable de entorno.');
-  }
-
-  const client = new Client({ connectionString: databaseUrl });
+  const client = new Client(getDatabaseConnectionConfig());
   await client.connect();
 
   try {
