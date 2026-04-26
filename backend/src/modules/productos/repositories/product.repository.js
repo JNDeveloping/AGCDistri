@@ -5,7 +5,7 @@ const baseSelect = `
     p.id, p.internal_code, p.name, p.short_description, p.long_description,
     p.brand, p.barcode, p.unit_measure,
     p.cost, p.wholesale_price, p.margin_percentage,
-    p.stock_current, p.stock_minimum, p.is_active, p.is_featured, p.image_url,
+    p.stock_current, p.stock_minimum, p.is_active, p.has_variants, p.is_featured, p.image_url,
     p.tax_rate, p.notes, p.created_at, p.updated_at, p.deactivated_at,
     p.category_id,
     c.name AS category_name,
@@ -21,11 +21,11 @@ export class ProductRepository {
         internal_code, name, short_description, long_description,
         brand, barcode, unit_measure,
         cost, wholesale_price, margin_percentage,
-        stock_current, stock_minimum, is_featured, image_url, tax_rate,
+        stock_current, stock_minimum, has_variants, is_featured, image_url, tax_rate,
         category_id, notes
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-        $11,$12,$13,$14,$15,$16,$17
+        $11,$12,$13,$14,$15,$16,$17,$18
       )
       RETURNING *
     `;
@@ -43,6 +43,7 @@ export class ProductRepository {
       payload.marginPercentage,
       payload.stockCurrent,
       payload.stockMinimum,
+      payload.hasVariants ?? false,
       payload.isFeatured,
       payload.imageUrl,
       payload.taxRate,
@@ -141,6 +142,7 @@ export class ProductRepository {
       marginPercentage: 'margin_percentage',
       stockCurrent: 'stock_current',
       stockMinimum: 'stock_minimum',
+      hasVariants: 'has_variants',
       isFeatured: 'is_featured',
       imageUrl: 'image_url',
       taxRate: 'tax_rate',

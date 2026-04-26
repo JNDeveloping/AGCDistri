@@ -14,6 +14,8 @@ import { dashboardRouter } from './modules/dashboard/routes/dashboard.routes.js'
 import { healthRouter } from './modules/health/routes/health.routes.js';
 import { operationsRouter } from './modules/operations/routes/operations.routes.js';
 import { orderRouter } from './modules/orders/routes/order.routes.js';
+import { creditNoteRouter } from './modules/credit-notes/routes/credit-note.routes.js';
+import { productVariantRouter } from './modules/product-variants/routes/product-variant.routes.js';
 import { productCategoryRouter } from './modules/product-categories/routes/product-category.routes.js';
 import { productRouter } from './modules/productos/routes/product.routes.js';
 import { stockMovementRouter, stockRouter } from './modules/stock/routes/stock.routes.js';
@@ -71,6 +73,8 @@ export const createApp = () => {
   app.use('/api/v1/stock-movements', stockMovementRouter);
   app.use('/api/v1/operaciones', operationsRouter);
   app.use('/api/v1/orders', orderRouter);
+  app.use('/api/v1', creditNoteRouter);
+  app.use('/api/v1', productVariantRouter);
   app.use('/api/v1/users', userRouter);
   app.use('/api/v1/zones', zoneRouter);
 
