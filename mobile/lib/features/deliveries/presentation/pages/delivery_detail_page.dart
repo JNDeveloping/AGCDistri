@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/repositories/delivery_repository.dart';
@@ -39,37 +37,35 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
           if (snapshot.hasError) return Center(child: Text(snapshot.error.toString()));
 
           final delivery = snapshot.data!;
-          final markers = delivery.orders
-              .where((o) => o.latitude != null && o.longitude != null)
-              .map(
-                (o) => Marker(
-                  width: 46,
-                  height: 46,
-                  point: LatLng(o.latitude!, o.longitude!),
-                  child: CircleAvatar(
-                    backgroundColor: _statusColor(o.status),
-                    child: Text('${o.visitOrder ?? '-'}'),
-                  ),
-                ),
-              )
-              .toList();
+          final geocodedOrders = delivery.orders.where((o) => o.latitude != null && o.longitude != null).toList();
 
           return Column(
             children: [
-              if (markers.isNotEmpty)
-                SizedBox(
-                  height: 220,
-                  child: FlutterMap(
-                    options: MapOptions(initialCenter: markers.first.point, initialZoom: 12),
-                    children: [
-                      TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.agc.distribuidora',
-                      ),
-                      MarkerLayer(markers: markers),
-                    ],
-                  ),
+              Container(
+                margin: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.map_rounded),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        geocodedOrders.isEmpty
+                            ? 'No hay coordenadas cargadas. Se usará dirección textual en Maps.'
+                            : '${geocodedOrders.length} clientes con coordenadas para navegación.',
+                      ),
+                    ),
+                    OutlinedButton(
+                      onPressed: () => _openRouteMap(delivery.orders),
+                      child: const Text('Ver mapa'),
+                    ),
+                  ],
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(
@@ -221,6 +217,28 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
       final q = Uri.encodeComponent('${order.addressLine ?? ''} ${order.city ?? ''}');
       uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$q');
     }
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _openRouteMap(List<DeliveryOrderModel> orders) async {
+    if (orders.isEmpty) return;
+    final withCoords = orders.where((o) => o.latitude != null && o.longitude != null).toList();
+    if (withCoords.isNotEmpty) {
+      final first = withCoords.first;
+      final waypoints = withCoords.skip(1).map((o) => '${o.latitude},${o.longitude}').join('|');
+      final uri = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=${first.latitude},${first.longitude}'
+        '${waypoints.isNotEmpty ? '&waypoints=${Uri.encodeComponent(waypoints)}' : ''}',
+      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return;
+    }
+
+    final query = Uri.encodeComponent(
+      orders.map((o) => '${o.addressLine ?? ''} ${o.city ?? ''}'.trim()).where((e) => e.isNotEmpty).join(' | '),
+    );
+    if (query.isEmpty) return;
+    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
