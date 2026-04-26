@@ -21,6 +21,7 @@ import { productRouter } from './modules/productos/routes/product.routes.js';
 import { stockMovementRouter, stockRouter } from './modules/stock/routes/stock.routes.js';
 import { userRouter } from './modules/users/routes/user.routes.js';
 import { zoneRouter } from './modules/zones/routes/zone.routes.js';
+import { reportRouter } from './modules/reports/routes/report.routes.js';
 
 const buildCorsOptions = () => {
   const configuredOrigins = (env.corsOrigin ?? '')
@@ -77,6 +78,7 @@ export const createApp = () => {
   app.use('/api/v1', productVariantRouter);
   app.use('/api/v1/users', userRouter);
   app.use('/api/v1/zones', zoneRouter);
+  app.use('/api/v1/reports', reportRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

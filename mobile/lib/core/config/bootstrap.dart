@@ -28,6 +28,8 @@ import '../../features/accounts/data/datasources/accounts_remote_datasource.dart
 import '../../features/accounts/data/repositories/accounts_repository.dart';
 import '../../features/credit_notes/data/datasources/credit_note_remote_datasource.dart';
 import '../../features/credit_notes/data/repositories/credit_note_repository.dart';
+import '../../features/reports/data/datasources/reports_remote_datasource.dart';
+import '../../features/reports/data/repositories/reports_repository.dart';
 import '../../services/api/api_client.dart';
 import '../../services/storage/token_storage.dart';
 import '../router/app_router.dart';
@@ -80,6 +82,10 @@ Future<void> bootstrap() async {
     remoteDataSource: CreditNoteRemoteDataSource(apiClient: apiClient),
   );
 
+  final reportsRepository = ReportsRepository(
+    remoteDataSource: ReportsRemoteDataSource(apiClient: apiClient),
+  );
+
   runApp(
     AppRoot(
       authRepository: authRepository,
@@ -92,6 +98,7 @@ Future<void> bootstrap() async {
       stockRepository: stockRepository,
       accountsRepository: accountsRepository,
       creditNoteRepository: creditNoteRepository,
+      reportsRepository: reportsRepository,
     ),
   );
 }
@@ -108,6 +115,7 @@ class AppRoot extends StatelessWidget {
     required this.stockRepository,
     required this.accountsRepository,
     required this.creditNoteRepository,
+    required this.reportsRepository,
     super.key,
   });
 
@@ -121,6 +129,7 @@ class AppRoot extends StatelessWidget {
   final StockRepository stockRepository;
   final AccountsRepository accountsRepository;
   final CreditNoteRepository creditNoteRepository;
+  final ReportsRepository reportsRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -130,6 +139,7 @@ class AppRoot extends StatelessWidget {
         RepositoryProvider.value(value: accountsRepository),
         RepositoryProvider.value(value: clientRepository),
         RepositoryProvider.value(value: creditNoteRepository),
+        RepositoryProvider.value(value: reportsRepository),
       ],
       child: MultiBlocProvider(
         providers: [

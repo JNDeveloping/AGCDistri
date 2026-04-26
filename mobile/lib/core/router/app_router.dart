@@ -15,6 +15,7 @@ import '../../features/pedidos/presentation/pages/pedidos_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/productos/presentation/pages/productos_page.dart';
 import '../../features/stock/presentation/pages/stock_page.dart';
+import '../../features/reports/presentation/pages/reports_page.dart';
 import '../../features/users/data/repositories/users_repository.dart';
 
 class AppRouter {
@@ -31,6 +32,7 @@ class AppRouter {
             GoRoute(path: ProductosPage.path, name: ProductosPage.name, builder: (_, __) => const ProductosPage()),
             GoRoute(path: PedidosPage.path, name: PedidosPage.name, builder: (_, __) => const PedidosPage()),
             GoRoute(path: StockPage.path, name: StockPage.name, builder: (_, __) => const StockPage()),
+            GoRoute(path: ReportsPage.path, name: ReportsPage.name, builder: (_, __) => const ReportsPage()),
             GoRoute(path: ProfilePage.path, name: ProfilePage.name, builder: (_, __) => ProfilePage(usersRepository: usersRepository)),
             GoRoute(path: CompanySettingsPage.path, name: CompanySettingsPage.name, builder: (_, __) => const CompanySettingsPage()),
           ],
@@ -55,6 +57,7 @@ class AppRouter {
                 ProductosPage.path,
                 PedidosPage.path,
                 StockPage.path,
+                ReportsPage.path,
                 ProfilePage.path,
                 if (role == 'admin') CompanySettingsPage.path,
               ];
