@@ -106,7 +106,7 @@ export class OrderRepository {
   async listItems(orderId) {
     const { rows } = await pool.query(
       `
-      SELECT id, order_id, product_id, product_code, product_name, quantity, unit_measure,
+      SELECT id, order_id, product_id, product_variant_id, product_code, product_name, product_name_snapshot, variant_name_snapshot, quantity, unit_measure,
              unit_price, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
       FROM order_items
       WHERE order_id = $1
@@ -120,12 +120,44 @@ export class OrderRepository {
 
   async findProductsByIds(ids) {
     const { rows } = await pool.query(
-      `SELECT id, internal_code, name, unit_measure, wholesale_price, cost, stock_current, is_active
+      `SELECT id, internal_code, name, unit_measure, wholesale_price, cost, stock_current, has_variants, is_active
        FROM products
        WHERE id = ANY($1::uuid[])`,
       [ids],
     );
     return rows;
+  }
+
+
+  async findVariantsByIds(ids) {
+    const { rows } = await pool.query(
+      `SELECT pv.id, pv.product_id, pv.name, pv.price, pv.cost, pv.stock, pv.is_active
+       FROM product_variants pv
+       WHERE pv.id = ANY($1::uuid[])`,
+      [ids],
+    );
+    return rows;
+  }
+
+  async listCreditNotesByOrder(orderId) {
+    const { rows } = await pool.query(
+      `SELECT id, number, reason, total_amount, created_at
+       FROM credit_notes
+       WHERE order_id = $1
+       ORDER BY created_at DESC`,
+      [orderId],
+    );
+    return rows;
+  }
+
+  async getCreditNotesSummary(orderId) {
+    const { rows } = await pool.query(
+      `SELECT COALESCE(SUM(total_amount), 0)::numeric AS total_credited, COUNT(*)::int AS notes_count
+       FROM credit_notes
+       WHERE order_id = $1`,
+      [orderId],
+    );
+    return rows[0] ?? { total_credited: 0, notes_count: 0 };
   }
 
   async createOrder(client, payload, sellerId, computed) {
@@ -161,15 +193,18 @@ export class OrderRepository {
       await pool.query(
         `
         INSERT INTO order_items (
-          order_id, product_id, product_code, product_name, quantity, unit_measure,
+          order_id, product_id, product_variant_id, product_code, product_name, product_name_snapshot, variant_name_snapshot, quantity, unit_measure,
           unit_price, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
         `,
         [
           orderId,
           item.productId,
+          item.productVariantId,
           item.productCode,
           item.productName,
+          item.productNameSnapshot,
+          item.variantNameSnapshot,
           item.quantity,
           item.unitMeasure,
           item.unitPrice,
@@ -224,15 +259,18 @@ export class OrderRepository {
       await pool.query(
         `
         INSERT INTO order_items (
-          order_id, product_id, product_code, product_name, quantity, unit_measure,
+          order_id, product_id, product_variant_id, product_code, product_name, product_name_snapshot, variant_name_snapshot, quantity, unit_measure,
           unit_price, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
         `,
         [
           id,
           item.productId,
+          item.productVariantId,
           item.productCode,
           item.productName,
+          item.productNameSnapshot,
+          item.variantNameSnapshot,
           item.quantity,
           item.unitMeasure,
           item.unitPrice,

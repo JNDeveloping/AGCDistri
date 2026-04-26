@@ -106,8 +106,8 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
                               Row(
                                 children: [
                                   Chip(
-                                    label: Text(_account!.status == 'con_deuda' ? 'Con deuda' : 'Al día'),
-                                    backgroundColor: _account!.status == 'con_deuda' ? Colors.red.shade100 : Colors.green.shade100,
+                                    label: Text(_account!.status == 'con_deuda' ? 'Debe' : (_account!.status == 'saldo_a_favor' ? 'Saldo a favor' : 'Al día')),
+                                    backgroundColor: _account!.status == 'con_deuda' ? Colors.red.shade100 : (_account!.status == 'saldo_a_favor' ? Colors.blue.shade100 : Colors.green.shade100),
                                   ),
                                   const SizedBox(width: 8),
                                   Text('Límite: ${_account!.creditLimit.toStringAsFixed(2)}'),
@@ -264,8 +264,14 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
         return 'Deuda';
       case 'pago':
         return 'Pago';
+      case 'nota_credito':
+        return 'Nota de crédito';
+      case 'saldo_a_favor':
+        return 'Saldo a favor';
       case 'ajuste':
         return 'Ajuste';
+      case 'anulacion':
+        return 'Anulación';
       default:
         return raw;
     }
@@ -274,6 +280,10 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
   Color _movementColor(String raw) {
     if (raw == 'pago') return Colors.green.shade700;
     if (raw == 'deuda') return Colors.red.shade700;
+    if (raw == 'nota_credito') return Colors.blue.shade700;
+    if (raw == 'saldo_a_favor') return Colors.teal.shade700;
+    if (raw == 'anulacion') return Colors.orange.shade700;
     return Colors.amber.shade800;
   }
 }
+

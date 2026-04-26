@@ -33,6 +33,29 @@ export class ProductVariantRepository {
     return rows[0] ?? null;
   }
 
+  async findByBarcode(barcode, ignoreId = null) {
+    if (!barcode) return null;
+    const values = [barcode];
+    const whereIgnore = ignoreId ? 'AND id <> $2' : '';
+    if (ignoreId) values.push(ignoreId);
+    const { rows } = await pool.query(
+      `SELECT id FROM product_variants WHERE barcode = $1 ${whereIgnore} LIMIT 1`,
+      values,
+    );
+    return rows[0] ?? null;
+  }
+
+  async hasMovements(id) {
+    const { rows } = await pool.query(
+      `SELECT
+        EXISTS (SELECT 1 FROM order_items WHERE product_variant_id = $1) AS has_orders,
+        EXISTS (SELECT 1 FROM stock_movements WHERE product_variant_id = $1) AS has_stock`,
+      [id],
+    );
+    const row = rows[0] ?? {};
+    return row.has_orders === true || row.has_stock === true;
+  }
+
   async create(payload) {
     const { rows } = await pool.query(
       `INSERT INTO product_variants (product_id, name, internal_code, barcode, price, cost, stock)

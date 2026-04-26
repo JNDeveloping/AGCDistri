@@ -91,6 +91,12 @@ class OrderRepository {
     return (data['items'] as List<dynamic>? ?? []).map((e) => OrderClientLookup.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  Future<List<OrderProductVariantLookup>> searchProductVariants(String productId) async {
+    final payload = await _remoteDataSource.getProductVariants(productId);
+    final data = payload['data'] as List<dynamic>? ?? [];
+    return data.map((e) => OrderProductVariantLookup.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   Future<List<OrderProductLookup>> searchProducts(String query) async {
     final payload = await _remoteDataSource.searchProducts(query);
     final data = payload['data'] as Map<String, dynamic>? ?? {};

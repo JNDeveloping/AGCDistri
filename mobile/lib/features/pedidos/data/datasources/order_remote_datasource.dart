@@ -28,6 +28,8 @@ class OrderRemoteDataSource {
     return response.data ?? {};
   }
 
+  Future<Map<String, dynamic>> getProductVariants(String productId) async => (await _apiClient.get('/products/$productId/variants')).data ?? {};
+
   Future<Map<String, dynamic>> searchProducts(String query) async {
     final response = await _apiClient.get('/productos', queryParameters: {'q': query, 'limit': 30, 'isActive': true});
     return response.data ?? {};

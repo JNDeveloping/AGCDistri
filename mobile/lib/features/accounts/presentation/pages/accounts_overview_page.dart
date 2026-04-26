@@ -137,8 +137,11 @@ class _AccountsOverviewViewState extends State<_AccountsOverviewView> {
                     itemCount: state.items.length,
                     itemBuilder: (_, index) {
                       final item = state.items[index];
-                      final hasDebt = item.hasDebt;
-                      final statusColor = hasDebt ? Colors.red.shade700 : Colors.green.shade700;
+                      final balance = item.currentBalance;
+                      final hasDebt = balance > 0;
+                      final hasFavor = balance < 0;
+                      final statusColor = hasDebt ? Colors.red.shade700 : (hasFavor ? Colors.blue.shade700 : Colors.green.shade700);
+                      final statusLabel = hasDebt ? 'Debe' : (hasFavor ? 'Saldo a favor' : 'Al día');
 
                       return Card(
                         elevation: 0.5,
@@ -174,11 +177,11 @@ class _AccountsOverviewViewState extends State<_AccountsOverviewView> {
                                     ),
                                     Chip(
                                       avatar: Icon(
-                                        hasDebt ? Icons.warning_amber_rounded : Icons.check_circle_rounded,
+                                        hasDebt ? Icons.warning_amber_rounded : (hasFavor ? Icons.savings_rounded : Icons.check_circle_rounded),
                                         size: 16,
                                         color: statusColor,
                                       ),
-                                      label: Text(hasDebt ? 'Con deuda' : 'Al día'),
+                                      label: Text(statusLabel),
                                       backgroundColor: statusColor.withValues(alpha: 0.12),
                                       side: BorderSide(color: statusColor.withValues(alpha: 0.3)),
                                     ),

@@ -35,6 +35,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
   String? _selectedUnitMeasure;
   String? _selectedCategoryId;
   List<ProductCategory> _categories = [];
+  bool _hasVariants = false;
 
   static const _unitOptions = [
     'Unidad',
@@ -66,6 +67,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _selectedUnitMeasure = p?.unitMeasure;
     _selectedCategoryId = p?.categoryId;
     _manualSalePrice = false;
+    _hasVariants = p?.hasVariants ?? false;
     _cost.addListener(_onCostChanged);
     _applyCalculatedSalePrice();
     _loadCategories();
@@ -144,6 +146,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                     onPressed: () {
                       setState(() {
                         _manualSalePrice = false;
+    _hasVariants = p?.hasVariants ?? false;
                         _costChangedAfterManual = false;
                       });
                       _applyCalculatedSalePrice();
@@ -196,6 +199,11 @@ class _ProductFormPageState extends State<ProductFormPage> {
               _field(_cost, 'Costo', number: true, requiredField: false),
               _field(_stock, 'Stock actual', number: true, requiredField: false),
               _field(_stockMin, 'Stock mínimo', number: true, requiredField: false),
+              SwitchListTile(
+                value: _hasVariants,
+                title: const Text('Este producto tiene variantes'),
+                onChanged: (value) => setState(() => _hasVariants = value),
+              ),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Guardando...' : 'Guardar producto')),
             ],
@@ -335,6 +343,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
       createdAt: widget.product?.createdAt,
       updatedAt: widget.product?.updatedAt,
       lowStock: false,
+      hasVariants: _hasVariants,
     );
 
     try {

@@ -32,6 +32,9 @@ export class ProductVariantService {
     const duplicated = await productVariantRepository.findByProductAndName(productId, payload.name);
     if (duplicated) throw new AppError('Ya existe una variante con ese nombre para el producto.', 409);
 
+    const duplicatedBarcode = await productVariantRepository.findByBarcode(payload.barcode);
+    if (duplicatedBarcode) throw new AppError('El código de barras de la variante ya existe.', 409);
+
     const saved = await productVariantRepository.create({ ...payload, productId });
     return mapVariant(saved, product);
   }
@@ -42,6 +45,9 @@ export class ProductVariantService {
 
     const duplicated = await productVariantRepository.findByProductAndName(existing.product_id, payload.name, id);
     if (duplicated) throw new AppError('Ya existe una variante con ese nombre para el producto.', 409);
+
+    const duplicatedBarcode = await productVariantRepository.findByBarcode(payload.barcode, id);
+    if (duplicatedBarcode) throw new AppError('El código de barras de la variante ya existe.', 409);
 
     const updated = await productVariantRepository.update(id, payload);
     const product = await productVariantRepository.findProduct(existing.product_id);
@@ -63,6 +69,11 @@ export class ProductVariantService {
   }
 
   async remove(id) {
+    const existing = await productVariantRepository.findById(id);
+    if (!existing) throw new AppError('Variante no encontrada.', 404);
+    const hasMovements = await productVariantRepository.hasMovements(id);
+    if (hasMovements) throw new AppError('No se puede eliminar una variante con movimientos asociados.', 409);
+
     const removed = await productVariantRepository.remove(id);
     if (!removed) throw new AppError('Variante no encontrada.', 404);
     return { id };

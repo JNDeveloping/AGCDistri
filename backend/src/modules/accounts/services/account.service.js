@@ -20,6 +20,13 @@ const mapMovement = (row) => ({
   createdAt: row.created_at,
 });
 
+const computeStatus = (balance) => {
+  const value = Number(balance ?? 0);
+  if (value > 0) return 'con_deuda';
+  if (value < 0) return 'saldo_a_favor';
+  return 'al_dia';
+};
+
 export class AccountService {
   async getClientAccount(clientId) {
     const client = await accountRepository.findClient(clientId);
@@ -31,7 +38,7 @@ export class AccountService {
       businessName: client.business_name,
       currentBalance: Number(client.current_balance),
       creditLimit: Number(client.credit_limit),
-      status: Number(client.current_balance) > 0 ? 'con_deuda' : 'al_dia',
+      status: computeStatus(client.current_balance),
       lastMovementAt: movements[0]?.created_at ?? null,
       recentMovements: movements.slice(0, 10).map(mapMovement),
     };
@@ -53,9 +60,21 @@ export class AccountService {
       throw new AppError('Solo admin puede hacer ajustes manuales.', 403);
     }
 
+    if (payload.referenceType && payload.referenceId) {
+      const existing = await accountRepository.findMovementByReference({
+        referenceType: payload.referenceType,
+        referenceId: payload.referenceId,
+        movementType: payload.movementType,
+      });
+      if (existing) {
+        const row = await accountRepository.findMovementById(existing.id);
+        return mapMovement({ ...row, client_name: client.business_name, user_name: user.fullName });
+      }
+    }
+
     const previous = Number(client.current_balance);
     const debit = debitTypes.has(payload.movementType);
-    const next = debit ? previous + amount : Math.max(0, previous - amount);
+    const next = debit ? previous + amount : previous - amount;
 
     await accountRepository.updateClientBalance(client.id, next);
     const saved = await accountRepository.createMovement({
@@ -106,7 +125,7 @@ export class AccountService {
     if (!client) return;
 
     const previous = Number(client.current_balance);
-    const next = Math.max(0, previous - Number(total));
+    const next = previous - Number(total);
     await accountRepository.updateClientBalance(clientId, next);
     await accountRepository.createMovement({
       clientId,
@@ -148,7 +167,7 @@ export class AccountService {
 
     const payment = await accountRepository.createPayment({ ...payload, amount, userId: user.sub });
     const previous = Number(client.current_balance);
-    const next = Math.max(0, previous - amount);
+    const next = previous - amount;
     await accountRepository.updateClientBalance(client.id, next);
     await accountRepository.createMovement({
       clientId: client.id,

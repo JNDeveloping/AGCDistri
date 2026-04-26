@@ -81,7 +81,7 @@ export class CreditNoteService {
 
     const totalAmount = normalizedItems.reduce((acc, item) => acc + item.subtotal, 0);
     const affectsStock = payload.affectsStock === true;
-    const affectsAccount = payload.affectsAccount !== false && order.payment_terms === 'cuenta_corriente';
+    const affectsAccount = payload.affectsAccount !== false;
 
     const note = await creditNoteRepository.createWithItems({
       orderId: order.id,
@@ -114,12 +114,15 @@ export class CreditNoteService {
     }
 
     if (affectsAccount) {
+      const movementType = order.payment_terms === 'cuenta_corriente' ? 'nota_credito' : 'saldo_a_favor';
       await accountService.createMovement(
         order.client_id,
         {
-          movementType: 'nota_credito',
+          movementType,
           amount: totalAmount,
-          description: `Nota de crédito #${note.number}`,
+          description: movementType === 'saldo_a_favor'
+            ? `Saldo a favor por nota de crédito #${note.number}`
+            : `Nota de crédito #${note.number}`,
           notes: payload.notes,
           referenceType: 'credit_note',
           referenceId: note.id,

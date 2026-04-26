@@ -76,6 +76,7 @@ class OrdersCubit extends Cubit<OrdersState> {
 
   Future<List<OrderClientLookup>> searchClients(String query) => _repository.searchClients(query);
   Future<List<OrderProductLookup>> searchProducts(String query) => _repository.searchProducts(query);
+  Future<List<OrderProductVariantLookup>> searchProductVariants(String productId) => _repository.searchProductVariants(productId);
 
   @override
   Future<void> close() {

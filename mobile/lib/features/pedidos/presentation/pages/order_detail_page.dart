@@ -13,6 +13,7 @@ import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../company_settings/presentation/cubit/company_settings_cubit.dart';
 import '../../../credit_notes/data/repositories/credit_note_repository.dart';
 import '../../../credit_notes/presentation/pages/order_credit_notes_page.dart';
+import '../../../credit_notes/presentation/pages/credit_note_detail_page.dart';
 import '../../../stock/presentation/pages/stock_product_detail_page.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../domain/models/order_model.dart';
@@ -71,6 +72,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     Text('Cliente: ${o.clientName}'),
                     Text('Fecha: ${o.orderDate?.toLocal().toString().split('.').first ?? '-'}'),
                     Text('Condición de pago: ${o.paymentTerms ?? '-'}'),
+                    if (o.hasCreditNotes) Text('Pedido con notas de crédito aplicadas', style: const TextStyle(fontWeight: FontWeight.w700)),
                     Text('Vendedor: ${o.sellerName}'),
                     Text('Saldo del cliente: disponible en Cuenta Corriente.'),
                     if ((o.notes ?? '').isNotEmpty) Text('Observaciones: ${o.notes}'),
@@ -95,7 +97,9 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       const Divider(),
                       _totalRow('Subtotal', o.subtotal),
                       _totalRow('Descuento general', o.discountTotal),
-                      _totalRow('Total', o.total, strong: true),
+                      _totalRow('Total original', o.total, strong: true),
+                      _totalRow('Notas de crédito', -o.totalCredited),
+                      _totalRow('Total neto', o.netTotal, strong: true),
                     ],
                   ),
                 ),
