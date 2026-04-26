@@ -13,14 +13,30 @@ class ClientsCubit extends Cubit<ClientsState> {
 
   final ClientRepository _clientRepository;
   Timer? _debounce;
+  final Map<String, ClientListResponse> _cache = {};
 
-  Future<void> load() async {
+  Future<void> load({bool forceRefresh = false}) async {
+    final cacheKey = '${state.query.trim()}|${state.filteredStatus ?? 'all'}';
+    if (!forceRefresh && _cache.containsKey(cacheKey)) {
+      final cached = _cache[cacheKey]!;
+      emit(
+        state.copyWith(
+          status: ClientsStatus.success,
+          items: cached.items,
+          total: cached.total,
+          errorMessage: null,
+        ),
+      );
+      return;
+    }
+
     emit(state.copyWith(status: ClientsStatus.loading, errorMessage: null));
     try {
       final result = await _clientRepository.list(
         query: state.query,
         isActive: state.filteredStatus,
       );
+      _cache[cacheKey] = result;
 
       emit(
         state.copyWith(
@@ -48,17 +64,20 @@ class ClientsCubit extends Cubit<ClientsState> {
 
   Future<void> deactivate(String id) async {
     await _clientRepository.deactivate(id);
-    await load();
+    _cache.clear();
+    await load(forceRefresh: true);
   }
 
   Future<void> activate(String id) async {
     await _clientRepository.activate(id);
-    await load();
+    _cache.clear();
+    await load(forceRefresh: true);
   }
 
   Future<void> delete(String id) async {
     await _clientRepository.delete(id);
-    await load();
+    _cache.clear();
+    await load(forceRefresh: true);
   }
 
   Future<ClientModel> getById(String id) {
@@ -72,7 +91,8 @@ class ClientsCubit extends Cubit<ClientsState> {
       await _clientRepository.update(id, payload);
     }
 
-    await load();
+    _cache.clear();
+    await load(forceRefresh: true);
   }
 
   Future<List<ClientZone>> listZones({bool includeInactive = false}) {

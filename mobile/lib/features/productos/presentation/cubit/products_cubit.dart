@@ -13,8 +13,15 @@ class ProductsCubit extends Cubit<ProductsState> {
 
   final ProductRepository _repository;
   Timer? _debounce;
+  final Map<String, List<ProductModel>> _cache = {};
 
-  Future<void> load() async {
+  Future<void> load({bool forceRefresh = false}) async {
+    final cacheKey = '${state.query.trim()}|${state.filterActive?.toString() ?? 'all'}|${state.filterLowStock}';
+    if (!forceRefresh && _cache.containsKey(cacheKey)) {
+      emit(state.copyWith(status: ProductsStatus.success, items: _cache[cacheKey], errorMessage: null));
+      return;
+    }
+
     emit(state.copyWith(status: ProductsStatus.loading, errorMessage: null));
     try {
       final items = await _repository.list(
@@ -22,6 +29,7 @@ class ProductsCubit extends Cubit<ProductsState> {
         isActive: state.filterActive,
         lowStock: state.filterLowStock,
       );
+      _cache[cacheKey] = items;
       emit(state.copyWith(status: ProductsStatus.success, items: items));
     } on ProductException catch (error) {
       emit(state.copyWith(status: ProductsStatus.failure, errorMessage: error.message));
@@ -48,12 +56,14 @@ class ProductsCubit extends Cubit<ProductsState> {
 
   Future<void> save(ProductModel model, {String? id}) async {
     await _repository.save(model, id: id);
-    await load();
+    _cache.clear();
+    await load(forceRefresh: true);
   }
 
   Future<void> deactivate(String id) async {
     await _repository.deactivate(id);
-    await load();
+    _cache.clear();
+    await load(forceRefresh: true);
   }
 
   Future<List<ProductCategory>> listCategories({bool includeInactive = false}) {

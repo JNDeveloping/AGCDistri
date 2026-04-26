@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/navigation/app_bottom_nav_bar.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../accounts/presentation/pages/accounts_overview_page.dart';
+import '../../../clientes/presentation/pages/clientes_page.dart';
+import '../../../pedidos/presentation/pages/pedidos_page.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../cubit/dashboard_cubit.dart';
 import '../cubit/dashboard_state.dart';
@@ -82,6 +85,42 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
               const SizedBox(height: 18),
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Acciones rápidas', style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: () => context.go(PedidosPage.path),
+                            icon: const Icon(Icons.add_shopping_cart_rounded),
+                            label: const Text('Nuevo pedido'),
+                          ),
+                          FilledButton.tonalIcon(
+                            onPressed: () => context.go(ClientesPage.path),
+                            icon: const Icon(Icons.person_add_alt_1_rounded),
+                            label: const Text('Nuevo cliente'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => context.go(AccountsOverviewPage.path),
+                            icon: const Icon(Icons.payments_rounded),
+                            label: const Text('Registrar pago'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               _recentSection(
                 context,
                 title: 'Últimos clientes',
