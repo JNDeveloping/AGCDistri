@@ -13,6 +13,7 @@ const mapOrder = (row, items = []) => ({
   orderNumber: row.order_number,
   clientId: row.client_id,
   clientName: row.client_name,
+  clientPhone: row.client_phone,
   sellerId: row.seller_id,
   sellerName: row.seller_name,
   assignedDeliveryUserId: row.assigned_delivery_user_id,

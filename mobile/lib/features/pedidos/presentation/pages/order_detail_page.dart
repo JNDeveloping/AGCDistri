@@ -1,10 +1,16 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../company_settings/presentation/cubit/company_settings_cubit.dart';
 import '../../../stock/presentation/pages/stock_product_detail_page.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../domain/models/order_model.dart';
@@ -114,6 +120,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           icon: const Icon(Icons.picture_as_pdf_outlined),
           label: const Text('Ver PDF'),
         ),
+        if (o.status == 'entregado')
+          FilledButton.icon(
+            onPressed: () => _sendPdfByWhatsApp(o),
+            icon: const Icon(Icons.send_to_mobile_rounded),
+            label: const Text('Enviar PDF por WhatsApp'),
+          ),
         if (canEditPending)
           OutlinedButton.icon(
             onPressed: () async {
@@ -365,6 +377,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   Future<void> _showPdf(OrderModel order) async {
+    final doc = await _buildPdf(order);
+    await Printing.layoutPdf(onLayout: (_) => doc.save(), name: 'pedido_${order.orderNumber}.pdf');
+  }
+
+  Future<pw.Document> _buildPdf(OrderModel order) async {
+    final settings = context.read<CompanySettingsCubit>().state.settings;
     final doc = pw.Document();
     doc.addPage(
       pw.MultiPage(
@@ -372,10 +390,13 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         build: (_) => [
           pw.Text('Remito / Pedido #${order.orderNumber}', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 8),
-          pw.Text('Empresa: AGC Distribuidora'),
-          pw.Text('CUIT: -  | Dirección: -  | Tel: -  | Email: -'),
+          pw.Text('Empresa: ${settings.companyName}'),
+          pw.Text('CUIT: ${settings.taxId ?? '-'}  | Dirección: ${settings.address ?? '-'}'),
+          pw.Text('Tel: ${settings.phone ?? '-'}  | Email: ${settings.email ?? '-'}'),
           pw.Divider(),
           pw.Text('Cliente: ${order.clientName}'),
+          pw.Text('Teléfono cliente: ${order.clientPhone ?? '-'}'),
+          pw.Text('Dirección cliente: ${order.deliveryAddress ?? '-'}'),
           pw.Text('Fecha: ${order.orderDate?.toLocal().toString().split('.').first ?? '-'}'),
           pw.Text('Estado: ${order.status}'),
           pw.Text('Condición de pago: ${order.paymentTerms ?? '-'}'),
@@ -406,8 +427,47 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         ],
       ),
     );
+    return doc;
+  }
 
-    await Printing.layoutPdf(onLayout: (_) => doc.save(), name: 'pedido_${order.orderNumber}.pdf');
+  Future<void> _sendPdfByWhatsApp(OrderModel order) async {
+    final cleaned = _cleanPhone(order.clientPhone);
+    if (cleaned == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El cliente no tiene teléfono/WhatsApp configurado.')),
+      );
+      return;
+    }
+
+    final whatsappPhone = cleaned.startsWith('549') ? cleaned : '549$cleaned';
+    final message = 'Hola, te enviamos el comprobante del pedido Nº ${order.orderNumber}';
+
+    try {
+      final doc = await _buildPdf(order);
+      final dir = await getTemporaryDirectory();
+      final filePath = '${dir.path}/pedido_${order.orderNumber}.pdf';
+      final file = File(filePath);
+      await file.writeAsBytes(await doc.save(), flush: true);
+
+      final whatsappUrl = Uri.parse('https://wa.me/$whatsappPhone?text=${Uri.encodeComponent(message)}');
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+      }
+
+      await Share.shareXFiles([XFile(filePath)], text: message, subject: 'Comprobante pedido #${order.orderNumber}');
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo enviar el PDF por WhatsApp.')),
+      );
+    }
+  }
+
+  String? _cleanPhone(String? raw) {
+    final digits = (raw ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return null;
+    if (digits.length < 8) return null;
+    return digits;
   }
 
   Widget _statusBadge(String status) {

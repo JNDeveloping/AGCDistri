@@ -6,6 +6,7 @@ const baseOrderSelect = `
     o.order_number,
     o.client_id,
     c.business_name AS client_name,
+    c.phone AS client_phone,
     o.seller_id,
     u.full_name AS seller_name,
     o.assigned_delivery_user_id,
