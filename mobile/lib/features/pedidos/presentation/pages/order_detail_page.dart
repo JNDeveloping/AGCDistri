@@ -11,6 +11,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../company_settings/presentation/cubit/company_settings_cubit.dart';
+import '../../../credit_notes/data/repositories/credit_note_repository.dart';
+import '../../../credit_notes/presentation/pages/order_credit_notes_page.dart';
 import '../../../stock/presentation/pages/stock_product_detail_page.dart';
 import '../../data/repositories/order_repository.dart';
 import '../../domain/models/order_model.dart';
@@ -125,6 +127,20 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             onPressed: () => _sendPdfByWhatsApp(o),
             icon: const Icon(Icons.send_to_mobile_rounded),
             label: const Text('Enviar PDF por WhatsApp'),
+          ),
+        if (o.status == 'entregado')
+          OutlinedButton.icon(
+            onPressed: () {
+              final creditRepo = context.read<CreditNoteRepository>();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => OrderCreditNotesPage(order: o, repository: creditRepo),
+                ),
+              );
+            },
+            icon: const Icon(Icons.request_page_outlined),
+            label: const Text('Notas de crédito'),
           ),
         if (canEditPending)
           OutlinedButton.icon(
