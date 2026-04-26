@@ -33,6 +33,14 @@ class ModuleRegistry {
     roles: ['admin', 'vendedor', 'repartidor'],
   );
 
+  static const accounts = AppModule(
+    key: 'cuentas_corrientes',
+    label: 'Ctas Ctes',
+    route: '/cuentas-corrientes',
+    icon: Icons.account_balance_wallet_rounded,
+    roles: ['admin', 'vendedor', 'repartidor'],
+  );
+
   static const products = AppModule(
     key: 'productos',
     label: 'Productos',
@@ -66,7 +74,7 @@ class ModuleRegistry {
     roles: ['admin', 'vendedor', 'repartidor'],
   );
 
-  static const modules = [dashboard, clients, products, orders, stock, profile];
+  static const modules = [dashboard, accounts, clients, products, orders, stock, profile];
 
   static List<AppModule> modulesForRole(String role) {
     return modules.where((module) => module.roles.contains(role)).toList();

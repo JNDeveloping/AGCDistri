@@ -119,6 +119,7 @@ class AppRoot extends StatelessWidget {
       providers: [
         RepositoryProvider.value(value: stockRepository),
         RepositoryProvider.value(value: accountsRepository),
+        RepositoryProvider.value(value: clientRepository),
       ],
       child: MultiBlocProvider(
         providers: [

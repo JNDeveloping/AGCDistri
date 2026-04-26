@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/navigation/app_bottom_nav_bar.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../accounts/presentation/pages/accounts_overview_page.dart';
 import '../../../company_settings/presentation/pages/company_settings_page.dart';
 import '../../../clientes/presentation/pages/zones_management_page.dart';
 import '../../../productos/presentation/pages/product_categories_page.dart';
@@ -111,8 +112,8 @@ class _ProfilePageState extends State<ProfilePage> {
             child: ListTile(
               leading: const Icon(Icons.account_balance_wallet_outlined),
               title: const Text('Cuentas corrientes'),
-              subtitle: const Text('Abrir clientes para ver saldos y movimientos'),
-              onTap: () => context.push('/clientes'),
+              subtitle: const Text('Listado de saldos, deuda y movimientos'),
+              onTap: () => context.push(AccountsOverviewPage.path),
             ),
           ),
           Card(
