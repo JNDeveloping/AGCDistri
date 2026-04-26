@@ -39,6 +39,8 @@ class OrderModel extends Equatable {
     required this.taxTotal,
     required this.total,
     required this.estimatedMargin,
+    required this.itemsCount,
+    required this.totalUnits,
     required this.paymentTerms,
     required this.deliveryAddress,
     required this.notes,
@@ -58,6 +60,8 @@ class OrderModel extends Equatable {
   final double taxTotal;
   final double total;
   final double estimatedMargin;
+  final int itemsCount;
+  final double totalUnits;
   final String? paymentTerms;
   final String? deliveryAddress;
   final String? notes;
@@ -77,6 +81,13 @@ class OrderModel extends Equatable {
         taxTotal: (json['taxTotal'] as num?)?.toDouble() ?? 0,
         total: (json['total'] as num?)?.toDouble() ?? 0,
         estimatedMargin: (json['estimatedMargin'] as num?)?.toDouble() ?? 0,
+        itemsCount: _asInt(json['itemsCount'] ?? json['items_count']) ?? 0,
+        totalUnits: (json['totalUnits'] as num?)?.toDouble()
+            ?? (json['total_units'] as num?)?.toDouble()
+            ?? ((json['items'] as List<dynamic>? ?? []).fold<num>(0, (acc, raw) {
+              final map = raw as Map<String, dynamic>;
+              return acc + ((map['quantity'] as num?) ?? 0);
+            })).toDouble(),
         paymentTerms: json['paymentTerms'] as String?,
         deliveryAddress: json['deliveryAddress'] as String?,
         notes: json['notes'] as String?,
@@ -86,7 +97,7 @@ class OrderModel extends Equatable {
       );
 
   @override
-  List<Object?> get props => [id, orderNumber, clientId, status, total];
+  List<Object?> get props => [id, orderNumber, clientId, status, total, itemsCount, totalUnits];
 }
 
 int? _asInt(dynamic value) {

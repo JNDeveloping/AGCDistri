@@ -21,6 +21,8 @@ const baseOrderSelect = `
     o.estimated_margin,
     o.delivery_address,
     o.estimated_delivery_date,
+    COALESCE(oi_summary.items_count, 0)::int AS items_count,
+    COALESCE(oi_summary.total_units, 0)::numeric AS total_units,
     o.stock_discounted,
     o.created_at,
     o.updated_at,
@@ -29,6 +31,14 @@ const baseOrderSelect = `
   JOIN clients c ON c.id = o.client_id
   JOIN users u ON u.id = o.seller_id
   LEFT JOIN users du ON du.id = o.assigned_delivery_user_id
+  LEFT JOIN (
+    SELECT
+      order_id,
+      COUNT(id)::int AS items_count,
+      COALESCE(SUM(quantity), 0)::numeric AS total_units
+    FROM order_items
+    GROUP BY order_id
+  ) oi_summary ON oi_summary.order_id = o.id
 `;
 
 export class OrderRepository {

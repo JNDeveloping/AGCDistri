@@ -26,6 +26,8 @@ const mapOrder = (row, items = []) => ({
   taxTotal: Number(row.tax_total),
   total: Number(row.total),
   estimatedMargin: Number(row.estimated_margin),
+  itemsCount: Number(row.items_count ?? 0),
+  totalUnits: Number(row.total_units ?? 0),
   deliveryAddress: row.delivery_address,
   estimatedDeliveryDate: row.estimated_delivery_date,
   stockDiscounted: row.stock_discounted,

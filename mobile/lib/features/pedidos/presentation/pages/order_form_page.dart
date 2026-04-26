@@ -136,6 +136,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
 
   Widget _itemCard(_CartLine line) {
     return Card(
+      key: ValueKey('cart-item-${line.product.id}'),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -161,6 +162,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
                       SizedBox(
                         width: 70,
                         child: TextFormField(
+                          key: ValueKey('qty-${line.product.id}-${line.quantity.toStringAsFixed(2)}'),
                           initialValue: line.quantity.toStringAsFixed(0),
                           style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
                           textAlign: TextAlign.center,
@@ -188,6 +190,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
                 SizedBox(
                   width: 96,
                   child: TextFormField(
+                    key: ValueKey('discount-${line.product.id}-${line.discountValue.toStringAsFixed(2)}'),
                     initialValue: line.discountValue.toStringAsFixed(0),
                     style: const TextStyle(color: Colors.black),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),

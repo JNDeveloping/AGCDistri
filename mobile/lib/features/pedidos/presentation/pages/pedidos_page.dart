@@ -120,7 +120,8 @@ class _PedidosPageState extends State<PedidosPage> {
                               runSpacing: 6,
                               children: [
                                 _infoPill(icon: Icons.attach_money_rounded, label: '\$${o.total.toStringAsFixed(2)}'),
-                                _infoPill(icon: Icons.inventory_2_outlined, label: '${o.items.length} ítems'),
+                                _infoPill(icon: Icons.inventory_2_outlined, label: '${o.itemsCount} productos'),
+                                _infoPill(icon: Icons.format_list_numbered_rounded, label: '${o.totalUnits.toStringAsFixed(0)} unidades'),
                                 _infoPill(icon: Icons.payments_outlined, label: o.paymentTerms == 'cuenta_corriente' ? 'Cta. cte.' : 'Contado'),
                               ],
                             ),
