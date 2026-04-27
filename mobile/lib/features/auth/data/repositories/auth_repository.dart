@@ -15,9 +15,9 @@ class AuthRepository {
   final AuthRemoteDataSource _remoteDataSource;
   final TokenStorage _tokenStorage;
 
-  Future<AuthSession> login({required String email, required String password}) async {
+  Future<AuthSession> login({required String identifier, required String password}) async {
     try {
-      final payload = await _remoteDataSource.login(email: email, password: password);
+      final payload = await _remoteDataSource.login(identifier: identifier, password: password);
       final data = payload['data'] as Map<String, dynamic>?;
       if (data == null) {
         throw const FormatException('Respuesta inválida del servidor.');

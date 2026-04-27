@@ -53,12 +53,27 @@ class _OrderProductSelectorPageState extends State<OrderProductSelectorPage> {
               itemCount: _items.length,
               itemBuilder: (_, i) {
                 final p = _items[i];
+                final isOutOfStock = !p.hasVariants && p.stockCurrent <= 0;
                 return ListTile(
-                  title: Text(p.name),
+                  enabled: !isOutOfStock,
+                  title: Row(
+                    children: [
+                      Expanded(child: Text(p.name)),
+                      if (isOutOfStock)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.errorContainer,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text('Sin stock', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        ),
+                    ],
+                  ),
                   subtitle: Text(
                     '${p.internalCode ?? '-'} · Stock ${p.stockCurrent.toStringAsFixed(0)} · ${p.salePrice.toStringAsFixed(2)}${p.hasVariants ? ' · Con variantes' : ''}',
                   ),
-                  onTap: () => _selectProduct(p),
+                  onTap: isOutOfStock ? null : () => _selectProduct(p),
                 );
               },
             ),
@@ -152,7 +167,7 @@ class _VariantMultiSelectSheetState extends State<_VariantMultiSelectSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(v.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-                            Text('Stock ${stock.toStringAsFixed(0)} · ${price.toStringAsFixed(2)}'),
+                            Text('Stock ${stock.toStringAsFixed(0)} · ${price.toStringAsFixed(2)}${stock <= 0 ? ' · Sin stock' : ''}'),
                           ],
                         ),
                       ),
@@ -162,7 +177,7 @@ class _VariantMultiSelectSheetState extends State<_VariantMultiSelectSheet> {
                       ),
                       SizedBox(width: 28, child: Text('$qty', textAlign: TextAlign.center)),
                       IconButton(
-                        onPressed: qty < stock ? () => setState(() => _quantities[v.id] = qty + 1) : null,
+                        onPressed: stock <= 0 ? null : (qty < stock ? () => setState(() => _quantities[v.id] = qty + 1) : null),
                         icon: const Icon(Icons.add_circle_outline),
                       ),
                     ],

@@ -37,6 +37,24 @@ export class UserRepository {
     return rows[0] ?? null;
   }
 
+
+  async findByIdentifier(identifier) {
+    const normalized = String(identifier ?? '').trim().toLowerCase();
+    const query = `
+      SELECT id, full_name, email, password_hash, role, is_active, is_deleted, deleted_at
+      FROM users
+      WHERE is_deleted = FALSE
+        AND (
+          email = $1
+          OR split_part(email, '@', 1) = $1
+        )
+      LIMIT 1
+    `;
+
+    const { rows } = await pool.query(query, [normalized]);
+    return rows[0] ?? null;
+  }
+
   async list() {
     const query = `
       SELECT id, full_name, email, role, is_active, is_deleted, deleted_at, created_at, updated_at

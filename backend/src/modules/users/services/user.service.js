@@ -14,8 +14,8 @@ export class UserService {
     return userRepository.create({ fullName, email, passwordHash, role });
   }
 
-  async validateCredentials({ email, password }) {
-    const user = await userRepository.findByEmail(email);
+  async validateCredentials({ identifier, password }) {
+    const user = await userRepository.findByIdentifier(identifier);
     if (!user) {
       throw new AppError('Credenciales inválidas.', 401);
     }

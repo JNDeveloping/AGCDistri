@@ -161,24 +161,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             icon: const Icon(Icons.delete_outline),
             label: const Text('Eliminar'),
           ),
-        if (o.status != 'cancelado')
-          TextButton.icon(
-            onPressed: () async {
-              await _runOrderAction(
-                action: () => context.read<OrdersCubit>().cancel(o.id),
-                successMessage: 'Pedido cancelado correctamente.',
-                role: role,
-              );
-            },
-            icon: const Icon(Icons.cancel_outlined),
-            label: const Text('Cancelar pedido'),
-          ),
         if (canStatus)
-          for (final status in const ['preparado', 'en_reparto', 'entregado'])
-            FilledButton.tonal(
-              onPressed: _changingStatus || (_statusRequiresStock(status) && hasStockConflict) ? null : () => _changeStatus(o.id, status, role),
-              child: Text(_changingStatus ? 'Actualizando...' : status),
-            ),
+          FilledButton.icon(
+            onPressed: _changingStatus ? null : () => _openStatusSelector(o, role, hasStockConflict),
+            icon: const Icon(Icons.sync_alt_rounded),
+            label: Text(_changingStatus ? 'Actualizando...' : 'Cambiar estado'),
+          ),
         if (_validatingStock)
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 4),
@@ -212,6 +200,70 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           ),
       ],
     );
+  }
+
+
+  List<String> _availableStatuses(String current) {
+    switch (current) {
+      case 'pendiente':
+        return const ['preparado', 'cancelado'];
+      case 'preparado':
+        return const ['en_reparto', 'entregado', 'cancelado'];
+      case 'en_reparto':
+        return const ['entregado', 'cancelado'];
+      default:
+        return const [];
+    }
+  }
+
+  Future<void> _openStatusSelector(OrderModel order, String role, bool hasStockConflict) async {
+    final statuses = _availableStatuses(order.status);
+    if (statuses.isEmpty) return;
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: statuses
+                .map((status) {
+                  final disabled = _statusRequiresStock(status) && hasStockConflict;
+                  final color = _statusColor(status);
+                  return ActionChip(
+                    backgroundColor: color.withValues(alpha: 0.16),
+                    avatar: Icon(_statusIcon(status), color: color),
+                    label: Text(_statusLabel(status)),
+                    onPressed: disabled ? null : () => Navigator.pop(context, status),
+                  );
+                })
+                .toList(),
+          ),
+        ),
+      ),
+    );
+
+    if (selected == null) return;
+    final requiresConfirm = selected == 'entregado' || selected == 'cancelado';
+    if (requiresConfirm) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Confirmar cambio de estado'),
+          content: Text('¿Deseás cambiar el estado a ${_statusLabel(selected)}?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirmar')),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+
+    await _changeStatus(order.id, selected, role);
   }
 
   Future<void> _changeStatus(String orderId, String status, String role) async {
@@ -297,6 +349,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMessage)));
       await _refreshOrderAndStockValidation();
+      await context.read<OrdersCubit>().load(forceRefresh: true);
     } on OrderException catch (error) {
       if (!mounted) return;
       if (error.isInsufficientStock) {
@@ -491,18 +544,70 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   }
 
   Widget _statusBadge(String status) {
-    final color = switch (status) {
-      'pendiente' => Colors.amber,
-      'preparado' => Colors.deepPurple,
-      'en_reparto' => Colors.indigo,
-      'entregado' => Colors.green,
-      _ => Colors.red,
-    };
+    final color = _statusColor(status);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(999)),
-      child: Text(status, style: const TextStyle(fontWeight: FontWeight.w700)),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(999)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_statusIcon(status), size: 18, color: color),
+          const SizedBox(width: 6),
+          Text(_statusLabel(status), style: TextStyle(fontWeight: FontWeight.w800, color: color)),
+        ],
+      ),
     );
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'pendiente':
+        return 'Pendiente';
+      case 'preparado':
+        return 'Preparado';
+      case 'en_reparto':
+        return 'En reparto';
+      case 'entregado':
+        return 'Entregado';
+      case 'cancelado':
+        return 'Cancelado';
+      default:
+        return status;
+    }
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'pendiente':
+        return Colors.amber.shade800;
+      case 'preparado':
+        return Colors.deepPurple;
+      case 'en_reparto':
+        return Colors.indigo;
+      case 'entregado':
+        return Colors.green.shade700;
+      case 'cancelado':
+        return Colors.red.shade700;
+      default:
+        return Colors.grey.shade700;
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'pendiente':
+        return Icons.timelapse_rounded;
+      case 'preparado':
+        return Icons.inventory_2_rounded;
+      case 'en_reparto':
+        return Icons.local_shipping_rounded;
+      case 'entregado':
+        return Icons.check_circle_rounded;
+      case 'cancelado':
+        return Icons.cancel_rounded;
+      default:
+        return Icons.info_outline;
+    }
   }
 
   Widget _totalRow(String label, double value, {bool strong = false}) {
