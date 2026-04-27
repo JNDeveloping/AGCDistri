@@ -308,7 +308,10 @@ export class OrderService {
       const variantStock = variantRows[0]?.stock;
       if (variantStock != null) return Number(variantStock);
     }
-    const { rows } = await pool.query('SELECT stock_current FROM products WHERE id = $1 LIMIT 1', [productId]);
+    const { rows } = await pool.query('SELECT stock_current, has_variants FROM products WHERE id = $1 LIMIT 1', [productId]);
+    if (rows[0]?.has_variants === true) {
+      return 0;
+    }
     return Number(rows[0]?.stock_current ?? 0);
   }
 

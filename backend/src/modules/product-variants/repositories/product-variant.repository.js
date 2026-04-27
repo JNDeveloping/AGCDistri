@@ -45,6 +45,18 @@ export class ProductVariantRepository {
     return rows[0] ?? null;
   }
 
+  async findByInternalCode(internalCode, ignoreId = null) {
+    if (!internalCode) return null;
+    const values = [internalCode];
+    const whereIgnore = ignoreId ? 'AND id <> $2' : '';
+    if (ignoreId) values.push(ignoreId);
+    const { rows } = await pool.query(
+      `SELECT id FROM product_variants WHERE internal_code = $1 ${whereIgnore} LIMIT 1`,
+      values,
+    );
+    return rows[0] ?? null;
+  }
+
   async hasMovements(id) {
     const { rows } = await pool.query(
       `SELECT
@@ -116,4 +128,3 @@ export class ProductVariantRepository {
 }
 
 export const productVariantRepository = new ProductVariantRepository();
-

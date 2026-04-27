@@ -118,28 +118,30 @@ class _ProductFormPageState extends State<ProductFormPage> {
                 _salePrice,
                 'Precio de venta',
                 number: true,
-                requiredField: true,
+                requiredField: !_hasVariants,
+                enabled: !_hasVariants,
                 onChanged: (_) {
                   _manualSalePrice = true;
                   setState(() => _costChangedAfterManual = false);
                 },
               ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _manualSalePrice
-                        ? (_costChangedAfterManual
-                            ? 'Precio modificado manualmente. Costo cambió, podés recalcular.'
-                            : 'Precio modificado manualmente.')
-                        : 'Calculado con ${context.read<CompanySettingsCubit>().state.settings.defaultProfitPercentage.toStringAsFixed(2)}% de ganancia y '
-                            '${context.read<CompanySettingsCubit>().state.settings.priceRoundingEnabled ? 'redondeo a ${context.read<CompanySettingsCubit>().state.settings.priceRoundingMultiple}' : 'sin redondeo'}.',
-                    style: Theme.of(context).textTheme.bodySmall,
+              if (!_hasVariants)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _manualSalePrice
+                          ? (_costChangedAfterManual
+                              ? 'Precio modificado manualmente. Costo cambió, podés recalcular.'
+                              : 'Precio modificado manualmente.')
+                          : 'Calculado con ${context.read<CompanySettingsCubit>().state.settings.defaultProfitPercentage.toStringAsFixed(2)}% de ganancia y '
+                              '${context.read<CompanySettingsCubit>().state.settings.priceRoundingEnabled ? 'redondeo a ${context.read<CompanySettingsCubit>().state.settings.priceRoundingMultiple}' : 'sin redondeo'}.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ),
                 ),
-              ),
-              if (_costChangedAfterManual)
+              if (!_hasVariants && _costChangedAfterManual)
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
@@ -187,22 +189,33 @@ class _ProductFormPageState extends State<ProductFormPage> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Expanded(child: _field(_barcode, 'Código de barras', requiredField: false)),
+                  Expanded(child: _field(_barcode, 'Código de barras', requiredField: false, enabled: !_hasVariants)),
                   const SizedBox(width: 8),
                   IconButton.filledTonal(
-                    onPressed: _scanBarcode,
+                    onPressed: _hasVariants ? null : _scanBarcode,
                     icon: const Icon(Icons.qr_code_scanner_rounded),
                   ),
                 ],
               ),
-              _field(_cost, 'Costo', number: true, requiredField: false),
-              _field(_stock, 'Stock actual', number: true, requiredField: false),
-              _field(_stockMin, 'Stock mínimo', number: true, requiredField: false),
+              _field(_cost, 'Costo', number: true, requiredField: false, enabled: !_hasVariants),
+              _field(_stock, 'Stock actual', number: true, requiredField: false, enabled: !_hasVariants),
+              _field(_stockMin, 'Stock mínimo', number: true, requiredField: false, enabled: !_hasVariants),
               SwitchListTile(
                 value: _hasVariants,
                 title: const Text('Este producto tiene variantes'),
                 onChanged: (value) => setState(() => _hasVariants = value),
               ),
+              if (_hasVariants)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Este producto se vende por variantes. El precio, stock y códigos se configuran en cada variante.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 16),
               ElevatedButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Guardando...' : 'Guardar producto')),
             ],
@@ -218,12 +231,14 @@ class _ProductFormPageState extends State<ProductFormPage> {
     String label, {
     bool number = false,
     bool requiredField = false,
+    bool enabled = true,
     ValueChanged<String>? onChanged,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
         controller: controller,
+        enabled: enabled,
         keyboardType: number ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
         decoration: InputDecoration(labelText: label),
         onChanged: onChanged,
@@ -330,10 +345,10 @@ class _ProductFormPageState extends State<ProductFormPage> {
       barcode: _barcode.text.trim().isEmpty ? null : _barcode.text.trim(),
       unitMeasure: _selectedUnitMeasure,
       cost: _cost.text.trim().isEmpty ? null : _toDouble(_cost.text),
-      salePrice: _toDouble(_salePrice.text),
+      salePrice: _hasVariants ? 0 : _toDouble(_salePrice.text),
       marginPercentage: null,
-      stockCurrent: _toDouble(_stock.text),
-      stockMinimum: _toDouble(_stockMin.text),
+      stockCurrent: _hasVariants ? 0 : _toDouble(_stock.text),
+      stockMinimum: _hasVariants ? 0 : _toDouble(_stockMin.text),
       isActive: widget.product?.isActive ?? true,
       isFeatured: widget.product?.isFeatured ?? false,
       imageUrl: null,

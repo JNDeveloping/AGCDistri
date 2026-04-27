@@ -7,10 +7,9 @@ export const createProductVariantSchema = z.object({
   name: z.string().trim().min(1).max(180),
   internalCode: z.string().trim().min(1).max(60).optional().nullable(),
   barcode: z.string().trim().min(1).max(80).optional().nullable(),
-  price: money,
+  price: z.number().min(0).max(999999999999.99),
   cost: money,
   stock: quantity,
 });
 
 export const updateProductVariantSchema = createProductVariantSchema;
-

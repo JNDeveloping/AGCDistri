@@ -34,6 +34,11 @@ export class ProductVariantService {
 
     const duplicatedBarcode = await productVariantRepository.findByBarcode(payload.barcode);
     if (duplicatedBarcode) throw new AppError('El código de barras de la variante ya existe.', 409);
+    const duplicatedInternalCode = await productVariantRepository.findByInternalCode(payload.internalCode);
+    if (duplicatedInternalCode) throw new AppError('El código interno de la variante ya existe.', 409);
+    if (Number(payload.price) <= 0) {
+      throw new AppError('El precio de la variante debe ser mayor a cero.', 400);
+    }
 
     const saved = await productVariantRepository.create({ ...payload, productId });
     return mapVariant(saved, product);
@@ -48,6 +53,11 @@ export class ProductVariantService {
 
     const duplicatedBarcode = await productVariantRepository.findByBarcode(payload.barcode, id);
     if (duplicatedBarcode) throw new AppError('El código de barras de la variante ya existe.', 409);
+    const duplicatedInternalCode = await productVariantRepository.findByInternalCode(payload.internalCode, id);
+    if (duplicatedInternalCode) throw new AppError('El código interno de la variante ya existe.', 409);
+    if (Number(payload.price) <= 0) {
+      throw new AppError('El precio de la variante debe ser mayor a cero.', 400);
+    }
 
     const updated = await productVariantRepository.update(id, payload);
     const product = await productVariantRepository.findProduct(existing.product_id);
@@ -81,4 +91,3 @@ export class ProductVariantService {
 }
 
 export const productVariantService = new ProductVariantService();
-
