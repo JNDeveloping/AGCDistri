@@ -55,7 +55,9 @@ class _OrderProductSelectorPageState extends State<OrderProductSelectorPage> {
                 final p = _items[i];
                 return ListTile(
                   title: Text(p.name),
-                  subtitle: Text('${p.internalCode ?? '-'} · Stock ${p.stockCurrent.toStringAsFixed(0)} · ${p.salePrice.toStringAsFixed(2)}${p.hasVariants ? ' · Con variantes' : ''}'),
+                  subtitle: Text(
+                    '${p.internalCode ?? '-'} · Stock ${p.stockCurrent.toStringAsFixed(0)} · ${p.salePrice.toStringAsFixed(2)}${p.hasVariants ? ' · Con variantes' : ''}',
+                  ),
                   onTap: () => _selectProduct(p),
                 );
               },
@@ -68,35 +70,129 @@ class _OrderProductSelectorPageState extends State<OrderProductSelectorPage> {
 
   Future<void> _selectProduct(OrderProductLookup product) async {
     if (!product.hasVariants) {
-      Navigator.pop(context, OrderProductSelection(product: product));
+      Navigator.pop(context, [OrderProductSelection(product: product)]);
       return;
     }
 
     final variants = await context.read<OrdersCubit>().searchProductVariants(product.id);
     if (!mounted) return;
-    if (variants.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El producto tiene variantes pero no hay variantes activas.')));
+    final activeVariants = variants.where((v) => v.active).toList();
+
+    if (activeVariants.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El producto tiene variantes pero no hay variantes activas.')),
+      );
       return;
     }
 
-    final variant = await showModalBottomSheet<OrderProductVariantLookup>(
+    final selected = await showModalBottomSheet<List<OrderProductSelection>>(
       context: context,
-      builder: (_) => ListView(
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _VariantMultiSelectSheet(product: product, variants: activeVariants),
+    );
+
+    if (selected != null && selected.isNotEmpty && mounted) {
+      Navigator.pop(context, selected);
+    }
+  }
+}
+
+class _VariantMultiSelectSheet extends StatefulWidget {
+  const _VariantMultiSelectSheet({required this.product, required this.variants});
+
+  final OrderProductLookup product;
+  final List<OrderProductVariantLookup> variants;
+
+  @override
+  State<_VariantMultiSelectSheet> createState() => _VariantMultiSelectSheetState();
+}
+
+class _VariantMultiSelectSheetState extends State<_VariantMultiSelectSheet> {
+  late final Map<String, int> _quantities;
+
+  @override
+  void initState() {
+    super.initState();
+    _quantities = {for (final v in widget.variants) v.id: 0};
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalSelected = _quantities.values.fold<int>(0, (a, b) => a + b);
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ListTile(title: Text('Seleccionar variante')),
-          ...variants.where((v) => v.active).map(
-                (v) => ListTile(
-                  title: Text(v.name),
-                  subtitle: Text('Stock ${((v.effectiveStock) ?? 0).toStringAsFixed(0)} · ${((v.effectivePrice) ?? 0).toStringAsFixed(2)}'),
-                  onTap: () => Navigator.pop(context, v),
-                ),
-              ),
+          Text('Variantes de ${widget.product.name}', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 420),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: widget.variants.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (_, i) {
+                final v = widget.variants[i];
+                final qty = _quantities[v.id] ?? 0;
+                final stock = (v.effectiveStock ?? 0).floor();
+                final price = v.effectivePrice ?? widget.product.salePrice;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(v.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                            Text('Stock ${stock.toStringAsFixed(0)} · ${price.toStringAsFixed(2)}'),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: qty > 0 ? () => setState(() => _quantities[v.id] = qty - 1) : null,
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                      SizedBox(width: 28, child: Text('$qty', textAlign: TextAlign.center)),
+                      IconButton(
+                        onPressed: qty < stock ? () => setState(() => _quantities[v.id] = qty + 1) : null,
+                        icon: const Icon(Icons.add_circle_outline),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () {
+                final picked = widget.variants
+                    .where((v) => (_quantities[v.id] ?? 0) > 0)
+                    .map((v) => OrderProductSelection(product: widget.product, variant: v, initialQuantity: (_quantities[v.id] ?? 0).toDouble()))
+                    .toList();
+                if (picked.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Seleccioná al menos una variante con cantidad mayor a 0.')),
+                  );
+                  return;
+                }
+                Navigator.pop(context, picked);
+              },
+              child: Text('Agregar seleccionadas ($totalSelected)'),
+            ),
+          ),
         ],
       ),
     );
-
-    if (variant != null && mounted) {
-      Navigator.pop(context, OrderProductSelection(product: product, variant: variant));
-    }
   }
 }

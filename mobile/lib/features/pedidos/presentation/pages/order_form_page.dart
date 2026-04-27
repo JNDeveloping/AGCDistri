@@ -232,7 +232,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
               final variant = i.productVariantId == null
                   ? null
                   : OrderProductVariantLookup(id: i.productVariantId!, productId: i.productId, name: i.variantNameSnapshot ?? '-', active: true, effectivePrice: i.unitPrice);
-              final selection = OrderProductSelection(product: product, variant: variant);
+              final selection = OrderProductSelection(product: product, variant: variant, initialQuantity: i.quantity);
               return MapEntry(
                 selection.cartKey,
                 _CartLine(
@@ -250,24 +250,47 @@ class _OrderFormPageState extends State<OrderFormPage> {
   }
 
   Future<void> _addProduct() async {
-    final selected = await Navigator.push<OrderProductSelection>(context, MaterialPageRoute(builder: (_) => const OrderProductSelectorPage()));
-    if (selected == null) return;
-    setState(() {
-      final existing = _cart[selected.cartKey];
-      _cart[selected.cartKey] = _CartLine(
-        key: selected.cartKey,
-        selection: selected,
-        quantity: (existing?.quantity ?? 0) + 1,
+    final selected = await Navigator.push<List<OrderProductSelection>>(context, MaterialPageRoute(builder: (_) => const OrderProductSelectorPage()));
+    if (selected == null || selected.isEmpty) return;
+
+    bool addedAny = false;
+    for (final selection in selected) {
+      final existing = _cart[selection.cartKey];
+      final increment = selection.initialQuantity <= 0 ? 1 : selection.initialQuantity;
+      final nextQty = (existing?.quantity ?? 0) + increment;
+      if (!_hasStockFor(selection, nextQty)) {
+        final available = _availableFor(selection);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Stock insuficiente para ${selection.displayName}. Disponible: ${available.toStringAsFixed(0)}.')),
+        );
+        continue;
+      }
+
+      addedAny = true;
+      _cart[selection.cartKey] = _CartLine(
+        key: selection.cartKey,
+        selection: selection,
+        quantity: nextQty,
         discountType: existing?.discountType ?? 'amount',
         discountValue: existing?.discountValue ?? 0,
       );
-    });
+    }
+
+    if (!addedAny) return;
+    setState(() {});
   }
 
   void _changeQty(String key, double value) {
     final line = _cart[key];
     if (line == null) return;
     if (value <= 0) return setState(() => _cart.remove(key));
+    if (!_hasStockFor(line.selection, value)) {
+      final available = _availableFor(line.selection);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Stock insuficiente para ${line.displayName}. Disponible: ${available.toStringAsFixed(0)}.')),
+      );
+      return;
+    }
     setState(() => _cart[key] = line.copyWith(quantity: value));
   }
 
@@ -281,6 +304,14 @@ class _OrderFormPageState extends State<OrderFormPage> {
     final line = _cart[key];
     if (line == null) return;
     setState(() => _cart[key] = line.copyWith(discountValue: value));
+  }
+
+  bool _hasStockFor(OrderProductSelection selection, double quantity) {
+    return quantity <= _availableFor(selection);
+  }
+
+  double _availableFor(OrderProductSelection selection) {
+    return selection.effectiveStock;
   }
 
   Future<void> _save() async {

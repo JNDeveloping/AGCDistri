@@ -12,9 +12,24 @@ export class StockRepository {
     if (outOfStock) where.push('p.stock_current <= 0');
 
     const { rows } = await pool.query(
-      `SELECT p.id, p.internal_code, p.barcode, p.name, p.stock_current, p.stock_minimum, pc.name AS category_name
+      `SELECT p.id, p.internal_code, p.barcode, p.name, p.stock_current, p.stock_minimum, p.has_variants,
+              pc.name AS category_name,
+              COALESCE(vs.variants, '[]'::json) AS variants
        FROM products p
        LEFT JOIN product_categories pc ON pc.id = p.category_id
+       LEFT JOIN LATERAL (
+         SELECT json_agg(
+                  json_build_object(
+                    'id', pv.id,
+                    'name', pv.name,
+                    'stock', pv.stock,
+                    'isActive', pv.is_active
+                  )
+                  ORDER BY pv.name ASC
+                ) AS variants
+         FROM product_variants pv
+         WHERE pv.product_id = p.id
+       ) vs ON TRUE
        WHERE ${where.join(' AND ')}
        ORDER BY p.name ASC`,
       values,
@@ -24,7 +39,7 @@ export class StockRepository {
 
   async findProduct(productId) {
     const { rows } = await pool.query(
-      `SELECT id, internal_code, barcode, name, stock_current, stock_minimum, is_active
+      `SELECT id, internal_code, barcode, name, stock_current, stock_minimum, has_variants, is_active
        FROM products WHERE id = $1 LIMIT 1`,
       [productId],
     );
@@ -38,6 +53,17 @@ export class StockRepository {
   async findVariant(variantId) {
     const { rows } = await pool.query('SELECT id, product_id, name, stock, is_active FROM product_variants WHERE id = $1 LIMIT 1', [variantId]);
     return rows[0] ?? null;
+  }
+
+  async listVariantsByProduct(productId) {
+    const { rows } = await pool.query(
+      `SELECT id, product_id, name, stock, is_active
+       FROM product_variants
+       WHERE product_id = $1
+       ORDER BY name ASC`,
+      [productId],
+    );
+    return rows;
   }
 
   async updateVariantStock(variantId, newStock) {
@@ -80,9 +106,10 @@ export class StockRepository {
     if (dateTo) { values.push(dateTo); where.push(`sm.created_at::date <= $${values.length}`); }
 
     const { rows } = await pool.query(
-      `SELECT sm.*, p.name AS product_name, p.internal_code, u.full_name AS user_name
+      `SELECT sm.*, p.name AS product_name, p.internal_code, pv.name AS variant_name, u.full_name AS user_name
        FROM stock_movements sm
        JOIN products p ON p.id = sm.product_id
+       LEFT JOIN product_variants pv ON pv.id = sm.product_variant_id
        LEFT JOIN users u ON u.id = sm.user_id
        ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
        ORDER BY sm.created_at DESC`,

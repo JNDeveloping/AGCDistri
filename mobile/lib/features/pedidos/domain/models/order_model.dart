@@ -273,10 +273,11 @@ class OrderProductVariantLookup {
 }
 
 class OrderProductSelection {
-  const OrderProductSelection({required this.product, this.variant});
+  const OrderProductSelection({required this.product, this.variant, this.initialQuantity = 1});
 
   final OrderProductLookup product;
   final OrderProductVariantLookup? variant;
+  final double initialQuantity;
 
   String get cartKey => variant == null ? product.id : '${product.id}::${variant!.id}';
   String get displayName => variant == null ? product.name : '${product.name} - ${variant!.name}';

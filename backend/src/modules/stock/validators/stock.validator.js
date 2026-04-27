@@ -5,6 +5,7 @@ export const stockMovementTypes = ['entrada', 'salida', 'ajuste', 'devolucion', 
 export const createStockMovementSchema = z.object({
   productId: z.string().uuid(),
   movementType: z.enum(stockMovementTypes),
+  productVariantId: z.string().uuid().optional().nullable(),
   quantity: z.coerce.number().positive(),
   reason: z.string().trim().min(2).max(180),
   notes: z.string().trim().max(4000).optional().nullable(),
@@ -16,6 +17,7 @@ export const createStockMovementSchema = z.object({
 
 export const adjustStockSchema = z.object({
   productId: z.string().uuid(),
+  productVariantId: z.string().uuid().optional().nullable(),
   newStock: z.coerce.number().min(0),
   reason: z.string().trim().min(2).max(180),
   notes: z.string().trim().max(4000).optional().nullable(),
