@@ -15,7 +15,8 @@ export class AccountRepository {
     if (dateTo) { values.push(dateTo); where.push(`am.created_at::date <= $${values.length}`); }
 
     const { rows } = await pool.query(
-      `SELECT am.*, c.business_name AS client_name, u.full_name AS user_name
+      `SELECT am.*, c.business_name AS client_name,
+              CASE WHEN u.is_deleted = TRUE THEN 'Usuario eliminado' ELSE u.full_name END AS user_name
        FROM account_movements am
        JOIN clients c ON c.id = am.client_id
        LEFT JOIN users u ON u.id = am.user_id
@@ -110,7 +111,8 @@ export class AccountRepository {
     if (dateTo) { values.push(dateTo); where.push(`cp.created_at::date <= $${values.length}`); }
 
     const { rows } = await pool.query(
-      `SELECT cp.*, c.business_name AS client_name, u.full_name AS user_name
+      `SELECT cp.*, c.business_name AS client_name,
+              CASE WHEN u.is_deleted = TRUE THEN 'Usuario eliminado' ELSE u.full_name END AS user_name
        FROM client_payments cp
        JOIN clients c ON c.id = cp.client_id
        LEFT JOIN users u ON u.id = cp.user_id
@@ -123,7 +125,8 @@ export class AccountRepository {
 
   async findPaymentById(id) {
     const { rows } = await pool.query(
-      `SELECT cp.*, c.business_name AS client_name, u.full_name AS user_name
+      `SELECT cp.*, c.business_name AS client_name,
+              CASE WHEN u.is_deleted = TRUE THEN 'Usuario eliminado' ELSE u.full_name END AS user_name
        FROM client_payments cp
        JOIN clients c ON c.id = cp.client_id
        LEFT JOIN users u ON u.id = cp.user_id

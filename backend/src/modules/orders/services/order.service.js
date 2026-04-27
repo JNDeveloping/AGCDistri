@@ -99,14 +99,7 @@ export class OrderService {
     const normalizedPayload = { ...payload, paymentTerms: payload.paymentTerms ?? 'contado' };
     const computed = await this.computeTotals(normalizedPayload);
     const orderId = await orderRepository.createOrder(client, normalizedPayload, user.sub, computed);
-    const created = await this.getById(orderId, user.role, user.sub);
-
-    if (created.paymentTerms === 'cuenta_corriente') {
-      await accountService.applyOrderDebt({ orderId, clientId: created.clientId, total: created.total, userId: user.sub });
-      return this.getById(orderId, user.role, user.sub);
-    }
-
-    return created;
+    return this.getById(orderId, user.role, user.sub);
   }
 
   async update(id, payload, user) {
@@ -124,17 +117,11 @@ export class OrderService {
     const computed = await this.computeTotals(normalizedPayload);
     await orderRepository.updatePendingOrder(id, client, normalizedPayload, computed);
 
-    const updated = await this.getById(id, user.role, user.sub);
-
-    if (existing.payment_terms === 'cuenta_corriente') {
+    if (existing.status === 'entregado' && existing.payment_terms === 'cuenta_corriente') {
       await accountService.reverseOrderDebt({ orderId: id, clientId: existing.client_id, total: Number(existing.total), userId: user.sub });
     }
-    if (updated.paymentTerms === 'cuenta_corriente') {
-      await accountService.applyOrderDebt({ orderId: id, clientId: updated.clientId, total: updated.total, userId: user.sub });
-      return this.getById(id, user.role, user.sub);
-    }
 
-    return updated;
+    return this.getById(id, user.role, user.sub);
   }
 
   async cancel(id, user) {
@@ -194,6 +181,14 @@ export class OrderService {
     }
 
     await orderRepository.updateStatus(id, status);
+    if (status === 'entregado' && existing.payment_terms === 'cuenta_corriente') {
+      await accountService.applyOrderDebt({
+        orderId: id,
+        clientId: existing.client_id,
+        total: Number(existing.total),
+        userId: user.sub,
+      });
+    }
     return this.getById(id, user.role, user.sub);
   }
 

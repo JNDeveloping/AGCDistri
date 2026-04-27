@@ -110,7 +110,7 @@ class _PedidosPageState extends State<PedidosPage> {
                     children: [
                       _chip('Todos', null),
                       _chip('Pendiente', 'pendiente'),
-                      _chip('Confirmado', 'confirmado'),
+                      _chip('Preparado', 'preparado'),
                       _chip('En reparto', 'en_reparto'),
                       _chip('Entregado', 'entregado'),
                     ],
@@ -197,7 +197,6 @@ class _PedidosPageState extends State<PedidosPage> {
     final colors = Theme.of(context).colorScheme;
     final bg = switch (status) {
       'pendiente' => colors.secondaryContainer,
-      'confirmado' => Colors.blue.shade100,
       'preparado' => Colors.amber.shade100,
       'en_reparto' => Colors.deepPurple.shade100,
       'entregado' => Colors.green.shade100,

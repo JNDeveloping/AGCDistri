@@ -19,7 +19,7 @@ export class DeliveryService {
   }
 
   async create(payload, authUser) {
-    return this.repository.create({ ...payload, createdBy: authUser.id });
+    return this.repository.create({ ...payload, createdBy: authUser.sub });
   }
 
   async getById(id, authUser) {

@@ -41,14 +41,6 @@ class ModuleRegistry {
     roles: ['admin', 'vendedor', 'repartidor'],
   );
 
-  static const stock = AppModule(
-    key: 'stock',
-    label: 'Stock',
-    route: '/stock',
-    icon: Icons.inventory_rounded,
-    roles: ['admin', 'vendedor', 'repartidor'],
-  );
-
   static const accounts = AppModule(
     key: 'cuentas_corrientes',
     label: 'Cuentas corrientes',
@@ -70,6 +62,14 @@ class ModuleRegistry {
     label: 'Productos',
     route: '/productos',
     icon: Icons.inventory_2_rounded,
+    roles: ['admin', 'vendedor', 'repartidor'],
+  );
+
+  static const stock = AppModule(
+    key: 'stock',
+    label: 'Stock',
+    route: '/stock',
+    icon: Icons.inventory_rounded,
     roles: ['admin', 'vendedor', 'repartidor'],
   );
 
@@ -121,8 +121,8 @@ class ModuleRegistry {
     roles: ['admin', 'vendedor', 'repartidor'],
   );
 
-  static const bottomModules = [dashboard, orders, clients, stock];
-  static const managementModules = [accounts, reports, products, deliveries, users, zones, categories, company];
+  static const bottomModules = [dashboard, orders, clients, products, profile];
+  static const managementModules = [accounts, reports, products, stock, deliveries, users, zones, categories, company];
 
   static List<AppModule> modulesForRole(String role) {
     return bottomModules.where((module) => module.roles.contains(role)).toList();

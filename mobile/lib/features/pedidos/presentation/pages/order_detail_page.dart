@@ -174,7 +174,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             label: const Text('Cancelar pedido'),
           ),
         if (canStatus)
-          for (final status in const ['confirmado', 'preparado', 'en_reparto', 'entregado'])
+          for (final status in const ['preparado', 'en_reparto', 'entregado'])
             FilledButton.tonal(
               onPressed: _changingStatus || (_statusRequiresStock(status) && hasStockConflict) ? null : () => _changeStatus(o.id, status, role),
               child: Text(_changingStatus ? 'Actualizando...' : status),
@@ -321,7 +321,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     }
   }
 
-  bool _statusRequiresStock(String status) => status == 'confirmado' || status == 'preparado';
+  bool _statusRequiresStock(String status) => status == 'preparado';
 
   String? _resolveProductId(String? productName) {
     if (productName == null) return null;
@@ -493,7 +493,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   Widget _statusBadge(String status) {
     final color = switch (status) {
       'pendiente' => Colors.amber,
-      'confirmado' => Colors.blue,
       'preparado' => Colors.deepPurple,
       'en_reparto' => Colors.indigo,
       'entregado' => Colors.green,
