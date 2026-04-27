@@ -136,13 +136,14 @@ class _OrderFormPageState extends State<OrderFormPage> {
 
   Widget _itemCard(_CartLine line) {
     return Card(
+      key: ValueKey('cart-item-${line.key}'),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(line.product.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-            Text('Precio unitario: ${line.product.salePrice.toStringAsFixed(2)} · Stock ${line.product.stockCurrent.toStringAsFixed(0)}'),
+            Text(line.displayName, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Text('Precio unitario: ${line.unitPrice.toStringAsFixed(2)} · Stock ${line.stock.toStringAsFixed(0)}'),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -157,18 +158,19 @@ class _OrderFormPageState extends State<OrderFormPage> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(onPressed: () => _changeQty(line.product.id, line.quantity - 1), icon: const Icon(Icons.remove_circle_outline)),
+                      IconButton(onPressed: () => _changeQty(line.key, line.quantity - 1), icon: const Icon(Icons.remove_circle_outline)),
                       SizedBox(
                         width: 70,
                         child: TextFormField(
+                          key: ValueKey('qty-${line.key}-${line.quantity.toStringAsFixed(2)}'),
                           initialValue: line.quantity.toStringAsFixed(0),
                           style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
                           textAlign: TextAlign.center,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          onFieldSubmitted: (v) => _changeQty(line.product.id, double.tryParse(v) ?? line.quantity),
+                          onFieldSubmitted: (v) => _changeQty(line.key, double.tryParse(v) ?? line.quantity),
                         ),
                       ),
-                      IconButton(onPressed: () => _changeQty(line.product.id, line.quantity + 1), icon: const Icon(Icons.add_circle_outline)),
+                      IconButton(onPressed: () => _changeQty(line.key, line.quantity + 1), icon: const Icon(Icons.add_circle_outline)),
                     ],
                   ),
                 ),
@@ -182,20 +184,21 @@ class _OrderFormPageState extends State<OrderFormPage> {
                       DropdownMenuItem(value: 'amount', child: Text('Monto')),
                       DropdownMenuItem(value: 'percentage', child: Text('%')),
                     ],
-                    onChanged: (v) => _changeDiscountType(line.product.id, v ?? 'amount'),
+                    onChanged: (v) => _changeDiscountType(line.key, v ?? 'amount'),
                   ),
                 ),
                 SizedBox(
                   width: 96,
                   child: TextFormField(
+                    key: ValueKey('discount-${line.key}-${line.discountValue.toStringAsFixed(2)}'),
                     initialValue: line.discountValue.toStringAsFixed(0),
                     style: const TextStyle(color: Colors.black),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(labelText: 'Valor'),
-                    onFieldSubmitted: (v) => _changeDiscountValue(line.product.id, double.tryParse(v) ?? 0),
+                    onFieldSubmitted: (v) => _changeDiscountValue(line.key, double.tryParse(v) ?? 0),
                   ),
                 ),
-                IconButton(onPressed: () => setState(() => _cart.remove(line.product.id)), icon: const Icon(Icons.delete_outline)),
+                IconButton(onPressed: () => setState(() => _cart.remove(line.key)), icon: const Icon(Icons.delete_outline)),
               ],
             ),
             const SizedBox(height: 6),
@@ -224,51 +227,91 @@ class _OrderFormPageState extends State<OrderFormPage> {
         ..clear()
         ..addEntries(
           order.items.map(
-            (i) => MapEntry(
-              i.productId,
-              _CartLine(
-                product: OrderProductLookup(id: i.productId, name: i.productName, salePrice: i.unitPrice),
-                quantity: i.quantity,
-                discountType: i.discountType,
-                discountValue: i.discountValue,
-              ),
-            ),
+            (i) {
+              final product = OrderProductLookup(id: i.productId, name: i.productName, salePrice: i.unitPrice);
+              final variant = i.productVariantId == null
+                  ? null
+                  : OrderProductVariantLookup(id: i.productVariantId!, productId: i.productId, name: i.variantNameSnapshot ?? '-', active: true, effectivePrice: i.unitPrice);
+              final selection = OrderProductSelection(product: product, variant: variant, initialQuantity: i.quantity);
+              return MapEntry(
+                selection.cartKey,
+                _CartLine(
+                  key: selection.cartKey,
+                  selection: selection,
+                  quantity: i.quantity,
+                  discountType: i.discountType,
+                  discountValue: i.discountValue,
+                ),
+              );
+            },
           ),
         );
     });
   }
 
   Future<void> _addProduct() async {
-    final selected = await Navigator.push<OrderProductLookup>(context, MaterialPageRoute(builder: (_) => const OrderProductSelectorPage()));
-    if (selected == null) return;
-    setState(() {
-      final existing = _cart[selected.id];
-      _cart[selected.id] = _CartLine(
-        product: selected,
-        quantity: (existing?.quantity ?? 0) + 1,
+    final selected = await Navigator.push<List<OrderProductSelection>>(context, MaterialPageRoute(builder: (_) => const OrderProductSelectorPage()));
+    if (selected == null || selected.isEmpty) return;
+
+    bool addedAny = false;
+    for (final selection in selected) {
+      final existing = _cart[selection.cartKey];
+      final increment = selection.initialQuantity <= 0 ? 1 : selection.initialQuantity;
+      final nextQty = (existing?.quantity ?? 0) + increment;
+      if (!_hasStockFor(selection, nextQty)) {
+        final available = _availableFor(selection);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Stock insuficiente para ${selection.displayName}. Disponible: ${available.toStringAsFixed(0)}.')),
+        );
+        continue;
+      }
+
+      addedAny = true;
+      _cart[selection.cartKey] = _CartLine(
+        key: selection.cartKey,
+        selection: selection,
+        quantity: nextQty,
         discountType: existing?.discountType ?? 'amount',
         discountValue: existing?.discountValue ?? 0,
       );
-    });
+    }
+
+    if (!addedAny) return;
+    setState(() {});
   }
 
-  void _changeQty(String id, double value) {
-    final line = _cart[id];
+  void _changeQty(String key, double value) {
+    final line = _cart[key];
     if (line == null) return;
-    if (value <= 0) return setState(() => _cart.remove(id));
-    setState(() => _cart[id] = line.copyWith(quantity: value));
+    if (value <= 0) return setState(() => _cart.remove(key));
+    if (!_hasStockFor(line.selection, value)) {
+      final available = _availableFor(line.selection);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Stock insuficiente para ${line.displayName}. Disponible: ${available.toStringAsFixed(0)}.')),
+      );
+      return;
+    }
+    setState(() => _cart[key] = line.copyWith(quantity: value));
   }
 
-  void _changeDiscountType(String id, String type) {
-    final line = _cart[id];
+  void _changeDiscountType(String key, String type) {
+    final line = _cart[key];
     if (line == null) return;
-    setState(() => _cart[id] = line.copyWith(discountType: type));
+    setState(() => _cart[key] = line.copyWith(discountType: type));
   }
 
-  void _changeDiscountValue(String id, double value) {
-    final line = _cart[id];
+  void _changeDiscountValue(String key, double value) {
+    final line = _cart[key];
     if (line == null) return;
-    setState(() => _cart[id] = line.copyWith(discountValue: value));
+    setState(() => _cart[key] = line.copyWith(discountValue: value));
+  }
+
+  bool _hasStockFor(OrderProductSelection selection, double quantity) {
+    return quantity <= _availableFor(selection);
+  }
+
+  double _availableFor(OrderProductSelection selection) {
+    return selection.effectiveStock;
   }
 
   Future<void> _save() async {
@@ -285,7 +328,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
     try {
       final subtotal = _cart.values.fold<double>(0, (acc, l) => acc + l.netSubtotal);
       final items = _cart.values
-          .map((l) => OrderItemInput(productId: l.product.id, quantity: l.quantity, discountType: l.discountType, discountValue: l.discountValue))
+          .map((l) => OrderItemInput(productId: l.selection.product.id, productVariantId: l.selection.variant?.id, quantity: l.quantity, discountType: l.discountType, discountValue: l.discountValue))
           .toList();
       await context.read<OrdersCubit>().save(
             id: widget.orderId,
@@ -305,24 +348,30 @@ class _OrderFormPageState extends State<OrderFormPage> {
 }
 
 class _CartLine {
-  _CartLine({required this.product, required this.quantity, this.discountType = 'amount', this.discountValue = 0});
+  _CartLine({required this.key, required this.selection, required this.quantity, this.discountType = 'amount', this.discountValue = 0});
 
-  final OrderProductLookup product;
+  final String key;
+  final OrderProductSelection selection;
   final double quantity;
   final String discountType;
   final double discountValue;
 
+  String get displayName => selection.displayName;
+  double get unitPrice => selection.effectivePrice;
+  double get stock => selection.effectiveStock;
+
   double get discountAmount {
     if (discountType == 'percentage') {
-      return (product.salePrice * quantity * discountValue) / 100;
+      return (unitPrice * quantity * discountValue) / 100;
     }
     return discountValue;
   }
 
-  double get netSubtotal => (product.salePrice * quantity - discountAmount).clamp(0, double.infinity);
+  double get netSubtotal => (unitPrice * quantity - discountAmount).clamp(0, double.infinity);
 
   _CartLine copyWith({double? quantity, String? discountType, double? discountValue}) => _CartLine(
-        product: product,
+        key: key,
+        selection: selection,
         quantity: quantity ?? this.quantity,
         discountType: discountType ?? this.discountType,
         discountValue: discountValue ?? this.discountValue,

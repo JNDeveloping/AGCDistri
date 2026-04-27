@@ -15,7 +15,8 @@ export class AccountRepository {
     if (dateTo) { values.push(dateTo); where.push(`am.created_at::date <= $${values.length}`); }
 
     const { rows } = await pool.query(
-      `SELECT am.*, c.business_name AS client_name, u.full_name AS user_name
+      `SELECT am.*, c.business_name AS client_name,
+              CASE WHEN u.is_deleted = TRUE THEN 'Usuario eliminado' ELSE u.full_name END AS user_name
        FROM account_movements am
        JOIN clients c ON c.id = am.client_id
        LEFT JOIN users u ON u.id = am.user_id
@@ -51,6 +52,12 @@ export class AccountRepository {
 
   async updateClientBalance(clientId, newBalance) {
     await pool.query('UPDATE clients SET current_balance = $2, updated_at = NOW() WHERE id = $1', [clientId, newBalance]);
+  }
+
+
+  async findMovementById(id) {
+    const { rows } = await pool.query('SELECT * FROM account_movements WHERE id = $1 LIMIT 1', [id]);
+    return rows[0] ?? null;
   }
 
   async findMovementByReference({ referenceType, referenceId, movementType }) {
@@ -104,7 +111,8 @@ export class AccountRepository {
     if (dateTo) { values.push(dateTo); where.push(`cp.created_at::date <= $${values.length}`); }
 
     const { rows } = await pool.query(
-      `SELECT cp.*, c.business_name AS client_name, u.full_name AS user_name
+      `SELECT cp.*, c.business_name AS client_name,
+              CASE WHEN u.is_deleted = TRUE THEN 'Usuario eliminado' ELSE u.full_name END AS user_name
        FROM client_payments cp
        JOIN clients c ON c.id = cp.client_id
        LEFT JOIN users u ON u.id = cp.user_id
@@ -117,7 +125,8 @@ export class AccountRepository {
 
   async findPaymentById(id) {
     const { rows } = await pool.query(
-      `SELECT cp.*, c.business_name AS client_name, u.full_name AS user_name
+      `SELECT cp.*, c.business_name AS client_name,
+              CASE WHEN u.is_deleted = TRUE THEN 'Usuario eliminado' ELSE u.full_name END AS user_name
        FROM client_payments cp
        JOIN clients c ON c.id = cp.client_id
        LEFT JOIN users u ON u.id = cp.user_id

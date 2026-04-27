@@ -20,11 +20,29 @@ class PedidosPage extends StatefulWidget {
 
 class _PedidosPageState extends State<PedidosPage> {
   final _search = TextEditingController();
+  final _scrollController = ScrollController();
+  static const _pageSize = 15;
+  int _visibleItems = _pageSize;
 
   @override
   void initState() {
     super.initState();
     context.read<OrdersCubit>().load();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.offset >= (_scrollController.position.maxScrollExtent - 200)) {
+      setState(() => _visibleItems += _pageSize);
+    }
   }
 
   @override
@@ -39,7 +57,7 @@ class _PedidosPageState extends State<PedidosPage> {
           ? FloatingActionButton.extended(
               onPressed: () async {
                 final saved = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const OrderFormPage()));
-                if (saved == true && mounted) await context.read<OrdersCubit>().load();
+                if (saved == true && mounted) await context.read<OrdersCubit>().load(forceRefresh: true);
               },
               icon: const Icon(Icons.add_shopping_cart),
               label: const Text('Nuevo pedido'),
@@ -63,13 +81,26 @@ class _PedidosPageState extends State<PedidosPage> {
               children: [
                 TextField(
                   controller: _search,
-                  onChanged: context.read<OrdersCubit>().onSearch,
+                  onChanged: (value) {
+                    context.read<OrdersCubit>().onSearch(value);
+                    setState(() => _visibleItems = _pageSize);
+                  },
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search),
-                    hintText: 'Buscar pedido por número',
+                    hintText: 'Buscar pedido por número o cliente',
                     filled: true,
                     fillColor: Theme.of(context).colorScheme.surface,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                    suffixIcon: _search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              _search.clear();
+                              context.read<OrdersCubit>().onSearch('');
+                              setState(() => _visibleItems = _pageSize);
+                            },
+                          ),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -79,7 +110,7 @@ class _PedidosPageState extends State<PedidosPage> {
                     children: [
                       _chip('Todos', null),
                       _chip('Pendiente', 'pendiente'),
-                      _chip('Confirmado', 'confirmado'),
+                      _chip('Preparado', 'preparado'),
                       _chip('En reparto', 'en_reparto'),
                       _chip('Entregado', 'entregado'),
                     ],
@@ -92,10 +123,25 @@ class _PedidosPageState extends State<PedidosPage> {
             child: BlocBuilder<OrdersCubit, OrdersState>(builder: (_, state) {
               if (state.status == OrdersStatus.loading && state.items.isEmpty) return const Center(child: CircularProgressIndicator());
               if (state.status == OrdersStatus.failure) return Center(child: Text(state.errorMessage ?? 'No se pudo cargar pedidos'));
-              if (state.items.isEmpty) return const Center(child: Text('Sin pedidos.'));
+              if (state.items.isEmpty) {
+                return _EmptyState(
+                  icon: Icons.shopping_cart_checkout_rounded,
+                  title: 'No hay pedidos todavía',
+                  subtitle: canCreate ? 'Creá tu primer pedido para empezar.' : 'No hay pedidos para mostrar.',
+                  actionLabel: canCreate ? 'Nuevo pedido' : null,
+                  onAction: canCreate
+                      ? () async {
+                          final saved = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const OrderFormPage()));
+                          if (saved == true && mounted) await context.read<OrdersCubit>().load(forceRefresh: true);
+                        }
+                      : null,
+                );
+              }
+              final visibleCount = state.items.length < _visibleItems ? state.items.length : _visibleItems;
               return ListView.builder(
+                controller: _scrollController,
                 padding: const EdgeInsets.all(12),
-                itemCount: state.items.length,
+                itemCount: visibleCount,
                 itemBuilder: (_, i) {
                   final o = state.items[i];
                   return Card(
@@ -120,7 +166,8 @@ class _PedidosPageState extends State<PedidosPage> {
                               runSpacing: 6,
                               children: [
                                 _infoPill(icon: Icons.attach_money_rounded, label: '\$${o.total.toStringAsFixed(2)}'),
-                                _infoPill(icon: Icons.inventory_2_outlined, label: '${o.items.length} ítems'),
+                                _infoPill(icon: Icons.inventory_2_outlined, label: '${o.itemsCount} productos'),
+                                _infoPill(icon: Icons.format_list_numbered_rounded, label: '${o.totalUnits.toStringAsFixed(0)} unidades'),
                                 _infoPill(icon: Icons.payments_outlined, label: o.paymentTerms == 'cuenta_corriente' ? 'Cta. cte.' : 'Contado'),
                               ],
                             ),
@@ -150,7 +197,6 @@ class _PedidosPageState extends State<PedidosPage> {
     final colors = Theme.of(context).colorScheme;
     final bg = switch (status) {
       'pendiente' => colors.secondaryContainer,
-      'confirmado' => Colors.blue.shade100,
       'preparado' => Colors.amber.shade100,
       'en_reparto' => Colors.deepPurple.shade100,
       'entregado' => Colors.green.shade100,
@@ -177,6 +223,45 @@ class _PedidosPageState extends State<PedidosPage> {
           const SizedBox(width: 6),
           Text(label),
         ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 50, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 12),
+            Text(title, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
+            const SizedBox(height: 6),
+            Text(subtitle, textAlign: TextAlign.center),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 12),
+              FilledButton.icon(onPressed: onAction, icon: const Icon(Icons.add), label: Text(actionLabel!)),
+            ],
+          ],
+        ),
       ),
     );
   }

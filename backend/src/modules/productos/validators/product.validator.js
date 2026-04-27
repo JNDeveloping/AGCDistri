@@ -33,6 +33,7 @@ export const createProductSchema = z.object({
   marginPercentage: z.number().min(0).max(999).optional().nullable(),
   stockCurrent: quantity.optional().nullable(),
   stockMinimum: quantity.optional().nullable(),
+  hasVariants: z.boolean().optional().default(false),
   isFeatured: z.boolean().optional().default(false),
   imageUrl: z.string().url().optional().nullable(),
   taxRate: z.number().min(0).max(100).optional().nullable(),
