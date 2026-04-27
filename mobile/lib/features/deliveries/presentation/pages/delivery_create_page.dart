@@ -164,7 +164,7 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
                                       }
                                     }),
                                     title: Text('#${o.orderNumber ?? '-'} · ${o.clientName}'),
-                                    subtitle: Text('${o.addressLine ?? '-'}\n${o.clientPhone ?? '-'} · ${o.paymentTerms ?? '-'} · \\$${o.total.toStringAsFixed(2)}'),
+                                    subtitle: Text('${o.addressLine ?? '-'}\n${o.clientPhone ?? '-'} · ${o.paymentTerms ?? '-'} · \$${o.total.toStringAsFixed(2)}'),
                                     isThreeLine: true,
                                   ),
                                 ),
@@ -201,7 +201,7 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Pedidos seleccionados: ${_selectedOrderIds.length}'),
-                        Text('Total a cobrar: \\$${totalToCollect.toStringAsFixed(2)}'),
+                        Text('Total a cobrar: \$${totalToCollect.toStringAsFixed(2)}'),
                       ],
                     ),
                   ),
