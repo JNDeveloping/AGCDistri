@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import pg from 'pg';
 
 import { createBackup } from './backup.js';
+import { getDatabaseConnectionConfig } from '../src/config/database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,12 +70,6 @@ const wasExecuted = async (client, migrationName) => {
 };
 
 const runSqlDirectory = async (directoryName, { backupBefore = false } = {}) => {
-  const databaseUrl = process.env.DATABASE_URL;
-
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL no está definido. Configuralo en .env o variable de entorno.');
-  }
-
   if (backupBefore) {
     await createBackup();
   }
@@ -83,7 +78,7 @@ const runSqlDirectory = async (directoryName, { backupBefore = false } = {}) => 
   const entries = await fs.readdir(sqlDir);
   const files = entries.filter((file) => file.endsWith('.sql')).sort((a, b) => a.localeCompare(b));
 
-  const client = new Client({ connectionString: databaseUrl });
+  const client = new Client(getDatabaseConnectionConfig());
   await client.connect();
 
   try {

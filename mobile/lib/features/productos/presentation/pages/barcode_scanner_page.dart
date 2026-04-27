@@ -9,21 +9,63 @@ class BarcodeScannerPage extends StatefulWidget {
 }
 
 class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
+  final MobileScannerController _controller = MobileScannerController();
   bool _handled = false;
+  bool _permissionGranted = true;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Escanear código de barras')),
-      body: MobileScanner(
-        onDetect: (capture) {
-          if (_handled) return;
-          if (capture.barcodes.isEmpty) return;
-          final value = capture.barcodes.first.rawValue;
-          if (value == null || value.isEmpty) return;
-          _handled = true;
-          Navigator.pop(context, value);
-        },
+      body: Column(
+        children: [
+          Expanded(
+            child: MobileScanner(
+              controller: _controller,
+              onPermissionSet: (_, granted) {
+                if (!mounted) return;
+                setState(() => _permissionGranted = granted);
+              },
+              errorBuilder: (context, error, child) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'No se pudo iniciar la cámara. Revisá permisos e intentá nuevamente.\n$error',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              onDetect: (capture) {
+                if (_handled) return;
+                if (capture.barcodes.isEmpty) return;
+                final value = capture.barcodes.first.rawValue;
+                if (value == null || value.trim().isEmpty) return;
+                _handled = true;
+                final code = value.trim();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Código detectado: $code')),
+                );
+                Navigator.pop(context, code);
+              },
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              _permissionGranted
+                  ? 'Apuntá la cámara al código de barras para escanear.'
+                  : 'Permiso de cámara denegado. Habilitalo desde ajustes del sistema.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -11,6 +11,22 @@ const backendRoot = path.resolve(__dirname, '..');
 
 dotenv.config({ path: path.join(backendRoot, '.env') });
 
+const resolveDatabaseUrl = () => {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+
+  const host = process.env.DB_HOST;
+  const port = process.env.DB_PORT ?? '5432';
+  const user = process.env.DB_USER;
+  const password = process.env.DB_PASSWORD ?? '';
+  const database = process.env.DB_NAME;
+
+  if (!host || !user || !database) return null;
+
+  const encodedUser = encodeURIComponent(user);
+  const encodedPassword = encodeURIComponent(password);
+  return `postgresql://${encodedUser}:${encodedPassword}@${host}:${port}/${database}`;
+};
+
 const timestamp = () => {
   const now = new Date();
   const year = now.getUTCFullYear();
@@ -99,9 +115,9 @@ const runPgDump = async (outputPath, databaseUrl) => {
 };
 
 const createBackup = async () => {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = resolveDatabaseUrl();
   if (!databaseUrl) {
-    throw new Error('DATABASE_URL no está definido. No se puede crear backup.');
+    throw new Error('No hay configuración de base de datos (DATABASE_URL o DB_*). No se puede crear backup.');
   }
 
   const backupDir = path.join(backendRoot, 'backups');

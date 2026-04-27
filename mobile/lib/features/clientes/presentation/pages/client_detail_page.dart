@@ -76,7 +76,7 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
                 child: ListTile(
                   leading: const Icon(Icons.account_balance_wallet_outlined),
                   title: const Text('Cuenta corriente'),
-                  subtitle: Text(client.currentBalance > 0 ? 'Con deuda' : 'Al día'),
+                  subtitle: Text(client.currentBalance > 0 ? 'Debe' : (client.currentBalance < 0 ? 'Saldo a favor' : 'Al día')),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.push(
                     context,

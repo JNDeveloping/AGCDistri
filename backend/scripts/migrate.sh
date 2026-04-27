@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-node scripts/migrate.js
+node src/database/migrate.js

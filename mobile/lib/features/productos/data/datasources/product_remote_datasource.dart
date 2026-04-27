@@ -45,4 +45,11 @@ class ProductRemoteDataSource {
 
   Future<Map<String, dynamic>> deleteCategory(String id) async =>
       (await _apiClient.delete('/product-categories/$id')).data ?? {};
+
+  Future<Map<String, dynamic>> listVariants(String productId) async => (await _apiClient.get('/products/$productId/variants')).data ?? {};
+  Future<Map<String, dynamic>> createVariant(String productId, Map<String, dynamic> data) async => (await _apiClient.post('/products/$productId/variants', data: data)).data ?? {};
+  Future<Map<String, dynamic>> updateVariant(String variantId, Map<String, dynamic> data) async => (await _apiClient.put('/product-variants/$variantId', data: data)).data ?? {};
+  Future<Map<String, dynamic>> activateVariant(String variantId) async => (await _apiClient.patch('/product-variants/$variantId/activate')).data ?? {};
+  Future<Map<String, dynamic>> deactivateVariant(String variantId) async => (await _apiClient.patch('/product-variants/$variantId/deactivate')).data ?? {};
+  Future<Map<String, dynamic>> deleteVariant(String variantId) async => (await _apiClient.delete('/product-variants/$variantId')).data ?? {};
 }

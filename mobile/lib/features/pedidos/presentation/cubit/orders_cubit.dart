@@ -11,11 +11,19 @@ class OrdersCubit extends Cubit<OrdersState> {
 
   final OrderRepository _repository;
   Timer? _debounce;
+  final Map<String, List<OrderModel>> _cache = {};
 
-  Future<void> load() async {
+  Future<void> load({bool forceRefresh = false}) async {
+    final cacheKey = '${state.statusFilter ?? 'all'}|${state.query.trim()}';
+    if (!forceRefresh && _cache.containsKey(cacheKey)) {
+      emit(state.copyWith(status: OrdersStatus.success, items: _cache[cacheKey], errorMessage: null));
+      return;
+    }
+
     emit(state.copyWith(status: OrdersStatus.loading, errorMessage: null));
     try {
       final items = await _repository.list(status: state.statusFilter, query: state.query);
+      _cache[cacheKey] = items;
       emit(state.copyWith(status: OrdersStatus.success, items: items));
     } on OrderException catch (e) {
       emit(state.copyWith(status: OrdersStatus.failure, errorMessage: e.message));
@@ -51,29 +59,36 @@ class OrdersCubit extends Cubit<OrdersState> {
       paymentTerms: paymentTerms,
       notes: notes,
     );
-    await load();
+    _cache.clear();
+    await load(forceRefresh: true);
     return saved;
   }
 
   Future<OrderModel> cancel(String id) async {
     final updated = await _repository.cancel(id);
-    await load();
+    _cache.clear();
+    await load(forceRefresh: true);
     return updated;
   }
 
   Future<OrderModel> changeStatus(String id, String status) async {
     final updated = await _repository.changeStatus(id, status);
-    await load();
+    _cache.clear();
+    await load(forceRefresh: true);
     return updated;
   }
 
+  Future<OrderStockValidation> validateStock(String id) => _repository.validateStock(id);
+
   Future<void> delete(String id) async {
     await _repository.delete(id);
-    await load();
+    _cache.clear();
+    await load(forceRefresh: true);
   }
 
   Future<List<OrderClientLookup>> searchClients(String query) => _repository.searchClients(query);
   Future<List<OrderProductLookup>> searchProducts(String query) => _repository.searchProducts(query);
+  Future<List<OrderProductVariantLookup>> searchProductVariants(String productId) => _repository.searchProductVariants(productId);
 
   @override
   Future<void> close() {

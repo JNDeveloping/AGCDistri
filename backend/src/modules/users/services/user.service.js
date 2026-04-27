@@ -107,15 +107,6 @@ export class UserService {
       throw new AppError('Usuario no encontrado.', 404);
     }
 
-    const hasMovements = await userRepository.hasAssociatedMovements(id);
-    if (hasMovements) {
-      throw new AppError(
-        'No se puede eliminar este usuario porque tiene movimientos asociados. Podés desactivarlo.',
-        409,
-        { canDeactivate: true },
-      );
-    }
-
     await userRepository.remove(id);
     return { id };
   }
