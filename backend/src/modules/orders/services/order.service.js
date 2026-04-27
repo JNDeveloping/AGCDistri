@@ -6,7 +6,7 @@ import { orderRepository } from '../repositories/order.repository.js';
 
 const editableStatuses = ['pendiente'];
 const terminalStatuses = ['entregado', 'cancelado'];
-const stockCommitStatuses = ['confirmado', 'preparado'];
+const stockCommitStatuses = ['preparado'];
 
 const mapOrder = (row, items = []) => ({
   id: row.id,

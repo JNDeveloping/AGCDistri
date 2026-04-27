@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const orderStatusValues = ['pendiente', 'confirmado', 'preparado', 'en_reparto', 'entregado', 'cancelado'];
+export const orderStatusValues = ['pendiente', 'preparado', 'en_reparto', 'entregado', 'cancelado'];
 export const paymentTermsValues = ['contado', 'cuenta_corriente'];
 
 const orderItemSchema = z.object({
