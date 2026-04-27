@@ -83,18 +83,18 @@ export class DeliveryRepository {
     const { rows } = await pool.query(
       `
       SELECT
-        do.id,
-        do.delivery_id,
-        do.order_id,
-        do.client_id,
-        do.status,
-        do.visit_order,
-        do.notes,
-        do.estimated_time,
-        do.not_delivered_reason,
-        do.collected_cash,
-        do.collected_amount,
-        do.delivered_at,
+        dor.id,
+        dor.delivery_id,
+        dor.order_id,
+        dor.client_id,
+        dor.status,
+        dor.visit_order,
+        dor.notes,
+        dor.estimated_time,
+        dor.not_delivered_reason,
+        dor.collected_cash,
+        dor.collected_amount,
+        dor.delivered_at,
         o.order_number,
         o.payment_terms,
         o.total,
@@ -105,11 +105,11 @@ export class DeliveryRepository {
         c.latitude,
         c.longitude,
         c.current_balance
-      FROM delivery_orders do
-      JOIN orders o ON o.id = do.order_id
-      JOIN clients c ON c.id = do.client_id
-      WHERE do.delivery_id = $1
-      ORDER BY COALESCE(do.visit_order, 999999), c.business_name ASC
+      FROM delivery_orders dor
+      JOIN orders o ON o.id = dor.order_id
+      JOIN clients c ON c.id = dor.client_id
+      WHERE dor.delivery_id = $1
+      ORDER BY COALESCE(dor.visit_order, 999999), c.business_name ASC
       `,
       [deliveryId],
     );
@@ -191,13 +191,13 @@ export class DeliveryRepository {
           updated_at = NOW()
       FROM (
         SELECT
-          do.delivery_id,
-          COUNT(do.id)::int AS total_orders,
+          dor.delivery_id,
+          COUNT(dor.id)::int AS total_orders,
           COALESCE(SUM(o.total), 0)::numeric(14,2) AS total_amount
-        FROM delivery_orders do
-        JOIN orders o ON o.id = do.order_id
-        WHERE do.delivery_id = $1
-        GROUP BY do.delivery_id
+        FROM delivery_orders dor
+        JOIN orders o ON o.id = dor.order_id
+        WHERE dor.delivery_id = $1
+        GROUP BY dor.delivery_id
       ) totals
       WHERE d.id = totals.delivery_id
       `,
@@ -216,9 +216,9 @@ export class DeliveryRepository {
     const { rows } = await pool.query(
       `
       SELECT d.id, d.number, d.status
-      FROM delivery_orders do
-      JOIN deliveries d ON d.id = do.delivery_id
-      WHERE do.order_id = $1
+      FROM delivery_orders dor
+      JOIN deliveries d ON d.id = dor.delivery_id
+      WHERE dor.order_id = $1
         AND d.status IN ('pendiente', 'en_preparacion', 'en_reparto')
         ${extra}
       LIMIT 1
@@ -263,9 +263,9 @@ export class DeliveryRepository {
       WHERE ${where.join(' AND ')}
         AND NOT EXISTS (
           SELECT 1
-          FROM delivery_orders do
-          JOIN deliveries d ON d.id = do.delivery_id
-          WHERE do.order_id = o.id
+          FROM delivery_orders dor
+          JOIN deliveries d ON d.id = dor.delivery_id
+          WHERE dor.order_id = o.id
             AND d.status IN ('pendiente', 'en_preparacion', 'en_reparto')
         )
       ORDER BY c.route_zone NULLS LAST, c.business_name ASC
@@ -299,11 +299,11 @@ export class DeliveryRepository {
   async findDeliveryOrderById(id) {
     const { rows } = await pool.query(
       `
-      SELECT do.*, d.id AS delivery_id, d.status AS delivery_status, o.payment_terms, o.id AS order_id
-      FROM delivery_orders do
-      JOIN deliveries d ON d.id = do.delivery_id
-      JOIN orders o ON o.id = do.order_id
-      WHERE do.id = $1
+      SELECT dor.*, d.id AS delivery_id, d.status AS delivery_status, o.payment_terms, o.id AS order_id
+      FROM delivery_orders dor
+      JOIN deliveries d ON d.id = dor.delivery_id
+      JOIN orders o ON o.id = dor.order_id
+      WHERE dor.id = $1
       LIMIT 1
       `,
       [id],
