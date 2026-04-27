@@ -189,7 +189,7 @@ class _AccountsOverviewViewState extends State<_AccountsOverviewView> {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  '\$ ${item.currentBalance.toStringAsFixed(2)}',
+                                  _money(item.currentBalance),
                                   style: TextStyle(
                                     fontSize: 34,
                                     height: 1,
@@ -255,5 +255,6 @@ class _AccountsOverviewViewState extends State<_AccountsOverviewView> {
     final min = local.minute.toString().padLeft(2, '0');
     return '$dd/$mm/${local.year} $hh:$min';
   }
-}
 
+  String _money(double value) => String.fromCharCode(36) + value.toStringAsFixed(2);
+}

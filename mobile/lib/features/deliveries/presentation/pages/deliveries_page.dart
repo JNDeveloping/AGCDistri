@@ -89,7 +89,7 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
                 margin: const EdgeInsets.only(bottom: 10),
                 child: ListTile(
                   title: Text('Reparto #${item.number} · ${item.status}'),
-                  subtitle: Text('${item.date} · ${item.totalOrders} pedidos · \$${item.totalAmount.toStringAsFixed(2)}'),
+                  subtitle: Text('${item.date} · ${item.totalOrders} pedidos · ${_money(item.totalAmount)}'),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () async {
                     await Navigator.push(context, MaterialPageRoute(builder: (_) => DeliveryDetailPage(deliveryId: item.id)));
@@ -110,4 +110,6 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => DeliveryDetailPage(deliveryId: id)));
     if (mounted) setState(() => _future = _load());
   }
+
+  String _money(double value) => String.fromCharCode(36) + value.toStringAsFixed(2);
 }

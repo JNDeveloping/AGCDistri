@@ -99,8 +99,8 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
                             Text('Zona: ${order.zoneName ?? '-'}'),
                             Text('${order.addressLine ?? '-'} · ${order.city ?? ''}'),
                             Text('Tel: ${order.clientPhone ?? '-'}'),
-                            Text('Total: \$${order.total.toStringAsFixed(2)} · ${order.paymentTerms ?? '-'}'),
-                            Text('Saldo: \$${(order.currentBalance ?? 0).toStringAsFixed(2)}'),
+                            Text('Total: ${_money(order.total)} · ${order.paymentTerms ?? '-'}'),
+                            Text('Saldo: ${_money(order.currentBalance ?? 0)}'),
                             if ((order.orderNotes ?? '').isNotEmpty) Text('Obs. pedido: ${order.orderNotes}'),
                             if ((order.clientNotes ?? '').isNotEmpty) Text('Obs. cliente: ${order.clientNotes}'),
                             if ((order.notDeliveredReason ?? '').isNotEmpty) Text('Motivo no entrega: ${order.notDeliveredReason}'),
@@ -278,4 +278,6 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
         return Colors.blueGrey;
     }
   }
+
+  String _money(double value) => String.fromCharCode(36) + value.toStringAsFixed(2);
 }
