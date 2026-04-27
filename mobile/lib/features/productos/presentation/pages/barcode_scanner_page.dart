@@ -28,19 +28,21 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
           Expanded(
             child: MobileScanner(
               controller: _controller,
-              onPermissionSet: (_, granted) {
-                if (!mounted) return;
-                setState(() => _permissionGranted = granted);
-              },
-              errorBuilder: (context, error, child) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'No se pudo iniciar la cámara. Revisá permisos e intentá nuevamente.\n$error',
-                    textAlign: TextAlign.center,
+              errorBuilder: (context, error, child) {
+                final text = error.toString().toLowerCase();
+                if (text.contains('permission')) {
+                  _permissionGranted = false;
+                }
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'No se pudo iniciar la cámara. Revisá permisos e intentá nuevamente.\n$error',
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
               onDetect: (capture) {
                 if (_handled) return;
                 if (capture.barcodes.isEmpty) return;
