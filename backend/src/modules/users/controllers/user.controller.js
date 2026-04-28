@@ -4,6 +4,7 @@ import { userService } from '../services/user.service.js';
 const toUserDto = (user) => ({
   id: user.id,
   fullName: user.full_name,
+  username: user.username,
   email: user.email,
   role: user.role,
   isActive: user.is_active,

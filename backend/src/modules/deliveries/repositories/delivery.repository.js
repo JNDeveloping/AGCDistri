@@ -208,7 +208,7 @@ export class DeliveryRepository {
       await pool.query(
         `
         UPDATE orders
-        SET status = CASE WHEN status IN ('preparado', 'pendiente') THEN 'en_reparto' ELSE status END,
+        SET status = CASE WHEN status = 'preparado' THEN 'en_reparto' ELSE status END,
             assigned_delivery_user_id = COALESCE((SELECT driver_id FROM deliveries WHERE id = $1), assigned_delivery_user_id),
             updated_at = NOW()
         WHERE id = $2
@@ -295,7 +295,7 @@ export class DeliveryRepository {
       JOIN clients c ON c.id = o.client_id
       JOIN zones z ON z.id = c.zone_id
       WHERE c.zone_id = $1
-        AND o.status IN ('preparado', 'pendiente')
+        AND o.status = 'preparado'
         AND NOT EXISTS (
           SELECT 1
           FROM delivery_orders dor

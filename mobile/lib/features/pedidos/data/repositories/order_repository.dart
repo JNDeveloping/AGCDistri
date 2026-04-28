@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/models/order_model.dart';
 import '../datasources/order_remote_datasource.dart';
@@ -34,7 +36,7 @@ class OrderRepository {
         limit: limit,
       );
       final data = payload['data'] as Map<String, dynamic>? ?? {};
-      return OrdersListResult(
+      final result = OrdersListResult(
         items: (data['items'] as List<dynamic>? ?? []).map((e) => OrderModel.fromJson(e as Map<String, dynamic>)).toList(),
         total: (data['total'] as num?)?.toInt() ?? 0,
         page: (data['page'] as num?)?.toInt() ?? page,
@@ -42,7 +44,24 @@ class OrderRepository {
         countsByStatus: (data['countsByStatus'] as Map<String, dynamic>? ?? const {})
             .map((k, v) => MapEntry(k, (v as num?)?.toInt() ?? 0)),
       );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('orders_cache_v1', jsonEncode(payload));
+      return result;
     } on DioException catch (e) {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('orders_cache_v1');
+      if (raw != null) {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        final data = decoded['data'] as Map<String, dynamic>? ?? {};
+        return OrdersListResult(
+          items: (data['items'] as List<dynamic>? ?? []).map((e) => OrderModel.fromJson(e as Map<String, dynamic>)).toList(),
+          total: (data['total'] as num?)?.toInt() ?? 0,
+          page: (data['page'] as num?)?.toInt() ?? 1,
+          totalPages: (data['totalPages'] as num?)?.toInt() ?? 1,
+          countsByStatus: (data['countsByStatus'] as Map<String, dynamic>? ?? const {})
+              .map((k, v) => MapEntry(k, (v as num?)?.toInt() ?? 0)),
+        );
+      }
       throw _mapError(e);
     }
   }

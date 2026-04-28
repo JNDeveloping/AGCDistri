@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/models/product_model.dart';
 import '../datasources/product_remote_datasource.dart';
@@ -12,10 +14,18 @@ class ProductRepository {
     try {
       final payload = await _remoteDataSource.fetchProducts(query: query, isActive: isActive, lowStock: lowStock);
       final data = payload['data'] as Map<String, dynamic>? ?? {};
-      return (data['items'] as List<dynamic>? ?? [])
-          .map((raw) => ProductModel.fromJson(raw as Map<String, dynamic>))
-          .toList();
+      final items = (data['items'] as List<dynamic>? ?? []).map((raw) => ProductModel.fromJson(raw as Map<String, dynamic>)).toList();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('products_cache_v1', jsonEncode(payload));
+      return items;
     } on DioException catch (error) {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('products_cache_v1');
+      if (raw != null) {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        final data = decoded['data'] as Map<String, dynamic>? ?? {};
+        return (data['items'] as List<dynamic>? ?? []).map((raw) => ProductModel.fromJson(raw as Map<String, dynamic>)).toList();
+      }
       throw ProductException(_message(error));
     }
   }
@@ -103,8 +113,18 @@ class ProductRepository {
     try {
       final payload = await _remoteDataSource.listVariants(productId);
       final data = payload['data'] as List<dynamic>? ?? [];
-      return data.map((raw) => ProductVariantModel.fromJson(raw as Map<String, dynamic>)).toList();
+      final items = data.map((raw) => ProductVariantModel.fromJson(raw as Map<String, dynamic>)).toList();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('variants_cache_' + productId, jsonEncode(payload));
+      return items;
     } on DioException catch (error) {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('variants_cache_' + productId);
+      if (raw != null) {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        final data = decoded['data'] as List<dynamic>? ?? [];
+        return data.map((raw) => ProductVariantModel.fromJson(raw as Map<String, dynamic>)).toList();
+      }
       throw ProductException(_message(error));
     }
   }

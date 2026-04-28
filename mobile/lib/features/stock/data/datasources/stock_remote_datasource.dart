@@ -15,4 +15,10 @@ class StockRemoteDataSource {
   Future<Map<String, dynamic>> movements(String productId) async => (await _apiClient.get('/stock/products/$productId/movements')).data ?? {};
 
   Future<Map<String, dynamic>> adjust(Map<String, dynamic> payload) async => (await _apiClient.post('/stock/adjust', data: payload)).data ?? {};
+
+  Future<Map<String, dynamic>> createMovement(Map<String, dynamic> payload) async =>
+      (await _apiClient.post('/stock-movements', data: payload)).data ?? {};
+
+  Future<Map<String, dynamic>> autocomplete(String q) async =>
+      (await _apiClient.get('/productos/autocomplete', queryParameters: {'q': q, 'limit': 20})).data ?? {};
 }

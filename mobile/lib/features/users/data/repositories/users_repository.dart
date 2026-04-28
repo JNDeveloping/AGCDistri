@@ -19,10 +19,11 @@ class UsersRepository {
     }
   }
 
-  Future<void> save({String? id, required String fullName, required String email, required String role, String? password}) async {
+  Future<void> save({String? id, required String fullName, required String username, required String email, required String role, String? password}) async {
     try {
       final payload = {
         'fullName': fullName,
+        'username': username,
         'email': email,
         'role': role,
         if (password != null && password.isNotEmpty) 'password': password,

@@ -168,7 +168,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           ),
         if (canStatus)
           FilledButton.icon(
-            onPressed: _changingStatus ? null : () => _openStatusSelector(o, role, hasStockConflict),
+            onPressed: _changingStatus || _availableStatuses(o.status).isEmpty ? null : () => _openStatusSelector(o, role, hasStockConflict),
             icon: const Icon(Icons.sync_alt_rounded),
             label: Text(_changingStatus ? 'Actualizando...' : 'Cambiar estado'),
           ),
@@ -212,10 +212,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     switch (current) {
       case 'pendiente':
         return const ['preparado', 'cancelado'];
-      case 'preparado':
-        return const ['en_reparto', 'entregado', 'cancelado'];
-      case 'en_reparto':
-        return const ['entregado', 'cancelado'];
       default:
         return const [];
     }
@@ -462,28 +458,46 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   Future<pw.Document> _buildPdf(OrderModel order) async {
     final settings = context.read<CompanySettingsCubit>().state.settings;
     final doc = pw.Document();
+
+    String itemName(OrderItemModel i) {
+      final variant = (i.variantNameSnapshot ?? '').trim();
+      if (variant.isEmpty) return i.productName;
+      final normalized = i.productName.replaceAll(' - $variant', '').trim();
+      return '$normalized - $variant';
+    }
+
     doc.addPage(
       pw.MultiPage(
         pageTheme: const pw.PageTheme(margin: pw.EdgeInsets.all(24)),
         build: (_) => [
-          pw.Text('Remito / Pedido #${order.orderNumber}', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 8),
-          pw.Text('Empresa: ${settings.companyName}'),
-          pw.Text('CUIT: ${settings.taxId ?? '-'}  | Dirección: ${settings.address ?? '-'}'),
-          pw.Text('Tel: ${settings.phone ?? '-'}  | Email: ${settings.email ?? '-'}'),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                pw.Text(settings.companyName, style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                if ((settings.slogan ?? '').isNotEmpty) pw.Text(settings.slogan!),
+                pw.Text('CUIT: ${settings.taxId ?? '-'}'),
+                pw.Text('Dirección: ${settings.address ?? '-'} ${settings.city ?? ''} ${settings.province ?? ''}'.trim()),
+                pw.Text('Tel: ${settings.phone ?? '-'} · Email: ${settings.email ?? '-'}'),
+              ]),
+              pw.Text('Remito / Factura
+Pedido #${order.orderNumber}', textAlign: pw.TextAlign.right, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            ],
+          ),
+          pw.SizedBox(height: 10),
           pw.Divider(),
           pw.Text('Cliente: ${order.clientName}'),
-          pw.Text('Teléfono cliente: ${order.clientPhone ?? '-'}'),
-          pw.Text('Dirección cliente: ${order.deliveryAddress ?? '-'}'),
+          pw.Text('Teléfono: ${order.clientPhone ?? '-'}'),
+          pw.Text('Dirección: ${order.deliveryAddress ?? '-'}'),
           pw.Text('Fecha: ${order.orderDate?.toLocal().toString().split('.').first ?? '-'}'),
-          pw.Text('Estado: ${order.status}'),
-          pw.Text('Condición de pago: ${order.paymentTerms ?? '-'}'),
+          pw.Text('Estado: ${_statusLabel(order.status)}'),
+          pw.Text('Condición de pago: ${order.paymentTerms == 'cuenta_corriente' ? 'Cuenta corriente' : 'Contado'}'),
           pw.SizedBox(height: 12),
           pw.Table.fromTextArray(
-            headers: const ['Producto', 'Cant', 'Unit', 'Desc', 'Subtotal'],
+            headers: const ['Producto / Variante', 'Cant', 'Precio Unit.', 'Desc.', 'Subtotal'],
             data: order.items
                 .map((i) => [
-                      i.productName,
+                      itemName(i),
                       i.quantity.toStringAsFixed(0),
                       i.unitPrice.toStringAsFixed(2),
                       i.discountType == 'percentage' ? '${i.discountValue.toStringAsFixed(2)}%' : i.discountValue.toStringAsFixed(2),
@@ -494,9 +508,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           pw.SizedBox(height: 12),
           pw.Align(alignment: pw.Alignment.centerRight, child: pw.Text('Subtotal: ${order.subtotal.toStringAsFixed(2)}')),
           pw.Align(alignment: pw.Alignment.centerRight, child: pw.Text('Descuento general: ${order.discountTotal.toStringAsFixed(2)}')),
+          pw.Align(alignment: pw.Alignment.centerRight, child: pw.Text('Total original: ${order.total.toStringAsFixed(2)}')),
+          pw.Align(alignment: pw.Alignment.centerRight, child: pw.Text('Notas de crédito: ${order.totalCredited.toStringAsFixed(2)}')),
           pw.Align(
             alignment: pw.Alignment.centerRight,
-            child: pw.Text('TOTAL: ${order.total.toStringAsFixed(2)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            child: pw.Text('Total neto: ${order.netTotal.toStringAsFixed(2)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
           ),
           if ((order.notes ?? '').isNotEmpty) ...[
             pw.SizedBox(height: 10),

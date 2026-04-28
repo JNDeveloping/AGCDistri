@@ -37,6 +37,7 @@ import '../../services/storage/token_storage.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
 import '../../features/users/data/datasources/users_remote_datasource.dart';
+import '../network/connectivity_cubit.dart';
 import '../../features/users/data/repositories/users_repository.dart';
 
 Future<void> bootstrap() async {
@@ -161,6 +162,7 @@ class AppRoot extends StatelessWidget {
         BlocProvider(create: (_) => OrdersCubit(repository: orderRepository)),
         BlocProvider(create: (_) => CompanySettingsCubit(repository: companySettingsRepository)),
         BlocProvider(create: (_) => StockCubit(repository: stockRepository)),
+        BlocProvider(create: (_) => ConnectivityCubit()),
       ],
       child: Builder(
         builder: (context) {
@@ -183,6 +185,30 @@ class AppRoot extends StatelessWidget {
                   title: 'AGC Distribuidora',
                   theme: AppTheme.light(settingsState.settings),
                   routerConfig: router,
+                  builder: (context, child) => Stack(
+                    children: [
+                      child ?? const SizedBox.shrink(),
+                      BlocBuilder<ConnectivityCubit, bool>(
+                        builder: (_, online) => online
+                            ? const SizedBox.shrink()
+                            : Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                child: Material(
+                                  color: Colors.red.shade700,
+                                  child: const SafeArea(
+                                    bottom: false,
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      child: Text('Sin conexión. Mostrando datos cacheados cuando estén disponibles.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),

@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/models/client_model.dart';
 import '../datasources/client_remote_datasource.dart';
@@ -16,13 +18,24 @@ class ClientRepository {
           .map((raw) => ClientModel.fromJson(raw as Map<String, dynamic>))
           .toList();
 
-      return ClientListResponse(
+      final result = ClientListResponse(
         items: items,
         total: data['total'] as int? ?? items.length,
         page: data['page'] as int? ?? page,
         limit: data['limit'] as int? ?? 20,
       );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('clients_cache_v1', jsonEncode(payload));
+      return result;
     } on DioException catch (error) {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('clients_cache_v1');
+      if (raw != null) {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        final data = decoded['data'] as Map<String, dynamic>? ?? {};
+        final items = (data['items'] as List<dynamic>? ?? []).map((raw) => ClientModel.fromJson(raw as Map<String, dynamic>)).toList();
+        return ClientListResponse(items: items, total: data['total'] as int? ?? items.length, page: data['page'] as int? ?? page, limit: data['limit'] as int? ?? 20);
+      }
       throw _extractError(error);
     }
   }
@@ -93,10 +106,17 @@ class ClientRepository {
   Future<List<ClientZone>> listZones({bool includeInactive = false}) async {
     try {
       final payload = await _remoteDataSource.listZones(includeInactive: includeInactive);
-      return (payload['data'] as List<dynamic>? ?? [])
-          .map((raw) => ClientZone.fromJson(raw as Map<String, dynamic>))
-          .toList();
+      final items = (payload['data'] as List<dynamic>? ?? []).map((raw) => ClientZone.fromJson(raw as Map<String, dynamic>)).toList();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('zones_cache_v1', jsonEncode(payload));
+      return items;
     } on DioException catch (error) {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('zones_cache_v1');
+      if (raw != null) {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        return (decoded['data'] as List<dynamic>? ?? []).map((raw) => ClientZone.fromJson(raw as Map<String, dynamic>)).toList();
+      }
       throw _extractError(error);
     }
   }

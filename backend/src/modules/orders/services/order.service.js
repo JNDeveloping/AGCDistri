@@ -189,6 +189,10 @@ export class OrderService {
     if (!existing) throw new AppError('Pedido no encontrado.', 404);
     this.ensureAccess(existing, user.role, user.sub);
     if (terminalStatuses.includes(existing.status)) throw new AppError('No se puede cambiar estado de pedidos entregados o cancelados.', 409);
+    if (status !== 'preparado' && status !== 'cancelado') {
+      throw new AppError('Desde Pedidos solo se permite pasar a preparado o cancelar. Los estados de reparto se gestionan en Entregas.', 409);
+    }
+
     if (status === 'cancelado') return this.cancel(id, user);
 
     if (stockCommitStatuses.includes(status) && !existing.stock_discounted) {
