@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/repositories/client_repository.dart';
 import '../cubit/clients_cubit.dart';
+import 'zone_detail_page.dart';
 
 class ZonesManagementPage extends StatefulWidget {
   const ZonesManagementPage({required this.canManage, super.key});
@@ -70,6 +71,7 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
                 }
                 final z = visible[i - 1];
                 return ListTile(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ZoneDetailPage(zone: z))),
                   title: Text(z.name),
                   subtitle: Text(z.description ?? ''),
                   leading: Container(

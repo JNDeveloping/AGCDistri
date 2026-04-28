@@ -27,11 +27,13 @@ class _ClientesPageState extends State<ClientesPage> {
   final _scrollController = ScrollController();
   static const _pageSize = 20;
   int _visibleItems = _pageSize;
+  List<ClientZone> _zones = const [];
 
   @override
   void initState() {
     super.initState();
     context.read<ClientsCubit>().load();
+    _loadZones();
     _scrollController.addListener(_onScroll);
   }
 
@@ -49,6 +51,11 @@ class _ClientesPageState extends State<ClientesPage> {
     if (current >= (max - 200)) {
       setState(() => _visibleItems += _pageSize);
     }
+  }
+
+  Future<void> _loadZones() async {
+    final zones = await context.read<ClientsCubit>().listZones(includeInactive: false);
+    if (mounted) setState(() => _zones = zones);
   }
 
   @override
@@ -92,9 +99,22 @@ class _ClientesPageState extends State<ClientesPage> {
                     setState(() => _visibleItems = _pageSize);
                   },
                   decoration: const InputDecoration(
-                    hintText: 'Buscar por nombre, código, teléfono o localidad',
+                    hintText: 'Buscar por nombre, código, teléfono, localidad o zona',
                     prefixIcon: Icon(Icons.search_rounded),
                   ),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String?>(
+                  value: context.watch<ClientsCubit>().state.zoneId,
+                  decoration: const InputDecoration(labelText: 'Zona / Ruta'),
+                  items: [
+                    const DropdownMenuItem<String?>(value: null, child: Text('Todas')),
+                    ..._zones.map((z) => DropdownMenuItem<String?>(value: z.id, child: Text(z.name))),
+                  ],
+                  onChanged: (value) {
+                    context.read<ClientsCubit>().setZoneFilter(value);
+                    setState(() => _visibleItems = _pageSize);
+                  },
                 ),
                 const SizedBox(height: 8),
                 Row(

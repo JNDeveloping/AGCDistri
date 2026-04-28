@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/navigation/app_bottom_nav_bar.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../clientes/data/repositories/client_repository.dart';
 import '../../domain/models/order_model.dart';
 import '../cubit/orders_cubit.dart';
 import '../cubit/orders_state.dart';
@@ -10,10 +11,11 @@ import 'order_detail_page.dart';
 import 'order_form_page.dart';
 
 class PedidosPage extends StatefulWidget {
-  const PedidosPage({super.key});
+  const PedidosPage({this.initialZoneId, super.key});
 
   static const path = '/pedidos';
   static const name = 'pedidos';
+  final String? initialZoneId;
 
   @override
   State<PedidosPage> createState() => _PedidosPageState();
@@ -24,11 +26,18 @@ class _PedidosPageState extends State<PedidosPage> {
   final _scrollController = ScrollController();
   static const _pageSize = 15;
   int _visibleItems = _pageSize;
+  List<ClientZone> _zones = const [];
 
   @override
   void initState() {
     super.initState();
     context.read<OrdersCubit>().load();
+    _loadZones();
+    if (widget.initialZoneId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.read<OrdersCubit>().setZoneFilter(widget.initialZoneId);
+      });
+    }
     _scrollController.addListener(_onScroll);
   }
 
@@ -44,6 +53,11 @@ class _PedidosPageState extends State<PedidosPage> {
     if (_scrollController.offset >= (_scrollController.position.maxScrollExtent - 200)) {
       setState(() => _visibleItems += _pageSize);
     }
+  }
+
+  Future<void> _loadZones() async {
+    final zones = await context.read<ClientRepository>().listZones(includeInactive: false);
+    if (mounted) setState(() => _zones = zones);
   }
 
   @override
@@ -254,6 +268,20 @@ class _PedidosPageState extends State<PedidosPage> {
               PopupMenuItem(value: 'client', child: Text('Por cliente')),
             ],
             child: _filterChip('Agrupar'),
+          ),
+          const SizedBox(width: 8),
+          PopupMenuButton<String?>(
+            tooltip: 'Zona',
+            onSelected: (value) => cubit.setZoneFilter(value),
+            itemBuilder: (_) => [
+              const PopupMenuItem<String?>(value: null, child: Text('Todas las zonas')),
+              ..._zones.map((z) => PopupMenuItem<String?>(value: z.id, child: Text(z.name))),
+            ],
+            child: _filterChip(
+              _zones.where((z) => z.id == state.zoneId).isNotEmpty
+                  ? _zones.firstWhere((z) => z.id == state.zoneId).name
+                  : 'Zona/Ruta',
+            ),
           ),
         ],
       ),

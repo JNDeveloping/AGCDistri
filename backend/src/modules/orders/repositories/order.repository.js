@@ -152,6 +152,29 @@ export class OrderRepository {
     return rows[0] ?? null;
   }
 
+  async listPendingDelivery({ zoneId, role, userId }) {
+    const values = [];
+    const filters = [`o.status IN ('pendiente', 'preparado', 'en_reparto')`];
+
+    if (zoneId) {
+      values.push(zoneId);
+      filters.push(`c.zone_id = $${values.length}`);
+    }
+    if (role === 'vendedor') {
+      values.push(userId);
+      filters.push(`o.seller_id = $${values.length}`);
+    }
+    if (role === 'repartidor') {
+      values.push(userId);
+      filters.push(`o.assigned_delivery_user_id = $${values.length}`);
+    }
+
+    const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+    const query = `${baseOrderSelect} ${whereClause} ORDER BY o.order_date DESC`;
+    const { rows } = await pool.query(query, values);
+    return rows;
+  }
+
   async listItems(orderId) {
     const { rows } = await pool.query(
       `

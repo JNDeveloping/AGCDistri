@@ -27,6 +27,16 @@ export const listOrdersController = async (req, res) => {
   return ok(res, data, 'Pedidos obtenidos correctamente.');
 };
 
+export const listPendingDeliveryOrdersController = async (req, res) => {
+  const data = await orderService.listPendingDelivery({
+    zoneId: req.query.zoneId,
+    role: req.user.role,
+    userId: req.user.sub,
+  });
+
+  return ok(res, { items: data, total: data.length }, 'Pedidos pendientes para reparto obtenidos correctamente.');
+};
+
 export const getOrderController = async (req, res) => {
   const data = await orderService.getById(req.params.id, req.user.role, req.user.sub);
   return ok(res, data, 'Detalle de pedido obtenido correctamente.');

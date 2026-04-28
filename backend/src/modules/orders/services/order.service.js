@@ -80,6 +80,11 @@ export class OrderService {
     };
   }
 
+  async listPendingDelivery({ zoneId, role, userId }) {
+    const rows = await orderRepository.listPendingDelivery({ zoneId, role, userId });
+    return rows.map((r) => mapOrder(r));
+  }
+
   async getById(id, role, userId) {
     const order = await orderRepository.findById(id);
     if (!order) throw new AppError('Pedido no encontrado.', 404);

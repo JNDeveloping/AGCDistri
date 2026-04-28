@@ -70,6 +70,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     ),
                     const SizedBox(height: 8),
                     Text('Cliente: ${o.clientName}'),
+                    Text('Zona/Ruta: ${o.zoneName ?? 'Sin zona'}'),
                     Text('Fecha: ${o.orderDate?.toLocal().toString().split('.').first ?? '-'}'),
                     Text('Condición de pago: ${o.paymentTerms ?? '-'}'),
                     if (o.hasCreditNotes) Text('Pedido con notas de crédito aplicadas', style: const TextStyle(fontWeight: FontWeight.w700)),

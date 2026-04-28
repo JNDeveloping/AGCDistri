@@ -14,7 +14,7 @@ class OrdersState extends Equatable {
     this.dateFrom,
     this.dateTo,
     this.paymentCondition,
-    this.zoneQuery = '',
+    this.zoneId,
     this.sortBy = 'orderDate',
     this.sortDirection = 'desc',
     this.groupBy = 'none',
@@ -29,7 +29,7 @@ class OrdersState extends Equatable {
   final String? dateFrom;
   final String? dateTo;
   final String? paymentCondition;
-  final String zoneQuery;
+  final String? zoneId;
   final String sortBy;
   final String sortDirection;
   final String groupBy;
@@ -44,7 +44,7 @@ class OrdersState extends Equatable {
     String? dateFrom,
     String? dateTo,
     String? paymentCondition,
-    String? zoneQuery,
+    String? zoneId,
     String? sortBy,
     String? sortDirection,
     String? groupBy,
@@ -62,7 +62,7 @@ class OrdersState extends Equatable {
       dateFrom: clearDateRange ? null : (dateFrom ?? this.dateFrom),
       dateTo: clearDateRange ? null : (dateTo ?? this.dateTo),
       paymentCondition: clearPaymentCondition ? null : (paymentCondition ?? this.paymentCondition),
-      zoneQuery: zoneQuery ?? this.zoneQuery,
+      zoneId: zoneId ?? this.zoneId,
       sortBy: sortBy ?? this.sortBy,
       sortDirection: sortDirection ?? this.sortDirection,
       groupBy: groupBy ?? this.groupBy,
@@ -71,5 +71,5 @@ class OrdersState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [status, items, errorMessage, query, statusFilter, dateFrom, dateTo, paymentCondition, zoneQuery, sortBy, sortDirection, groupBy, countsByStatus];
+  List<Object?> get props => [status, items, errorMessage, query, statusFilter, dateFrom, dateTo, paymentCondition, zoneId, sortBy, sortDirection, groupBy, countsByStatus];
 }

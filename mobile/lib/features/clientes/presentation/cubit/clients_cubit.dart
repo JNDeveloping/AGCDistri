@@ -16,7 +16,7 @@ class ClientsCubit extends Cubit<ClientsState> {
   final Map<String, ClientListResponse> _cache = {};
 
   Future<void> load({bool forceRefresh = false}) async {
-    final cacheKey = '${state.query.trim()}|${state.filteredStatus ?? 'all'}';
+    final cacheKey = '${state.query.trim()}|${state.filteredStatus ?? 'all'}|${state.zoneId ?? 'all'}';
     if (!forceRefresh && _cache.containsKey(cacheKey)) {
       final cached = _cache[cacheKey]!;
       emit(
@@ -35,6 +35,7 @@ class ClientsCubit extends Cubit<ClientsState> {
       final result = await _clientRepository.list(
         query: state.query,
         isActive: state.filteredStatus,
+        zoneId: state.zoneId,
       );
       _cache[cacheKey] = result;
 
@@ -59,6 +60,11 @@ class ClientsCubit extends Cubit<ClientsState> {
 
   Future<void> applyFilter(bool? isActive) async {
     emit(state.copyWith(filteredStatus: isActive, clearFilter: isActive == null));
+    await load();
+  }
+
+  Future<void> setZoneFilter(String? zoneId) async {
+    emit(state.copyWith(zoneId: zoneId, clearZone: zoneId == null));
     await load();
   }
 
@@ -127,6 +133,8 @@ class ClientsCubit extends Cubit<ClientsState> {
     _cache.clear();
     await load(forceRefresh: true);
   }
+
+  Future<ZoneSummary> getZoneSummary(String id) => _clientRepository.getZoneSummary(id);
 
   @override
   Future<void> close() {

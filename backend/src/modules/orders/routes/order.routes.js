@@ -11,6 +11,7 @@ import {
   createOrderController,
   deleteOrderController,
   getOrderController,
+  listPendingDeliveryOrdersController,
   listOrdersController,
   updateOrderController,
   validateOrderStockController,
@@ -19,6 +20,7 @@ import {
   changeOrderStatusSchema,
   createOrderSchema,
   listOrdersQuerySchema,
+  pendingDeliveryOrdersQuerySchema,
   updateOrderSchema,
 } from '../validators/order.validator.js';
 
@@ -26,6 +28,7 @@ const orderRouter = Router();
 orderRouter.use(authenticate);
 
 orderRouter.get('/', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), validate(listOrdersQuerySchema, 'query'), asyncHandler(listOrdersController));
+orderRouter.get('/pending-delivery', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), validate(pendingDeliveryOrdersQuerySchema, 'query'), asyncHandler(listPendingDeliveryOrdersController));
 orderRouter.get('/:id', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), asyncHandler(getOrderController));
 orderRouter.post('/', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), validate(createOrderSchema), asyncHandler(createOrderController));
 orderRouter.put('/:id', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), validate(updateOrderSchema), asyncHandler(updateOrderController));

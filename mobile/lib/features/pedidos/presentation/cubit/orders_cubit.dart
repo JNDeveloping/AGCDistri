@@ -20,7 +20,7 @@ class OrdersCubit extends Cubit<OrdersState> {
       state.dateFrom ?? '-',
       state.dateTo ?? '-',
       state.paymentCondition ?? '-',
-      state.zoneQuery.trim(),
+      state.zoneId ?? '-',
       state.sortBy,
       state.sortDirection,
     ].join('|');
@@ -37,6 +37,7 @@ class OrdersCubit extends Cubit<OrdersState> {
         dateFrom: state.dateFrom,
         dateTo: state.dateTo,
         paymentCondition: state.paymentCondition,
+        zoneId: state.zoneId,
         sortBy: state.sortBy,
         sortDirection: state.sortDirection,
       );
@@ -75,6 +76,11 @@ class OrdersCubit extends Cubit<OrdersState> {
 
   void setGroupBy(String groupBy) {
     emit(state.copyWith(groupBy: groupBy));
+  }
+
+  Future<void> setZoneFilter(String? zoneId) async {
+    emit(state.copyWith(zoneId: zoneId));
+    await load();
   }
 
   Future<OrderModel> getById(String id) => _repository.getById(id);

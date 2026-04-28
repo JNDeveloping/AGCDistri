@@ -7,7 +7,9 @@ import '../../data/repositories/delivery_repository.dart';
 import '../../domain/models/delivery_model.dart';
 
 class DeliveryCreatePage extends StatefulWidget {
-  const DeliveryCreatePage({super.key});
+  const DeliveryCreatePage({this.initialZoneId, super.key});
+
+  final String? initialZoneId;
 
   @override
   State<DeliveryCreatePage> createState() => _DeliveryCreatePageState();
@@ -41,6 +43,9 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
       setState(() {
         _zones = zones;
         _drivers = users.where((u) => u.isActive && u.role == 'repartidor').toList();
+        if (widget.initialZoneId != null && _zones.any((z) => z.id == widget.initialZoneId)) {
+          _zoneId = widget.initialZoneId;
+        }
       });
     } catch (e) {
       if (mounted) {
