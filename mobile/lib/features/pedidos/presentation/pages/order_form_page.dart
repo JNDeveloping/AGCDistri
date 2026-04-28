@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/repositories/order_repository.dart';
 import '../../domain/models/order_model.dart';
 import '../cubit/orders_cubit.dart';
 import 'order_client_selector_page.dart';
@@ -40,6 +41,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
     final subtotal = _cart.values.fold<double>(0, (acc, l) => acc + l.netSubtotal);
+    final hasInvalidItems = _cart.values.any((line) => !line.isValidStock);
     final discountPercent = (double.tryParse(_discountPercent.text) ?? 0).clamp(0, 100);
     final discountTotal = subtotal * (discountPercent / 100);
     final total = subtotal - discountTotal;
@@ -93,6 +95,14 @@ class _OrderFormPageState extends State<OrderFormPage> {
                 child: Text('Advertencia: este pedido supera el límite de crédito del cliente.'),
               ),
             ),
+          if (hasInvalidItems)
+            const Card(
+              color: Color(0xFFFFECEC),
+              child: Padding(
+                padding: EdgeInsets.all(10),
+                child: Text('Hay productos sin stock o con cantidad mayor al disponible. Corregí el carrito para poder guardar.'),
+              ),
+            ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -135,15 +145,39 @@ class _OrderFormPageState extends State<OrderFormPage> {
   }
 
   Widget _itemCard(_CartLine line) {
+    final canIncrease = line.stock > 0 && line.quantity < line.stock;
+    final canDecrease = line.quantity > 1;
+    final isInvalid = !line.isValidStock;
     return Card(
       key: ValueKey('cart-item-${line.key}'),
+      color: isInvalid ? const Color(0xFFFFF1F1) : null,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(line.displayName, style: const TextStyle(fontWeight: FontWeight.w700)),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    line.displayName,
+                    style: TextStyle(fontWeight: FontWeight.w700, color: isInvalid ? Colors.grey.shade700 : null),
+                  ),
+                ),
+                if (isInvalid)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(999)),
+                    child: const Text('Sin stock', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  ),
+              ],
+            ),
             Text('Precio unitario: ${line.unitPrice.toStringAsFixed(2)} · Stock ${line.stock.toStringAsFixed(0)}'),
+            if (isInvalid)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text('Sin stock disponible', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+              ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -158,7 +192,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(onPressed: () => _changeQty(line.key, line.quantity - 1), icon: const Icon(Icons.remove_circle_outline)),
+                      IconButton(onPressed: canDecrease ? () => _changeQty(line.key, line.quantity - 1) : null, icon: const Icon(Icons.remove_circle_outline)),
                       SizedBox(
                         width: 70,
                         child: TextFormField(
@@ -170,7 +204,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
                           onFieldSubmitted: (v) => _changeQty(line.key, double.tryParse(v) ?? line.quantity),
                         ),
                       ),
-                      IconButton(onPressed: () => _changeQty(line.key, line.quantity + 1), icon: const Icon(Icons.add_circle_outline)),
+                      IconButton(onPressed: canIncrease ? () => _changeQty(line.key, line.quantity + 1) : null, icon: const Icon(Icons.add_circle_outline)),
                     ],
                   ),
                 ),
@@ -323,6 +357,10 @@ class _OrderFormPageState extends State<OrderFormPage> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Agregá productos al carrito.')));
       return;
     }
+    if (_cart.values.any((line) => !line.isValidStock)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hay productos sin stock o con cantidad mayor al disponible.')));
+      return;
+    }
 
     setState(() => _saving = true);
     try {
@@ -339,8 +377,18 @@ class _OrderFormPageState extends State<OrderFormPage> {
             notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
           );
       if (mounted) Navigator.pop(context, true);
+    } on OrderException catch (e) {
+      if (!mounted) return;
+      if (e.isInsufficientStock) {
+        final itemName = [e.productName, e.variantName].whereType<String>().where((v) => v.trim().isNotEmpty).join(' - ');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Stock insuficiente para ${itemName.isEmpty ? 'un producto' : itemName}. Disponible: ${(e.availableStock ?? 0).toStringAsFixed(0)}')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo guardar el pedido.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -359,6 +407,7 @@ class _CartLine {
   String get displayName => selection.displayName;
   double get unitPrice => selection.effectivePrice;
   double get stock => selection.effectiveStock;
+  bool get isValidStock => stock > 0 && quantity <= stock;
 
   double get discountAmount {
     if (discountType == 'percentage') {
@@ -367,7 +416,7 @@ class _CartLine {
     return discountValue;
   }
 
-  double get netSubtotal => (unitPrice * quantity - discountAmount).clamp(0, double.infinity);
+  double get netSubtotal => isValidStock ? (unitPrice * quantity - discountAmount).clamp(0, double.infinity) : 0;
 
   _CartLine copyWith({double? quantity, String? discountType, double? discountValue}) => _CartLine(
         key: key,

@@ -56,9 +56,15 @@ class _OrderProductSelectorPageState extends State<OrderProductSelectorPage> {
                 final isOutOfStock = !p.hasVariants && p.stockCurrent <= 0;
                 return ListTile(
                   enabled: !isOutOfStock,
+                  tileColor: isOutOfStock ? Colors.grey.shade200 : null,
                   title: Row(
                     children: [
-                      Expanded(child: Text(p.name)),
+                      Expanded(
+                        child: Text(
+                          p.name,
+                          style: TextStyle(color: isOutOfStock ? Colors.grey.shade700 : null),
+                        ),
+                      ),
                       if (isOutOfStock)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -158,6 +164,7 @@ class _VariantMultiSelectSheetState extends State<_VariantMultiSelectSheet> {
                 final qty = _quantities[v.id] ?? 0;
                 final stock = (v.effectiveStock ?? 0).floor();
                 final price = v.effectivePrice ?? widget.product.salePrice;
+                final outOfStock = stock <= 0;
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
@@ -166,8 +173,23 @@ class _VariantMultiSelectSheetState extends State<_VariantMultiSelectSheet> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(v.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-                            Text('Stock ${stock.toStringAsFixed(0)} · ${price.toStringAsFixed(2)}${stock <= 0 ? ' · Sin stock' : ''}'),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    v.name,
+                                    style: TextStyle(fontWeight: FontWeight.w700, color: outOfStock ? Colors.grey.shade700 : null),
+                                  ),
+                                ),
+                                if (outOfStock)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(999)),
+                                    child: const Text('Sin stock', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                                  ),
+                              ],
+                            ),
+                            Text('Stock ${stock.toStringAsFixed(0)} · ${price.toStringAsFixed(2)}'),
                           ],
                         ),
                       ),
@@ -177,7 +199,7 @@ class _VariantMultiSelectSheetState extends State<_VariantMultiSelectSheet> {
                       ),
                       SizedBox(width: 28, child: Text('$qty', textAlign: TextAlign.center)),
                       IconButton(
-                        onPressed: stock <= 0 ? null : (qty < stock ? () => setState(() => _quantities[v.id] = qty + 1) : null),
+                        onPressed: outOfStock ? null : (qty < stock ? () => setState(() => _quantities[v.id] = qty + 1) : null),
                         icon: const Icon(Icons.add_circle_outline),
                       ),
                     ],

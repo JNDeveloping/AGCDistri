@@ -19,6 +19,7 @@ export const errorHandler = (error, req, res, _next) => {
     ? {
         code: details.code,
         productName: details.productName,
+        variantName: details.variantName,
         availableStock: details.availableStock,
       }
     : {};

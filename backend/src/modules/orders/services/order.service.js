@@ -242,10 +242,12 @@ export class OrderService {
     for (const item of items) {
       const availableStock = await this.resolveAvailableStock(item.product_id, item.product_variant_id);
       if (availableStock < Number(item.quantity)) {
+        const variantName = item.variant_name_snapshot ?? null;
+        const productName = variantName ? `${item.product_name} - ${variantName}` : item.product_name;
         throw new AppError(
-          `Stock insuficiente para ${item.product_name}. Disponible: ${availableStock}.`,
+          `Stock insuficiente para ${productName}. Disponible: ${availableStock}.`,
           409,
-          { code: 'INSUFFICIENT_STOCK', productName: item.product_name, availableStock },
+          { code: 'INSUFFICIENT_STOCK', productName: item.product_name, variantName, availableStock },
         );
       }
     }
@@ -309,6 +311,22 @@ export class OrderService {
         estimatedMargin,
       };
     });
+
+    for (const item of items) {
+      const availableStock = await this.resolveAvailableStock(item.productId, item.productVariantId);
+      if (availableStock < Number(item.quantity)) {
+        throw new AppError(
+          `Stock insuficiente para ${item.productName}. Disponible: ${availableStock}.`,
+          409,
+          {
+            code: 'INSUFFICIENT_STOCK',
+            productName: item.productNameSnapshot,
+            variantName: item.variantNameSnapshot,
+            availableStock,
+          },
+        );
+      }
+    }
 
     const subtotal = items.reduce((acc, i) => acc + i.subtotal, 0);
     const discountTotal = Number(payload.discountTotal ?? 0);

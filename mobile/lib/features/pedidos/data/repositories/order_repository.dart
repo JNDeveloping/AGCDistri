@@ -141,6 +141,7 @@ class OrderRepository {
         message: (data['message'] as String?) ?? 'Error en pedidos.',
         code: (data['code'] as String?) ?? (detailMap['code'] as String?),
         productName: (data['productName'] as String?) ?? (detailMap['productName'] as String?),
+        variantName: (data['variantName'] as String?) ?? (detailMap['variantName'] as String?),
         availableStock: ((data['availableStock'] ?? detailMap['availableStock']) as num?)?.toDouble(),
       );
     }
@@ -154,12 +155,14 @@ class OrderException implements Exception {
     required this.message,
     this.code,
     this.productName,
+    this.variantName,
     this.availableStock,
   });
 
   final String message;
   final String? code;
   final String? productName;
+  final String? variantName;
   final double? availableStock;
 
   bool get isInsufficientStock => code == 'INSUFFICIENT_STOCK';
