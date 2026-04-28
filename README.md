@@ -29,8 +29,9 @@ npm run seed
 npm run dev
 ```
 
-> `migrate` y `seed` son cross-platform (Windows/macOS/Linux) y toman `DATABASE_URL` desde `.env`.
-> Antes de cada `migrate` se genera un backup automático en `backend/backups/`.
+> `migrate` y `seed` son cross-platform (Windows/macOS/Linux).
+> La API usa `DATABASE_URL` si existe; si no, usa `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME`.
+> El backup previo a migrar es opcional y se habilita con `BACKUP_BEFORE_MIGRATE=true`.
 
 ### 3) Setup mobile
 ```bash
@@ -110,17 +111,16 @@ Los productos quedan listos para enlazarse por `product_id` con futuros módulos
 ### Comandos disponibles (backend)
 ```bash
 npm run backup     # backup manual de PostgreSQL en backend/backups/
-npm run migrate    # backup automático + migraciones seguras
+npm run migrate    # migraciones seguras (solo pendientes)
 npm run seed       # datos iniciales sin borrar datos existentes
 npm run reset:dev  # SOLO desarrollo, requiere confirmación manual
 ```
 
 ### Qué hace cada comando
 - `npm run migrate`:
-  - ejecuta backup automático con `pg_dump` antes de migrar;
-  - si el backup falla, no migra;
   - aplica `.sql` pendientes en `src/database/migrations`;
   - registra ejecución en `schema_migrations`.
+  - podés activar backup previo con `BACKUP_BEFORE_MIGRATE=true`.
   - en Windows, si `pg_dump` no está en `PATH`, podés definir `PG_DUMP_BIN` en `backend/.env` con la ruta completa al ejecutable.
 - `npm run seed`:
   - aplica seeds de `src/database/seeds` sin borrar datos existentes;
@@ -145,3 +145,56 @@ npm run reset:dev  # SOLO desarrollo, requiere confirmación manual
 1. Crear archivo secuencial en `backend/src/database/migrations` (ej. `009_add_x.sql`).
 2. Usar operaciones incrementales (`CREATE ... IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`).
 3. Evitar operaciones destructivas; si fuese estrictamente necesario, hacerlo sólo para desarrollo y con confirmación manual.
+
+---
+
+## Deploy en Railway (backend)
+
+### 1) Crear servicio
+1. Crear proyecto en Railway.
+2. Conectar este repositorio GitHub.
+3. Seleccionar el directorio `backend` como servicio (o configurar el root del servicio en `backend`).
+
+### 2) Agregar PostgreSQL
+1. En Railway, agregar plugin PostgreSQL.
+2. Railway inyecta `DATABASE_URL` automáticamente (preferida por la API).
+
+### 3) Variables recomendadas
+Configurar al menos:
+- `NODE_ENV=production`
+- `PORT=4000` (Railway lo sobreescribe dinámicamente cuando corresponde)
+- `DATABASE_URL` (provista por Railway)
+- `JWT_SECRET`
+- `JWT_EXPIRES_IN=7d`
+- `CORS_ORIGIN=https://tu-frontend.app` (o lista separada por coma)
+
+Opcionales:
+- `DB_SSL=true`
+- `DB_SSL_REJECT_UNAUTHORIZED=false`
+- `BACKUP_BEFORE_MIGRATE=false`
+
+### 4) Migraciones en Railway
+Ejecutar en consola del servicio:
+```bash
+npm run migrate
+```
+
+### 5) Deploy y verificación
+Railway usa `railway.json` con:
+- build: `NIXPACKS`
+- start: `npm start`
+
+Luego verificar:
+```bash
+curl https://<tu-dominio>.up.railway.app/health
+```
+
+Respuesta esperada:
+```json
+{
+  "status": "ok",
+  "service": "backend",
+  "timestamp": "2026-01-01T00:00:00.000Z",
+  "database": "connected"
+}
+```

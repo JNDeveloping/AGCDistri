@@ -14,8 +14,8 @@ export class UserService {
     return userRepository.create({ fullName, email, passwordHash, role });
   }
 
-  async validateCredentials({ email, password }) {
-    const user = await userRepository.findByEmail(email);
+  async validateCredentials({ identifier, password }) {
+    const user = await userRepository.findByIdentifier(identifier);
     if (!user) {
       throw new AppError('Credenciales inválidas.', 401);
     }
@@ -105,15 +105,6 @@ export class UserService {
     const existing = await userRepository.findById(id);
     if (!existing) {
       throw new AppError('Usuario no encontrado.', 404);
-    }
-
-    const hasMovements = await userRepository.hasAssociatedMovements(id);
-    if (hasMovements) {
-      throw new AppError(
-        'No se puede eliminar este usuario porque tiene movimientos asociados. Podés desactivarlo.',
-        409,
-        { canDeactivate: true },
-      );
     }
 
     await userRepository.remove(id);

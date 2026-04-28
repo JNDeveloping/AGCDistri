@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const accountTypes = ['deuda', 'pago', 'ajuste', 'nota_credito', 'anulacion'];
+const accountTypes = ['deuda', 'pago', 'ajuste', 'nota_credito', 'saldo_a_favor', 'anulacion'];
 const paymentMethods = ['efectivo', 'transferencia', 'cheque', 'mercado_pago', 'otro'];
 
 export const createAccountMovementSchema = z.object({

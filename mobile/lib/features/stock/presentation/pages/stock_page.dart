@@ -9,10 +9,11 @@ import '../widgets/stock_product_card.dart';
 import 'stock_product_detail_page.dart';
 
 class StockPage extends StatefulWidget {
-  const StockPage({super.key});
+  const StockPage({this.initialFilter, super.key});
 
   static const path = '/stock';
   static const name = 'stock';
+  final String? initialFilter;
 
   @override
   State<StockPage> createState() => _StockPageState();
@@ -25,6 +26,11 @@ class _StockPageState extends State<StockPage> {
   void initState() {
     super.initState();
     context.read<StockCubit>().load();
+    if (widget.initialFilter != null && widget.initialFilter != 'all') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.read<StockCubit>().setFilter(widget.initialFilter!);
+      });
+    }
   }
 
   @override

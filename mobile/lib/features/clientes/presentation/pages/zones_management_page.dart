@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../data/repositories/client_repository.dart';
 import '../cubit/clients_cubit.dart';
+import 'zone_detail_page.dart';
 
 class ZonesManagementPage extends StatefulWidget {
   const ZonesManagementPage({required this.canManage, super.key});
@@ -70,6 +71,7 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
                 }
                 final z = visible[i - 1];
                 return ListTile(
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ZoneDetailPage(zone: z))),
                   title: Text(z.name),
                   subtitle: Text(z.description ?? ''),
                   leading: Container(
@@ -120,18 +122,32 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
       ),
     );
     if (ok == true) {
-      if (zone == null) {
-        await context.read<ClientsCubit>().createZone(name: name.text.trim(), description: desc.text.trim().isEmpty ? null : desc.text.trim());
-      } else {
-        await context.read<ClientsCubit>().updateZone(id: zone.id, name: name.text.trim(), description: desc.text.trim().isEmpty ? null : desc.text.trim());
+      try {
+        if (zone == null) {
+          await context.read<ClientsCubit>().createZone(name: name.text.trim(), description: desc.text.trim().isEmpty ? null : desc.text.trim());
+        } else {
+          await context.read<ClientsCubit>().updateZone(id: zone.id, name: name.text.trim(), description: desc.text.trim().isEmpty ? null : desc.text.trim());
+        }
+        await context.read<ClientsCubit>().refreshAfterZoneMutation();
+        await _load();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(zone == null ? 'Zona creada correctamente.' : 'Zona actualizada correctamente.')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
       }
-      await _load();
     }
   }
 
   Future<void> _deactivate(String id) async {
     await context.read<ClientsCubit>().deactivateZone(id);
+    await context.read<ClientsCubit>().refreshAfterZoneMutation();
     await _load();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Zona desactivada.')));
+    }
   }
 
   Future<void> _toggleStatus(ClientZone zone, {required bool activate}) async {
@@ -153,13 +169,20 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
       await _deactivate(zone.id);
       return;
     }
+    await context.read<ClientsCubit>().refreshAfterZoneMutation();
     await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(activate ? 'Zona activada.' : 'Zona desactivada.')));
   }
 
   Future<void> _deleteOrMove(ClientZone zone) async {
     try {
       await context.read<ClientsCubit>().deleteZone(zone.id);
+      await context.read<ClientsCubit>().refreshAfterZoneMutation();
       await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Zona eliminada.')));
+      }
     } catch (error) {
       final alternatives = _zones.where((z) => z.id != zone.id && z.isActive).toList();
       if (!mounted || alternatives.isEmpty) {
@@ -197,7 +220,11 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
       if (proceed == true && destinationId != null) {
         await context.read<ClientsCubit>().moveZoneClients(id: zone.id, zoneId: destinationId!);
         await context.read<ClientsCubit>().deleteZone(zone.id);
+        await context.read<ClientsCubit>().refreshAfterZoneMutation();
         await _load();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Clientes movidos y zona eliminada.')));
+        }
       }
     }
   }

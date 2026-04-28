@@ -141,6 +141,10 @@ class _ProductCategoriesPageState extends State<ProductCategoriesPage> {
 
     if (saved == true) {
       await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(category == null ? 'Categoría creada correctamente.' : 'Categoría actualizada correctamente.')),
+      );
     }
   }
 
@@ -148,6 +152,8 @@ class _ProductCategoriesPageState extends State<ProductCategoriesPage> {
     try {
       await context.read<ProductsCubit>().deleteCategory(category.id);
       await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Categoría eliminada.')));
     } catch (_) {
       final alternatives = _items.where((c) => c.id != category.id && c.isActive).toList();
       if (alternatives.isEmpty || !mounted) return;
@@ -176,6 +182,8 @@ class _ProductCategoriesPageState extends State<ProductCategoriesPage> {
         await context.read<ProductsCubit>().moveCategoryProducts(id: category.id, categoryId: destination!);
         await context.read<ProductsCubit>().deleteCategory(category.id);
         await _load();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Productos movidos y categoría eliminada.')));
       }
     }
   }
@@ -199,5 +207,7 @@ class _ProductCategoriesPageState extends State<ProductCategoriesPage> {
       await context.read<ProductsCubit>().deactivateCategory(category.id);
     }
     await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(activate ? 'Categoría activada.' : 'Categoría desactivada.')));
   }
 }

@@ -62,6 +62,7 @@ const formatProduct = (row, role) => {
     stockCurrent: row.stock_current == null ? 0 : Number(row.stock_current),
     stockMinimum: row.stock_minimum == null ? 0 : Number(row.stock_minimum),
     isActive: row.is_active,
+    hasVariants: row.has_variants === true,
     isFeatured: row.is_featured,
     imageUrl: row.image_url,
     taxRate: row.tax_rate == null ? null : Number(row.tax_rate),
@@ -108,6 +109,7 @@ const formatProduct = (row, role) => {
 
 export class ProductService {
   async create(payload) {
+    const hasVariants = payload.hasVariants === true;
     const duplicated = await productRepository.findDuplicated({
       internalCode: payload.internalCode,
       barcode: payload.barcode,
@@ -119,9 +121,18 @@ export class ProductService {
 
     await ensureActiveCategory(payload.categoryId ?? null);
 
+    if (!hasVariants) {
+      const inputSalePrice = payload.salePrice ?? payload.wholesalePrice;
+      if (inputSalePrice == null || Number(inputSalePrice) <= 0) {
+        throw new AppError('El precio de venta es obligatorio para productos sin variantes.', 400);
+      }
+    }
+
     const settings = await getPricingSettings();
     const inputSalePrice = payload.salePrice ?? payload.wholesalePrice;
-    const effectiveWholesalePrice = inputSalePrice
+    const effectiveWholesalePrice = hasVariants
+      ? (inputSalePrice ?? null)
+      : inputSalePrice
       ?? (payload.cost != null
         ? applyRounding(
             payload.cost + (payload.cost * settings.defaultProfitPercentage) / 100,
@@ -134,8 +145,8 @@ export class ProductService {
       wholesalePrice: effectiveWholesalePrice,
       marginPercentage,
       shortDescription: payload.shortDescription ?? null,
-      stockCurrent: payload.stockCurrent ?? 0,
-      stockMinimum: payload.stockMinimum ?? 0,
+      stockCurrent: hasVariants ? 0 : (payload.stockCurrent ?? 0),
+      stockMinimum: hasVariants ? 0 : (payload.stockMinimum ?? 0),
     });
     return formatProduct(created, 'admin');
   }
@@ -177,6 +188,7 @@ export class ProductService {
       await ensureActiveCategory(payload.categoryId);
     }
 
+    const hasVariants = payload.hasVariants ?? (existing.has_variants === true);
     const cost = payload.cost ?? Number(existing.cost ?? 0);
     const settings = await getPricingSettings();
     const storedWholesale = Number(existing.wholesale_price ?? 0);
@@ -185,14 +197,25 @@ export class ProductService {
       settings.priceRoundingEnabled ? settings.priceRoundingMultiple : 0,
     );
     const inputSalePrice = payload.salePrice ?? payload.wholesalePrice;
-    const wholesalePrice = inputSalePrice ?? (storedWholesale > 0 ? storedWholesale : suggestedWholesale);
+    if (!hasVariants && inputSalePrice == null && storedWholesale <= 0) {
+      throw new AppError('El precio de venta es obligatorio para productos sin variantes.', 400);
+    }
+    const wholesalePrice = hasVariants
+      ? (inputSalePrice ?? existing.wholesale_price ?? null)
+      : (inputSalePrice ?? (storedWholesale > 0 ? storedWholesale : suggestedWholesale));
     const marginPercentage = payload.marginPercentage ?? computeMargin(cost, wholesalePrice);
 
-    const updated = await productRepository.update(id, {
+    const patch = {
       ...payload,
       wholesalePrice,
       marginPercentage,
-    });
+    };
+    if (hasVariants) {
+      patch.stockCurrent = 0;
+      patch.stockMinimum = 0;
+    }
+
+    const updated = await productRepository.update(id, patch);
 
     return formatProduct(updated, 'admin');
   }

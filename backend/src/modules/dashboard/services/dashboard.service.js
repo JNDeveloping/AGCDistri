@@ -7,124 +7,148 @@ const relationExists = async (relationName) => {
 
 export class DashboardService {
   async getStats() {
-    const clientsTableExists = await relationExists('public.clients');
-    const productsTableExists = await relationExists('public.products');
-
-    const clientsCount = clientsTableExists
-      ? pool.query(`
-          SELECT
-            COUNT(*)::int AS total,
-            COUNT(*) FILTER (WHERE is_active = TRUE)::int AS active
-          FROM clients
-        `)
-      : Promise.resolve({ rows: [{ total: 0, active: 0 }] });
-
-    const productsCount = productsTableExists
-      ? pool.query(`
-          SELECT
-            COUNT(*)::int AS total,
-            COUNT(*) FILTER (WHERE is_active = TRUE)::int AS active
-          FROM products
-        `)
-      : Promise.resolve({ rows: [{ total: 0, active: 0 }] });
-
-    const lowStockCount = productsTableExists
-      ? pool.query('SELECT COUNT(*)::int AS low_stock FROM products WHERE stock_current <= stock_minimum AND is_active = TRUE')
-      : Promise.resolve({ rows: [{ low_stock: 0 }] });
-
-    const recentClients = clientsTableExists
-      ? pool.query(`
-          SELECT id, internal_code, business_name, city, province, created_at
-          FROM clients
-          ORDER BY created_at DESC
-          LIMIT 5
-        `)
-      : Promise.resolve({ rows: [] });
-
-    const recentProducts = productsTableExists
-      ? pool.query(`
-          SELECT id, internal_code, name, brand, stock_current, created_at
-          FROM products
-          ORDER BY created_at DESC
-          LIMIT 5
-        `)
-      : Promise.resolve({ rows: [] });
-
-    const stockMovementsExists = await relationExists('public.stock_movements');
-    const accountMovementsExists = await relationExists('public.account_movements');
-    const paymentsExists = await relationExists('public.client_payments');
-
-    const recentStockMovements = stockMovementsExists
-      ? pool.query(`SELECT id, product_id, movement_type, quantity, created_at FROM stock_movements ORDER BY created_at DESC LIMIT 5`)
-      : Promise.resolve({ rows: [] });
-    const stockMovementsToday = stockMovementsExists
-      ? pool.query('SELECT COUNT(*)::int AS total FROM stock_movements WHERE created_at::date = CURRENT_DATE')
-      : Promise.resolve({ rows: [{ total: 0 }] });
-    const outOfStockCount = productsTableExists
-      ? pool.query('SELECT COUNT(*)::int AS total FROM products WHERE stock_current <= 0 AND is_active = TRUE')
-      : Promise.resolve({ rows: [{ total: 0 }] });
-    const debtSummary = accountMovementsExists
-      ? pool.query('SELECT COALESCE(SUM(current_balance),0)::numeric AS total FROM clients WHERE current_balance > 0')
-      : Promise.resolve({ rows: [{ total: 0 }] });
-    const debtorsCount = accountMovementsExists
-      ? pool.query('SELECT COUNT(*)::int AS total FROM clients WHERE current_balance > 0')
-      : Promise.resolve({ rows: [{ total: 0 }] });
-    const paymentsToday = paymentsExists
-      ? pool.query('SELECT COALESCE(SUM(amount),0)::numeric AS total, COUNT(*)::int AS count FROM client_payments WHERE created_at::date = CURRENT_DATE AND is_annulled = FALSE')
-      : Promise.resolve({ rows: [{ total: 0, count: 0 }] });
-
-    const [clientsResult, productsResult, lowStockResult, clientsRecentResult, productsRecentResult, stockRecentResult, stockTodayResult, outOfStockResult, debtSummaryResult, debtorsResult, paymentsTodayResult] = await Promise.all([
-      clientsCount,
-      productsCount,
-      lowStockCount,
-      recentClients,
-      recentProducts,
-      recentStockMovements,
-      stockMovementsToday,
-      outOfStockCount,
-      debtSummary,
-      debtorsCount,
-      paymentsToday,
+    const [clientsTableExists, productsTableExists, ordersTableExists, orderItemsTableExists, paymentsTableExists] = await Promise.all([
+      relationExists('public.clients'),
+      relationExists('public.products'),
+      relationExists('public.orders'),
+      relationExists('public.order_items'),
+      relationExists('public.client_payments'),
     ]);
 
+    const businessMetrics = ordersTableExists
+      ? pool.query(`
+          SELECT
+            COALESCE(SUM(total) FILTER (WHERE status <> 'cancelado' AND order_date::date = CURRENT_DATE), 0)::numeric AS sales_today,
+            COALESCE(SUM(total) FILTER (WHERE status <> 'cancelado' AND order_date::date >= date_trunc('month', CURRENT_DATE)::date), 0)::numeric AS sales_month,
+            COUNT(*) FILTER (WHERE status = 'pendiente')::int AS pending_orders,
+            COUNT(*) FILTER (WHERE status = 'preparado')::int AS prepared_orders,
+            COUNT(*) FILTER (WHERE status = 'en_reparto')::int AS delivery_orders,
+            COUNT(*) FILTER (WHERE status = 'entregado' AND updated_at::date = CURRENT_DATE)::int AS delivered_today
+          FROM orders
+        `)
+      : Promise.resolve({ rows: [{ sales_today: 0, sales_month: 0, pending_orders: 0, prepared_orders: 0, delivery_orders: 0, delivered_today: 0 }] });
+
+    const debtMetrics = clientsTableExists
+      ? pool.query(`
+          SELECT
+            COALESCE(SUM(current_balance) FILTER (WHERE current_balance > 0), 0)::numeric AS total_debt,
+            COUNT(*) FILTER (WHERE current_balance > 0)::int AS clients_with_debt
+          FROM clients
+          WHERE COALESCE(is_active, TRUE) = TRUE
+        `)
+      : Promise.resolve({ rows: [{ total_debt: 0, clients_with_debt: 0 }] });
+
+    const paymentsToday = paymentsTableExists
+      ? pool.query(`
+          SELECT
+            COUNT(*)::int AS payments_today,
+            COALESCE(SUM(amount), 0)::numeric AS collected_today
+          FROM client_payments
+          WHERE created_at::date = CURRENT_DATE
+            AND is_annulled = FALSE
+        `)
+      : Promise.resolve({ rows: [{ payments_today: 0, collected_today: 0 }] });
+
+    const stockMetrics = productsTableExists
+      ? pool.query(`
+          SELECT
+            COUNT(*) FILTER (WHERE COALESCE(is_active, TRUE) = TRUE AND stock_current <= 0)::int AS out_of_stock_products,
+            COUNT(*) FILTER (WHERE COALESCE(is_active, TRUE) = TRUE AND stock_current > 0 AND stock_current <= stock_minimum)::int AS low_stock_products
+          FROM products
+        `)
+      : Promise.resolve({ rows: [{ out_of_stock_products: 0, low_stock_products: 0 }] });
+
+    const topProducts = (ordersTableExists && orderItemsTableExists)
+      ? pool.query(`
+          SELECT
+            oi.product_id,
+            COALESCE(oi.variant_name_snapshot, oi.product_name_snapshot, oi.product_name, 'Producto') AS product_name,
+            COALESCE(SUM(oi.quantity), 0)::numeric AS units
+          FROM order_items oi
+          JOIN orders o ON o.id = oi.order_id
+          WHERE o.status <> 'cancelado'
+            AND o.order_date::date >= date_trunc('month', CURRENT_DATE)::date
+          GROUP BY oi.product_id, COALESCE(oi.variant_name_snapshot, oi.product_name_snapshot, oi.product_name, 'Producto')
+          ORDER BY units DESC
+          LIMIT 3
+        `)
+      : Promise.resolve({ rows: [] });
+
+    const profitEstimate = (ordersTableExists && orderItemsTableExists)
+      ? pool.query(`
+          SELECT COALESCE(SUM(oi.subtotal - (oi.quantity * COALESCE(oi.cost, 0))), 0)::numeric AS profit_estimate
+          FROM order_items oi
+          JOIN orders o ON o.id = oi.order_id
+          WHERE o.status <> 'cancelado'
+            AND o.order_date::date >= date_trunc('month', CURRENT_DATE)::date
+        `)
+      : Promise.resolve({ rows: [{ profit_estimate: 0 }] });
+
+    const zonesMetrics = clientsTableExists
+      ? pool.query(`
+          SELECT
+            z.id AS zone_id,
+            z.name AS zone_name,
+            COALESCE(SUM(o.total) FILTER (
+              WHERE o.status <> 'cancelado'
+                AND o.order_date::date >= date_trunc('month', CURRENT_DATE)::date
+            ), 0)::numeric AS sales,
+            COALESCE(COUNT(o.id) FILTER (
+              WHERE o.status <> 'cancelado'
+                AND o.order_date::date >= date_trunc('month', CURRENT_DATE)::date
+            ), 0)::int AS orders,
+            COALESCE(SUM(c.current_balance) FILTER (WHERE c.current_balance > 0), 0)::numeric AS debt,
+            COUNT(DISTINCT c.id)::int AS clients
+          FROM zones z
+          LEFT JOIN clients c ON c.zone_id = z.id
+          LEFT JOIN orders o ON o.client_id = c.id
+          GROUP BY z.id, z.name
+          ORDER BY z.name ASC
+        `)
+      : Promise.resolve({ rows: [] });
+
+    const [businessResult, debtResult, paymentsTodayResult, stockResult, topProductsResult, profitResult, zonesResult] = await Promise.all([
+      businessMetrics,
+      debtMetrics,
+      paymentsToday,
+      stockMetrics,
+      topProducts,
+      profitEstimate,
+      zonesMetrics,
+    ]);
+
+    const business = businessResult.rows[0];
+    const debt = debtResult.rows[0];
+    const payments = paymentsTodayResult.rows[0];
+    const stock = stockResult.rows[0];
+
     return {
-      clients: clientsResult.rows[0],
-      products: productsResult.rows[0],
-      lowStockProducts: lowStockResult.rows[0].low_stock,
-      recentClients: clientsRecentResult.rows.map((row) => ({
-        id: row.id,
-        internalCode: row.internal_code,
-        businessName: row.business_name,
-        city: row.city,
-        province: row.province,
-        createdAt: row.created_at,
+      salesToday: Number(business.sales_today ?? 0),
+      salesMonth: Number(business.sales_month ?? 0),
+      pendingOrders: Number(business.pending_orders ?? 0),
+      preparedOrders: Number(business.prepared_orders ?? 0),
+      deliveryOrders: Number(business.delivery_orders ?? 0),
+      deliveredToday: Number(business.delivered_today ?? 0),
+      totalDebt: Number(debt.total_debt ?? 0),
+      clientsWithDebt: Number(debt.clients_with_debt ?? 0),
+      paymentsToday: Number(payments.payments_today ?? 0),
+      collectedToday: Number(payments.collected_today ?? 0),
+      outOfStockProducts: Number(stock.out_of_stock_products ?? 0),
+      lowStockProducts: Number(stock.low_stock_products ?? 0),
+      topProducts: topProductsResult.rows.map((row) => ({
+        productId: row.product_id,
+        productName: row.product_name,
+        units: Number(row.units ?? 0),
       })),
-      recentProducts: productsRecentResult.rows.map((row) => ({
-        id: row.id,
-        internalCode: row.internal_code,
-        name: row.name,
-        brand: row.brand,
-        stockCurrent: Number(row.stock_current),
-        createdAt: row.created_at,
+      profitEstimate: Number(profitResult.rows[0]?.profit_estimate ?? 0),
+      zones: zonesResult.rows.map((row) => ({
+        zoneId: row.zone_id,
+        zoneName: row.zone_name,
+        sales: Number(row.sales ?? 0),
+        orders: Number(row.orders ?? 0),
+        debt: Number(row.debt ?? 0),
+        clients: Number(row.clients ?? 0),
       })),
-      stock: {
-        lowStockProducts: lowStockResult.rows[0].low_stock,
-        outOfStockProducts: outOfStockResult.rows[0].total,
-        stockMovementsToday: stockTodayResult.rows[0].total,
-        recentMovements: stockRecentResult.rows.map((r) => ({
-          id: r.id,
-          productId: r.product_id,
-          movementType: r.movement_type,
-          quantity: Number(r.quantity),
-          createdAt: r.created_at,
-        })),
-      },
-      accounts: {
-        totalDebt: Number(debtSummaryResult.rows[0].total),
-        debtors: debtorsResult.rows[0].total,
-        paymentsTodayCount: paymentsTodayResult.rows[0].count,
-        paymentsTodayTotal: Number(paymentsTodayResult.rows[0].total),
-      },
     };
   }
 }

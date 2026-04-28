@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../credit_notes/data/repositories/credit_note_repository.dart';
+import '../../../credit_notes/presentation/pages/credit_note_detail_page.dart';
+import '../../../pedidos/presentation/cubit/orders_cubit.dart';
+import '../../../pedidos/presentation/pages/order_detail_page.dart';
 import '../../data/repositories/accounts_repository.dart';
 import '../../domain/models/account_models.dart';
 import 'client_account_history_page.dart';
+import 'payment_detail_page.dart';
 import 'register_payment_page.dart';
 
 class ClientAccountPage extends StatefulWidget {
@@ -106,8 +111,8 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
                               Row(
                                 children: [
                                   Chip(
-                                    label: Text(_account!.status == 'con_deuda' ? 'Con deuda' : 'Al día'),
-                                    backgroundColor: _account!.status == 'con_deuda' ? Colors.red.shade100 : Colors.green.shade100,
+                                    label: Text(_account!.status == 'con_deuda' ? 'Debe' : (_account!.status == 'saldo_a_favor' ? 'Saldo a favor' : 'Al día')),
+                                    backgroundColor: _account!.status == 'con_deuda' ? Colors.red.shade100 : (_account!.status == 'saldo_a_favor' ? Colors.blue.shade100 : Colors.green.shade100),
                                   ),
                                   const SizedBox(width: 8),
                                   Text('Límite: ${_account!.creditLimit.toStringAsFixed(2)}'),
@@ -167,18 +172,37 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
                         ),
                       ..._account!.recentMovements.map(
                         (m) => Card(
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: _movementColor(m.movementType).withValues(alpha: 0.15),
-                              child: Icon(Icons.receipt_long_rounded, color: _movementColor(m.movementType)),
-                            ),
-                            title: Text('${_labelType(m.movementType)} · ${m.amount.toStringAsFixed(2)}'),
-                            subtitle: Text('${_formatDateTime(m.createdAt)} · ${m.description}\nRef: ${m.referenceType ?? '-'}'),
-                            isThreeLine: true,
-                            trailing: Text(
-                              'Saldo\n${m.newBalance.toStringAsFixed(2)}',
-                              textAlign: TextAlign.end,
-                              style: const TextStyle(fontWeight: FontWeight.w700),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () => _openMovement(m),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                border: Border(left: BorderSide(color: _movementColor(m.movementType), width: 4)),
+                              ),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: _movementColor(m.movementType).withValues(alpha: 0.15),
+                                  child: Icon(Icons.receipt_long_rounded, color: _movementColor(m.movementType)),
+                                ),
+                                title: Text('${_labelType(m.movementType)} · ${m.amount.toStringAsFixed(2)}'),
+                                subtitle: Text(
+                                  '${_formatDateTime(m.createdAt)}\n${m.description}\nRef: ${m.referenceType ?? '-'} ${m.referenceId ?? ''}',
+                                ),
+                                isThreeLine: true,
+                                trailing: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      'Saldo ${m.newBalance.toStringAsFixed(2)}',
+                                      textAlign: TextAlign.end,
+                                      style: const TextStyle(fontWeight: FontWeight.w700),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Icon(Icons.open_in_new_rounded, size: 18),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -264,8 +288,14 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
         return 'Deuda';
       case 'pago':
         return 'Pago';
+      case 'nota_credito':
+        return 'Nota de crédito';
+      case 'saldo_a_favor':
+        return 'Saldo a favor';
       case 'ajuste':
         return 'Ajuste';
+      case 'anulacion':
+        return 'Anulación';
       default:
         return raw;
     }
@@ -274,6 +304,86 @@ class _ClientAccountPageState extends State<ClientAccountPage> {
   Color _movementColor(String raw) {
     if (raw == 'pago') return Colors.green.shade700;
     if (raw == 'deuda') return Colors.red.shade700;
+    if (raw == 'nota_credito') return Colors.blue.shade700;
+    if (raw == 'saldo_a_favor') return Colors.teal.shade700;
+    if (raw == 'anulacion') return Colors.orange.shade700;
     return Colors.amber.shade800;
+  }
+
+  Future<void> _openMovement(AccountMovement movement) async {
+    final referenceType = movement.referenceType;
+    final referenceId = movement.referenceId;
+    if (referenceType == null || referenceId == null || referenceId.isEmpty) {
+      _showMovementDialog(movement);
+      return;
+    }
+
+    if (referenceType == 'order') {
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailPage(orderId: referenceId)));
+      return;
+    }
+
+    if (referenceType == 'payment') {
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => PaymentDetailPage(paymentId: referenceId)));
+      return;
+    }
+
+    if (referenceType == 'credit_note') {
+      await _openCreditNote(referenceId);
+      return;
+    }
+
+    _showMovementDialog(movement);
+  }
+
+  Future<void> _openCreditNote(String creditNoteId) async {
+    try {
+      final repo = context.read<CreditNoteRepository>();
+      final note = await repo.getById(creditNoteId);
+      var orderNumber = 0;
+      try {
+        final order = await context.read<OrdersCubit>().getById(note.orderId);
+        orderNumber = order.orderNumber;
+      } catch (_) {
+        orderNumber = 0;
+      }
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CreditNoteDetailPage(
+            creditNoteId: creditNoteId,
+            repository: repo,
+            clientPhone: null,
+            orderNumber: orderNumber,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo abrir la nota: $e')));
+    }
+  }
+
+  Future<void> _showMovementDialog(AccountMovement m) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Detalle de movimiento'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Tipo: ${_labelType(m.movementType)}'),
+            Text('Monto: ${m.amount.toStringAsFixed(2)}'),
+            Text('Saldo resultante: ${m.newBalance.toStringAsFixed(2)}'),
+            Text('Fecha: ${_formatDateTime(m.createdAt)}'),
+            Text('Descripción: ${m.description}'),
+            Text('Referencia: ${m.referenceType ?? '-'} ${m.referenceId ?? ''}'),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar'))],
+      ),
+    );
   }
 }

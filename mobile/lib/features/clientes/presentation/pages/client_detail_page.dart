@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../accounts/presentation/pages/client_account_page.dart';
@@ -18,6 +19,7 @@ class ClientDetailPage extends StatefulWidget {
 
 class _ClientDetailPageState extends State<ClientDetailPage> {
   late Future<ClientModel> _future;
+  bool _updatingLocation = false;
 
   @override
   void initState() {
@@ -66,6 +68,25 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
               Text('Localidad: ${client.city}'),
               Text('Provincia: ${client.province}'),
               Text('Zona/Ruta: ${client.zoneName ?? client.routeZone}'),
+              const SizedBox(height: 12),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.location_on_outlined),
+                  title: Text(client.latitude != null && client.longitude != null ? 'Ubicación guardada' : 'Ubicación no guardada'),
+                  subtitle: client.latitude != null && client.longitude != null
+                      ? Text(
+                          'Latitud: ${client.latitude!.toStringAsFixed(6)}\nLongitud: ${client.longitude!.toStringAsFixed(6)}',
+                        )
+                      : const Text('Este cliente todavía no tiene coordenadas guardadas.'),
+                  isThreeLine: client.latitude != null && client.longitude != null,
+                  trailing: canEdit
+                      ? FilledButton.tonal(
+                          onPressed: _updatingLocation ? null : () => _updateLocation(client),
+                          child: Text(_updatingLocation ? 'Actualizando...' : 'Actualizar ubicación'),
+                        )
+                      : null,
+                ),
+              ),
               const Divider(height: 30),
               Text('IVA: ${client.vatCondition}'),
               Text('Límite crédito: ${client.creditLimit.toStringAsFixed(2)}'),
@@ -76,7 +97,7 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
                 child: ListTile(
                   leading: const Icon(Icons.account_balance_wallet_outlined),
                   title: const Text('Cuenta corriente'),
-                  subtitle: Text(client.currentBalance > 0 ? 'Con deuda' : 'Al día'),
+                  subtitle: Text(client.currentBalance > 0 ? 'Debe' : (client.currentBalance < 0 ? 'Saldo a favor' : 'Al día')),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.push(
                     context,
@@ -104,6 +125,53 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
         },
       ),
     );
+  }
+
+  Future<void> _updateLocation(ClientModel client) async {
+    setState(() => _updatingLocation = true);
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('GPS apagado. Activá la ubicación del dispositivo.');
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        throw Exception('Permiso de ubicación denegado.');
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      await context.read<ClientsCubit>().saveClient(
+            id: client.id,
+            payload: client.copyWith(latitude: position.latitude, longitude: position.longitude),
+          );
+
+      if (!mounted) return;
+      setState(() => _future = context.read<ClientsCubit>().getById(widget.clientId));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ubicación guardada correctamente')));
+    } catch (error) {
+      if (!mounted) return;
+      final message = error.toString();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            message.contains('denegado')
+                ? 'Permiso de ubicación denegado.'
+                : message.contains('GPS apagado')
+                    ? 'GPS apagado. Activá la ubicación del dispositivo.'
+                    : 'No se pudo obtener ubicación.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _updatingLocation = false);
+    }
   }
 
   Future<void> _toggleStatus(ClientModel client) async {
