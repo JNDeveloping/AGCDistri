@@ -52,6 +52,7 @@ class AuthRepository {
         id: data['id'] as String,
         fullName: data['fullName'] as String,
         email: data['email'] as String,
+        username: (data['username'] as String?) ?? '',
         role: data['role'] as String,
         permissions: (data['permissions'] as List<dynamic>? ?? []).cast<String>(),
       );

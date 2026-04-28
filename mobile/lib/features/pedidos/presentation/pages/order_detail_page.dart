@@ -480,8 +480,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                 pw.Text('Dirección: ${settings.address ?? '-'} ${settings.city ?? ''} ${settings.province ?? ''}'.trim()),
                 pw.Text('Tel: ${settings.phone ?? '-'} · Email: ${settings.email ?? '-'}'),
               ]),
-              pw.Text('Remito / Factura
-Pedido #${order.orderNumber}', textAlign: pw.TextAlign.right, style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text(
+                'Remito / Factura\nPedido #${order.orderNumber}',
+                textAlign: pw.TextAlign.right,
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              ),
             ],
           ),
           pw.SizedBox(height: 10),

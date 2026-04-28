@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../productos/presentation/pages/barcode_scanner_page.dart';
 import '../../data/repositories/stock_repository.dart';
+import '../../domain/models/stock_models.dart';
 
 class StockQuickEntryPage extends StatefulWidget {
   const StockQuickEntryPage({super.key});
