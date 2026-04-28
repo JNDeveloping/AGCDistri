@@ -41,3 +41,36 @@ class AccountMovement {
         referenceId: json['referenceId'] as String?,
       );
 }
+
+class ClientPayment {
+  const ClientPayment({
+    required this.id,
+    required this.clientId,
+    required this.clientName,
+    required this.amount,
+    required this.paymentMethod,
+    this.notes,
+    this.userName,
+    this.createdAt,
+  });
+
+  final String id;
+  final String clientId;
+  final String clientName;
+  final double amount;
+  final String paymentMethod;
+  final String? notes;
+  final String? userName;
+  final DateTime? createdAt;
+
+  factory ClientPayment.fromJson(Map<String, dynamic> json) => ClientPayment(
+        id: json['id'] as String? ?? '',
+        clientId: json['clientId'] as String? ?? '',
+        clientName: json['clientName'] as String? ?? '-',
+        amount: (json['amount'] as num?)?.toDouble() ?? 0,
+        paymentMethod: json['paymentMethod'] as String? ?? '-',
+        notes: json['notes'] as String?,
+        userName: json['userName'] as String?,
+        createdAt: json['createdAt'] == null ? null : DateTime.tryParse(json['createdAt'] as String),
+      );
+}
