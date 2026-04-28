@@ -72,7 +72,7 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text(snapshot.error.toString()));
+            return const Center(child: Text('No se pudieron cargar repartos.'));
           }
 
           final items = snapshot.data ?? [];
@@ -88,7 +88,7 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
               return Card(
                 margin: const EdgeInsets.only(bottom: 10),
                 child: ListTile(
-                  title: Text('Reparto #${item.number} · ${item.status}'),
+                  title: Text('Reparto #${item.number} · ${_statusLabel(item.status)}'),
                   subtitle: Text('${item.date} · ${item.totalOrders} pedidos · ${_money(item.totalAmount)}'),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () async {
@@ -112,4 +112,17 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
   }
 
   String _money(double value) => String.fromCharCode(36) + value.toStringAsFixed(2);
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'en_reparto':
+        return 'En reparto';
+      case 'finalizado':
+        return 'Finalizado';
+      case 'cancelado':
+        return 'Cancelado';
+      default:
+        return 'Pendiente';
+    }
+  }
 }

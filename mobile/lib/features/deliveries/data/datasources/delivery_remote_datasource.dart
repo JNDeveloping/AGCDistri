@@ -29,7 +29,7 @@ class DeliveryRemoteDataSource {
       (await _apiClient.post('/deliveries/$id/orders', data: {'orderIds': orderIds})).data ?? {};
 
   Future<Map<String, dynamic>> pendingOrders(String zoneId) async =>
-      (await _apiClient.get('/deliveries/pending-orders', queryParameters: {'zone_id': zoneId})).data ?? {};
+      (await _apiClient.get('/deliveries/pending-orders', queryParameters: {'zoneId': zoneId})).data ?? {};
 
   Future<Map<String, dynamic>> todayRoutes() async => (await _apiClient.get('/routes/today')).data ?? {};
 

@@ -47,10 +47,8 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
           _zoneId = widget.initialZoneId;
         }
       });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
+    } catch (_) {
+      _msg('No pudimos cargar zonas o repartidores. Reintentá.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -64,14 +62,10 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
       if (!mounted) return;
       setState(() {
         _pendingOrders = rows;
-        _selectedOrderIds
-          ..clear()
-          ..addAll(rows.map((e) => e.orderId));
+        _selectedOrderIds.clear();
       });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
+    } catch (_) {
+      _msg('No se pudieron obtener pedidos de la zona seleccionada.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -80,7 +74,7 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
   @override
   Widget build(BuildContext context) {
     final selectedOrders = _pendingOrders.where((o) => _selectedOrderIds.contains(o.orderId)).toList();
-    final totalToCollect = selectedOrders.fold<double>(0, (acc, o) => acc + (o.total));
+    final totalToCollect = selectedOrders.fold<double>(0, (acc, o) => acc + o.total);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Nuevo reparto por zona')),
@@ -108,27 +102,18 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
               onStepCancel: () => setState(() => _step -= 1),
               onStepContinue: () async {
                 if (_step == 0) {
-                  if (_zoneId == null) {
-                    _msg('Seleccioná una zona.');
-                    return;
-                  }
+                  if (_zoneId == null) return _msg('Seleccioná una zona/ruta.');
                   await _loadPendingOrders();
                   setState(() => _step = 1);
                   return;
                 }
                 if (_step == 1) {
-                  if (_selectedOrderIds.isEmpty) {
-                    _msg('Seleccioná al menos un pedido.');
-                    return;
-                  }
+                  if (_selectedOrderIds.isEmpty) return _msg('Seleccioná al menos un pedido.');
                   setState(() => _step = 2);
                   return;
                 }
                 if (_step == 2) {
-                  if (_driverId == null) {
-                    _msg('Seleccioná repartidor.');
-                    return;
-                  }
+                  if (_driverId == null) return _msg('Seleccioná un repartidor.');
                   setState(() => _step = 3);
                   return;
                 }
@@ -142,23 +127,21 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
                     value: _zoneId,
                     decoration: const InputDecoration(labelText: 'Seleccionar zona'),
                     items: _zones
-                        .map((z) => DropdownMenuItem(
-                              value: z.id,
-                              child: Text('${z.name} · ${z.clientsCount} clientes'),
-                            ))
+                        .map((z) => DropdownMenuItem(value: z.id, child: Text('${z.name} · ${z.clientsCount} clientes')))
                         .toList(),
                     onChanged: (value) => setState(() => _zoneId = value),
                   ),
                 ),
                 Step(
                   isActive: _step >= 1,
-                  title: const Text('Pedidos disponibles'),
+                  title: const Text('Pedidos de la zona'),
                   content: _pendingOrders.isEmpty
-                      ? const Text('No hay pedidos pendientes para esta zona.')
+                      ? const _EmptyRouteState()
                       : Column(
                           children: _pendingOrders
                               .map(
                                 (o) => Card(
+                                  margin: const EdgeInsets.only(bottom: 10),
                                   child: CheckboxListTile(
                                     value: _selectedOrderIds.contains(o.orderId),
                                     onChanged: (value) => setState(() {
@@ -169,7 +152,9 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
                                       }
                                     }),
                                     title: Text('#${o.orderNumber ?? '-'} · ${o.clientName}'),
-                                    subtitle: Text('${o.addressLine ?? '-'}\n${o.clientPhone ?? '-'} · ${o.paymentTerms ?? '-'} · ${_money(o.total)}'),
+                                    subtitle: Text(
+                                      '${o.addressLine ?? '-'}\n${o.clientPhone ?? '-'} · ${o.paymentTerms == 'cuenta_corriente' ? 'Cuenta corriente' : 'Contado'}\nTotal ${_money(o.total)} · Saldo ${_money(o.currentBalance ?? 0)}',
+                                    ),
                                     isThreeLine: true,
                                   ),
                                 ),
@@ -184,10 +169,7 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
                     value: _driverId,
                     decoration: const InputDecoration(labelText: 'Repartidor'),
                     items: _drivers
-                        .map((d) => DropdownMenuItem(
-                              value: d.id,
-                              child: Text(d.fullName),
-                            ))
+                        .map((d) => DropdownMenuItem(value: d.id, child: Text(d.fullName)))
                         .toList(),
                     onChanged: (value) => setState(() => _driverId = value),
                   ),
@@ -206,7 +188,9 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Pedidos seleccionados: ${_selectedOrderIds.length}'),
-                        Text('Total a cobrar: ${_money(totalToCollect)}'),
+                        Text('Total estimado de reparto: ${_money(totalToCollect)}'),
+                        const SizedBox(height: 8),
+                        const Text('Solo se incluyen pedidos preparados o pendientes de reparto de esta zona.'),
                       ],
                     ),
                   ),
@@ -227,8 +211,8 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
           );
       if (!mounted) return;
       Navigator.pop(context, created.id);
-    } catch (e) {
-      _msg(e.toString());
+    } catch (_) {
+      _msg('No pudimos crear el reparto. Verificá los pedidos seleccionados.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -238,5 +222,29 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
-  String _money(double value) => String.fromCharCode(36) + value.toStringAsFixed(2);
+  String _money(double value) => '\$${value.toStringAsFixed(2)}';
+}
+
+class _EmptyRouteState extends StatelessWidget {
+  const _EmptyRouteState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('No hay pedidos disponibles para esta zona.', style: TextStyle(fontWeight: FontWeight.w700)),
+          SizedBox(height: 6),
+          Text('Asegurate de tener pedidos preparados o pendientes de reparto sin asignación activa.'),
+        ],
+      ),
+    );
+  }
 }

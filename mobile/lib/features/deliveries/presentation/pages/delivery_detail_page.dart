@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../pedidos/presentation/pages/order_detail_page.dart';
 import '../../data/repositories/delivery_repository.dart';
 import '../../domain/models/delivery_model.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 class DeliveryDetailPage extends StatefulWidget {
   const DeliveryDetailPage({required this.deliveryId, super.key});
@@ -34,120 +35,20 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
         future: _future,
         builder: (_, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (snapshot.hasError) return Center(child: Text(snapshot.error.toString()));
-
+          if (snapshot.hasError) return const Center(child: Text('No pudimos cargar la hoja de ruta.'));
           final delivery = snapshot.data!;
-          final geocodedOrders = delivery.orders.where((o) => o.latitude != null && o.longitude != null).toList();
 
           return Column(
             children: [
-              Container(
-                margin: const EdgeInsets.all(12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.map_rounded),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        geocodedOrders.isEmpty
-                            ? 'No hay coordenadas cargadas. Se usará dirección textual en Maps.'
-                            : '${geocodedOrders.length} clientes con coordenadas para navegación.',
-                      ),
-                    ),
-                    OutlinedButton(
-                      onPressed: () => _openRouteMap(delivery.orders),
-                      child: const Text('Ver mapa'),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _optimize,
-                        icon: const Icon(Icons.route_rounded),
-                        label: const Text('Optimizar recorrido'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _DeliveryHeader(delivery: delivery, onOptimize: _optimize),
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: delivery.orders.length,
-                  itemBuilder: (_, i) {
-                    final order = delivery.orders[i];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: Padding(
+                child: delivery.orders.isEmpty
+                    ? const Center(child: Text('Este reparto todavía no tiene pedidos.'))
+                    : ListView.builder(
                         padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(order.clientName, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                            const SizedBox(height: 6),
-                            Text('Visita #${order.visitOrder ?? '-'} · Pedido #${order.orderNumber ?? '-'}'),
-                            Text('Zona: ${order.zoneName ?? '-'}'),
-                            Text('${order.addressLine ?? '-'} · ${order.city ?? ''}'),
-                            Text('Tel: ${order.clientPhone ?? '-'}'),
-                            Text('Total: ${_money(order.total)} · ${order.paymentTerms ?? '-'}'),
-                            Text('Saldo: ${_money(order.currentBalance ?? 0)}'),
-                            if ((order.orderNotes ?? '').isNotEmpty) Text('Obs. pedido: ${order.orderNotes}'),
-                            if ((order.clientNotes ?? '').isNotEmpty) Text('Obs. cliente: ${order.clientNotes}'),
-                            if ((order.notDeliveredReason ?? '').isNotEmpty) Text('Motivo no entrega: ${order.notDeliveredReason}'),
-                            const SizedBox(height: 8),
-                            Chip(
-                              avatar: const Icon(Icons.flag_circle_rounded, size: 18),
-                              label: Text(order.status),
-                              backgroundColor: _statusColor(order.status).withOpacity(0.18),
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                OutlinedButton.icon(
-                                  onPressed: () => _openWhatsapp(order.clientPhone),
-                                  icon: const Icon(Icons.chat),
-                                  label: const Text('WhatsApp'),
-                                ),
-                                OutlinedButton.icon(
-                                  onPressed: () => _openMaps(order),
-                                  icon: const Icon(Icons.navigation_rounded),
-                                  label: const Text('Ir'),
-                                ),
-                                FilledButton.icon(
-                                  onPressed: () => _markDelivered(order),
-                                  icon: const Icon(Icons.check_circle_rounded),
-                                  label: const Text('Entregado'),
-                                ),
-                                FilledButton.tonalIcon(
-                                  onPressed: () => _markNotDelivered(order),
-                                  icon: const Icon(Icons.cancel_rounded),
-                                  label: const Text('No entregado'),
-                                ),
-                                OutlinedButton.icon(
-                                  onPressed: () => _markRescheduled(order),
-                                  icon: const Icon(Icons.event_repeat_rounded),
-                                  label: const Text('Reprogramar'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                        itemCount: delivery.orders.length,
+                        itemBuilder: (_, i) => _orderCard(delivery.orders[i]),
                       ),
-                    );
-                  },
-                ),
               ),
             ],
           );
@@ -156,11 +57,96 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
     );
   }
 
+  Widget _orderCard(DeliveryOrderModel order) {
+    final paymentLabel = order.paymentTerms == 'cuenta_corriente' ? 'Cuenta corriente' : 'Contado';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      color: _statusColor(order.status).withValues(alpha: 0.10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(child: Text('${order.visitOrder ?? '-'}')),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(order.clientName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                ),
+                Chip(label: Text(_statusText(order.status))),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text('Pedido #${order.orderNumber ?? '-'} · Total ${_money(order.total)}'),
+            Text('${order.addressLine ?? '-'} ${order.city ?? ''}'.trim()),
+            Text('Tel: ${order.clientPhone ?? '-'}'),
+            Text('Pago: $paymentLabel · Saldo: ${_money(order.currentBalance ?? 0)}'),
+            if ((order.notDeliveredReason ?? '').isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text('Motivo no entregado: ${order.notDeliveredReason}', style: const TextStyle(fontWeight: FontWeight.w700)),
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: () => _openWhatsapp(order.clientPhone),
+                  icon: const Icon(Icons.chat_rounded),
+                  label: const Text('WhatsApp'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () => _openMaps(order),
+                  icon: const Icon(Icons.navigation_rounded),
+                  label: const Text('Ir'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _openOrder(order),
+                  icon: const Icon(Icons.receipt_long_rounded),
+                  label: const Text('Ver pedido'),
+                ),
+                FilledButton.icon(
+                  onPressed: () => _markDelivered(order),
+                  icon: const Icon(Icons.check_circle_rounded),
+                  label: const Text('Entregado'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () => _markNotDelivered(order),
+                  icon: const Icon(Icons.cancel_rounded),
+                  label: const Text('No entregado'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _markRescheduled(order),
+                  icon: const Icon(Icons.event_repeat_rounded),
+                  label: const Text('Reprogramar'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _markDelivered(DeliveryOrderModel order) async {
+    bool collectedCash = false;
+    double? collectedAmount;
+
+    if (order.paymentTerms == 'contado') {
+      final result = await _askCashCollection(order.total);
+      if (result == null) return;
+      collectedCash = result.$1;
+      collectedAmount = result.$2;
+    }
+
     await context.read<DeliveryRepository>().markDelivered(
           order.id,
-          collectedCash: order.paymentTerms == 'contado',
-          collectedAmount: order.paymentTerms == 'contado' ? order.total : 0,
+          collectedCash: collectedCash,
+          collectedAmount: collectedAmount,
         );
 
     if (!mounted) return;
@@ -180,7 +166,7 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
   Future<void> _markRescheduled(DeliveryOrderModel order) async {
     await context.read<DeliveryRepository>().markRescheduled(order.id);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido reprogramado.')));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido reprogramado para nuevo reparto.')));
     setState(() => _future = _reload());
   }
 
@@ -190,9 +176,7 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
       final enabled = await Geolocator.isLocationServiceEnabled();
       if (enabled) {
         var permission = await Geolocator.checkPermission();
-        if (permission == LocationPermission.denied) {
-          permission = await Geolocator.requestPermission();
-        }
+        if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
           position = await Geolocator.getCurrentPosition();
         }
@@ -206,8 +190,51 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
         );
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recorrido optimizado.')));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recorrido optimizado y orden guardado.')));
     setState(() => _future = _reload());
+  }
+
+  Future<(bool, double?)?> _askCashCollection(double suggestedAmount) async {
+    final controller = TextEditingController(text: suggestedAmount.toStringAsFixed(2));
+    var collected = true;
+
+    final result = await showDialog<(bool, double?)>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Cobro contado'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                value: collected,
+                onChanged: (v) => setDialogState(() => collected = v),
+                title: const Text('Pedido cobrado'),
+              ),
+              if (collected)
+                TextField(
+                  controller: controller,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Monto cobrado'),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: () => Navigator.pop(
+                context,
+                (collected, collected ? (double.tryParse(controller.text.replaceAll(',', '.')) ?? suggestedAmount) : 0),
+              ),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    controller.dispose();
+    return result;
   }
 
   Future<String?> _askReason() async {
@@ -215,7 +242,7 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
     final result = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Motivo de no entrega'),
+        title: const Text('Motivo de no entrega (obligatorio)'),
         content: TextField(controller: controller, decoration: const InputDecoration(hintText: 'Ej: cliente ausente')),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
@@ -229,7 +256,10 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
 
   Future<void> _openWhatsapp(String? phone) async {
     if (phone == null || phone.trim().isEmpty) return;
-    final uri = Uri.parse('https://wa.me/${phone.replaceAll(RegExp(r'[^0-9]'), '')}');
+    final clean = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    final normalized = clean.startsWith('549') ? clean : '549$clean';
+    final message = Uri.encodeComponent('Hola, estamos en camino con tu pedido.');
+    final uri = Uri.parse('https://wa.me/$normalized?text=$message');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
@@ -244,26 +274,22 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _openRouteMap(List<DeliveryOrderModel> orders) async {
-    if (orders.isEmpty) return;
-    final withCoords = orders.where((o) => o.latitude != null && o.longitude != null).toList();
-    if (withCoords.isNotEmpty) {
-      final first = withCoords.first;
-      final waypoints = withCoords.skip(1).map((o) => '${o.latitude},${o.longitude}').join('|');
-      final uri = Uri.parse(
-        'https://www.google.com/maps/dir/?api=1&destination=${first.latitude},${first.longitude}'
-        '${waypoints.isNotEmpty ? '&waypoints=${Uri.encodeComponent(waypoints)}' : ''}',
-      );
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-      return;
-    }
+  Future<void> _openOrder(DeliveryOrderModel order) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailPage(orderId: order.orderId)));
+    if (mounted) setState(() => _future = _reload());
+  }
 
-    final query = Uri.encodeComponent(
-      orders.map((o) => '${o.addressLine ?? ''} ${o.city ?? ''}'.trim()).where((e) => e.isNotEmpty).join(' | '),
-    );
-    if (query.isEmpty) return;
-    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  String _statusText(String status) {
+    switch (status) {
+      case 'entregado':
+        return 'Entregado';
+      case 'no_entregado':
+        return 'No entregado';
+      case 'reprogramado':
+        return 'Reprogramado';
+      default:
+        return 'Pendiente';
+    }
   }
 
   Color _statusColor(String status) {
@@ -275,9 +301,45 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
       case 'reprogramado':
         return Colors.orange;
       default:
-        return Colors.blueGrey;
+        return Colors.blue;
     }
   }
 
-  String _money(double value) => String.fromCharCode(36) + value.toStringAsFixed(2);
+  String _money(double value) => '\$${value.toStringAsFixed(2)}';
+}
+
+class _DeliveryHeader extends StatelessWidget {
+  const _DeliveryHeader({required this.delivery, required this.onOptimize});
+
+  final DeliveryModel delivery;
+  final Future<void> Function() onOptimize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Reparto #${delivery.number} · ${delivery.zone ?? 'Sin zona'}', style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text('${delivery.totalOrders} pedidos · Total ${'\$${delivery.totalAmount.toStringAsFixed(2)}'}'),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: onOptimize,
+              icon: const Icon(Icons.route_rounded),
+              label: const Text('Optimizar recorrido'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

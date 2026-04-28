@@ -208,7 +208,7 @@ export class DeliveryRepository {
       await pool.query(
         `
         UPDATE orders
-        SET status = CASE WHEN status = 'preparado' THEN 'en_reparto' ELSE status END,
+        SET status = CASE WHEN status IN ('preparado', 'pendiente') THEN 'en_reparto' ELSE status END,
             assigned_delivery_user_id = COALESCE((SELECT driver_id FROM deliveries WHERE id = $1), assigned_delivery_user_id),
             updated_at = NOW()
         WHERE id = $2
@@ -295,7 +295,7 @@ export class DeliveryRepository {
       JOIN clients c ON c.id = o.client_id
       JOIN zones z ON z.id = c.zone_id
       WHERE c.zone_id = $1
-        AND o.status IN ('preparado', 'en_reparto')
+        AND o.status IN ('preparado', 'pendiente')
         AND NOT EXISTS (
           SELECT 1
           FROM delivery_orders dor
@@ -399,6 +399,45 @@ export class DeliveryRepository {
     }
 
     return this.listOrders(deliveryId);
+  }
+
+
+
+  async syncDeliveryStatusFromOrders(deliveryId) {
+    const { rows } = await pool.query(
+      `
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE delivery_status = 'entregado')::int AS delivered,
+        COUNT(*) FILTER (WHERE delivery_status IN ('no_entregado', 'reprogramado'))::int AS unresolved
+      FROM delivery_orders
+      WHERE delivery_id = $1
+      `,
+      [deliveryId],
+    );
+
+    const stats = rows[0];
+    if (!stats || Number(stats.total) === 0) return;
+
+    let nextStatus = 'pendiente';
+    if (Number(stats.delivered) > 0 || Number(stats.unresolved) > 0) {
+      nextStatus = 'en_reparto';
+    }
+
+    if (Number(stats.delivered) === Number(stats.total)) {
+      nextStatus = 'finalizado';
+    }
+
+    await pool.query(
+      `
+      UPDATE deliveries
+      SET status = $2::delivery_status,
+          finished_at = CASE WHEN $2::delivery_status = 'finalizado' THEN NOW() ELSE NULL END,
+          updated_at = NOW()
+      WHERE id = $1
+      `,
+      [deliveryId, nextStatus],
+    );
   }
 
   async todayRoutes({ role, userId }) {

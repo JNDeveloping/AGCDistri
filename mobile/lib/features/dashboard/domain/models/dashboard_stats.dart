@@ -63,6 +63,12 @@ class DashboardStats extends Equatable {
     required this.clientsWithDebt,
     required this.paymentsToday,
     required this.collectedToday,
+    required this.deliveriesToday,
+    required this.ordersInDelivery,
+    required this.deliveredOrdersToday,
+    required this.notDeliveredOrdersToday,
+    required this.totalToCollect,
+    required this.totalCollectedDelivery,
     required this.outOfStockProducts,
     required this.lowStockProducts,
     required this.topProducts,
@@ -80,6 +86,12 @@ class DashboardStats extends Equatable {
   final int clientsWithDebt;
   final int paymentsToday;
   final double collectedToday;
+  final int deliveriesToday;
+  final int ordersInDelivery;
+  final int deliveredOrdersToday;
+  final int notDeliveredOrdersToday;
+  final double totalToCollect;
+  final double totalCollectedDelivery;
   final int outOfStockProducts;
   final int lowStockProducts;
   final List<DashboardTopProduct> topProducts;
@@ -97,6 +109,12 @@ class DashboardStats extends Equatable {
         clientsWithDebt: (json['clientsWithDebt'] as num?)?.toInt() ?? 0,
         paymentsToday: (json['paymentsToday'] as num?)?.toInt() ?? 0,
         collectedToday: (json['collectedToday'] as num?)?.toDouble() ?? 0,
+        deliveriesToday: (json['deliveriesToday'] as num?)?.toInt() ?? 0,
+        ordersInDelivery: (json['ordersInDelivery'] as num?)?.toInt() ?? 0,
+        deliveredOrdersToday: (json['deliveredOrdersToday'] as num?)?.toInt() ?? 0,
+        notDeliveredOrdersToday: (json['notDeliveredOrdersToday'] as num?)?.toInt() ?? 0,
+        totalToCollect: (json['totalToCollect'] as num?)?.toDouble() ?? 0,
+        totalCollectedDelivery: (json['totalCollectedDelivery'] as num?)?.toDouble() ?? 0,
         outOfStockProducts: (json['outOfStockProducts'] as num?)?.toInt() ?? 0,
         lowStockProducts: (json['lowStockProducts'] as num?)?.toInt() ?? 0,
         topProducts: (json['topProducts'] as List<dynamic>? ?? [])
@@ -120,6 +138,12 @@ class DashboardStats extends Equatable {
         clientsWithDebt,
         paymentsToday,
         collectedToday,
+        deliveriesToday,
+        ordersInDelivery,
+        deliveredOrdersToday,
+        notDeliveredOrdersToday,
+        totalToCollect,
+        totalCollectedDelivery,
         outOfStockProducts,
         lowStockProducts,
         topProducts,

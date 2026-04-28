@@ -44,7 +44,7 @@ export const addOrdersToDeliveryController = async (req, res) => {
 };
 
 export const listPendingDeliveryOrdersController = async (req, res) => {
-  const rows = await deliveryService.listPendingOrders(req.query.zone_id);
+  const rows = await deliveryService.listPendingOrders(req.query.zoneId ?? req.query.zone_id);
   res.json({ message: 'Pedidos pendientes para reparto.', data: { items: rows, total: rows.length } });
 };
 

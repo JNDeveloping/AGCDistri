@@ -56,7 +56,7 @@ export const pendingDeliveryOrdersQuerySchema = z
     path: ['zone_id'],
   })
   .transform((data) => ({
-    zone_id: data.zone_id ?? data.zoneId,
+    zoneId: data.zoneId ?? data.zone_id,
   }));
 
 export const markDeliveredSchema = z.object({

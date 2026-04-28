@@ -94,6 +94,7 @@ export class DeliveryService {
   }
 
   async listPendingOrders(zoneId) {
+    if (!zoneId) throw new AppError('zoneId es requerido.', 400);
     return this.repository.listPendingDeliveryOrders({ zoneId });
   }
 
@@ -130,6 +131,10 @@ export class DeliveryService {
     if (FINAL_STATUSES.has(row.delivery_status_parent)) throw new AppError('El reparto finalizado/cancelado no se puede modificar.', 409);
     if (authUser.role === 'repartidor' && row.driver_id !== authUser.sub) {
       throw new AppError('No autorizado para modificar este pedido de reparto.', 403);
+    }
+
+    if (payload.status === 'no_entregado' && !payload.reason?.trim()) {
+      throw new AppError('El motivo es obligatorio para marcar no entregado.', 400);
     }
 
     const updated = await this.repository.updateDeliveryOrderStatus({
@@ -171,6 +176,8 @@ export class DeliveryService {
     if (payload.status === 'no_entregado' || payload.status === 'reprogramado') {
       await this.repository.updateOrderStatus(row.order_id, 'preparado');
     }
+
+    await this.repository.syncDeliveryStatusFromOrders(row.delivery_id);
 
     return updated;
   }
