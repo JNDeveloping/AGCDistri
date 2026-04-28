@@ -155,22 +155,33 @@ export class ClientRepository {
   async getPurchaseHistory(clientId, limit = 12) {
     const { rows } = await pool.query(
       `
-      WITH purchase_base AS (
+      WITH purchase_events AS (
         SELECT
           oi.product_id,
           oi.product_variant_id,
-          MAX(o.order_date)::date AS last_purchase_date,
-          AVG(oi.quantity)::numeric(12,2) AS avg_quantity,
-          COUNT(*)::int AS purchase_count,
-          AVG(EXTRACT(DAY FROM (o.order_date - LAG(o.order_date) OVER (
-            PARTITION BY oi.product_id, oi.product_variant_id
-            ORDER BY o.order_date
-          ))))::numeric(12,2) AS avg_days_between
+          o.order_date,
+          oi.quantity,
+          EXTRACT(DAY FROM (
+            o.order_date - LAG(o.order_date) OVER (
+              PARTITION BY oi.product_id, oi.product_variant_id
+              ORDER BY o.order_date
+            )
+          )) AS days_between
         FROM order_items oi
         JOIN orders o ON o.id = oi.order_id
         WHERE o.client_id = $1
           AND o.status <> 'cancelado'
-        GROUP BY oi.product_id, oi.product_variant_id
+      ),
+      purchase_base AS (
+        SELECT
+          pe.product_id,
+          pe.product_variant_id,
+          MAX(pe.order_date)::date AS last_purchase_date,
+          AVG(pe.quantity)::numeric(12,2) AS avg_quantity,
+          COUNT(*)::int AS purchase_count,
+          AVG(pe.days_between)::numeric(12,2) AS avg_days_between
+        FROM purchase_events pe
+        GROUP BY pe.product_id, pe.product_variant_id
       ),
       last_price AS (
         SELECT DISTINCT ON (oi.product_id, oi.product_variant_id)
