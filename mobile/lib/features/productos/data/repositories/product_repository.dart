@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/offline/offline_store.dart';
 
 import '../../domain/models/product_model.dart';
 import '../datasources/product_remote_datasource.dart';
@@ -9,6 +10,7 @@ class ProductRepository {
   ProductRepository({required ProductRemoteDataSource remoteDataSource}) : _remoteDataSource = remoteDataSource;
 
   final ProductRemoteDataSource _remoteDataSource;
+  final OfflineStore _offlineStore = OfflineStore.instance;
 
   Future<List<ProductModel>> list({required String query, bool? isActive, bool? lowStock}) async {
     try {
@@ -62,10 +64,17 @@ class ProductRepository {
   Future<List<ProductCategory>> listCategories({bool includeInactive = false}) async {
     try {
       final payload = await _remoteDataSource.listCategories(includeInactive: includeInactive);
+      await _offlineStore.saveCache('product_categories_v1', payload);
       return (payload['data'] as List<dynamic>? ?? [])
           .map((raw) => ProductCategory.fromJson(raw as Map<String, dynamic>))
           .toList();
     } on DioException catch (error) {
+      final cached = await _offlineStore.readCache('product_categories_v1');
+      if (cached != null) {
+        return (cached['data'] as List<dynamic>? ?? [])
+            .map((raw) => ProductCategory.fromJson(raw as Map<String, dynamic>))
+            .toList();
+      }
       throw ProductException(_message(error));
     }
   }

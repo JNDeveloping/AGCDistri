@@ -60,17 +60,20 @@ export const pendingDeliveryOrdersQuerySchema = z
   }));
 
 export const markDeliveredSchema = z.object({
+  clientRequestId: z.string().trim().min(8).max(120).optional(),
   notes: z.string().trim().max(500).optional(),
   collectedCash: z.boolean().optional(),
   collectedAmount: z.coerce.number().min(0).optional(),
 });
 
 export const markNotDeliveredSchema = z.object({
+  clientRequestId: z.string().trim().min(8).max(120).optional(),
   reason: z.string().trim().min(2).max(500),
   notes: z.string().trim().max(500).optional(),
 });
 
 export const markRescheduleSchema = z.object({
+  clientRequestId: z.string().trim().min(8).max(120).optional(),
   notes: z.string().trim().max(500).optional(),
 });
 

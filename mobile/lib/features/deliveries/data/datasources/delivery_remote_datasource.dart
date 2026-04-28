@@ -55,16 +55,21 @@ class DeliveryRemoteDataSource {
 
   Future<Map<String, dynamic>> markDelivered(
     String deliveryOrderId, {
+    String? clientRequestId,
     bool? collectedCash,
     double? collectedAmount,
   }) async =>
       (await _apiClient.patch('/delivery-orders/$deliveryOrderId/delivered', data: {
+        if (clientRequestId != null) 'clientRequestId': clientRequestId,
         if (collectedCash != null) 'collectedCash': collectedCash,
         if (collectedAmount != null) 'collectedAmount': collectedAmount,
       })).data ?? {};
 
-  Future<Map<String, dynamic>> markNotDelivered(String deliveryOrderId, {required String reason}) async =>
-      (await _apiClient.patch('/delivery-orders/$deliveryOrderId/not-delivered', data: {'reason': reason})).data ?? {};
+  Future<Map<String, dynamic>> markNotDelivered(String deliveryOrderId, {required String reason, String? clientRequestId}) async =>
+      (await _apiClient.patch('/delivery-orders/$deliveryOrderId/not-delivered', data: {
+        'reason': reason,
+        if (clientRequestId != null) 'clientRequestId': clientRequestId,
+      })).data ?? {};
 
   Future<Map<String, dynamic>> markRescheduled(String deliveryOrderId, {String? notes}) async =>
       (await _apiClient.patch('/delivery-orders/$deliveryOrderId/reschedule', data: {if (notes != null) 'notes': notes})).data ?? {};

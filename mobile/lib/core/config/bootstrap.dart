@@ -37,12 +37,14 @@ import '../../services/storage/token_storage.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
 import '../../features/users/data/datasources/users_remote_datasource.dart';
+import '../offline/offline_sync_service.dart';
 import '../network/connectivity_cubit.dart';
 import '../../features/users/data/repositories/users_repository.dart';
 
 Future<void> bootstrap() async {
   final tokenStorage = TokenStorage();
   final apiClient = ApiClient(tokenStorage: tokenStorage);
+  final offlineSyncService = OfflineSyncService(apiClient: apiClient);
 
   final authRepository = AuthRepository(
     remoteDataSource: AuthRemoteDataSource(apiClient: apiClient),
@@ -107,6 +109,7 @@ Future<void> bootstrap() async {
       creditNoteRepository: creditNoteRepository,
       reportsRepository: reportsRepository,
       deliveryRepository: deliveryRepository,
+      offlineSyncService: offlineSyncService,
     ),
   );
 }
@@ -125,6 +128,7 @@ class AppRoot extends StatelessWidget {
     required this.creditNoteRepository,
     required this.reportsRepository,
     required this.deliveryRepository,
+    required this.offlineSyncService,
     super.key,
   });
 
@@ -140,6 +144,7 @@ class AppRoot extends StatelessWidget {
   final CreditNoteRepository creditNoteRepository;
   final ReportsRepository reportsRepository;
   final DeliveryRepository deliveryRepository;
+  final OfflineSyncService offlineSyncService;
 
   @override
   Widget build(BuildContext context) {
@@ -151,6 +156,7 @@ class AppRoot extends StatelessWidget {
         RepositoryProvider.value(value: creditNoteRepository),
         RepositoryProvider.value(value: reportsRepository),
         RepositoryProvider.value(value: deliveryRepository),
+        RepositoryProvider.value(value: offlineSyncService),
         RepositoryProvider.value(value: usersRepository),
       ],
       child: MultiBlocProvider(
@@ -188,24 +194,34 @@ class AppRoot extends StatelessWidget {
                   builder: (context, child) => Stack(
                     children: [
                       child ?? const SizedBox.shrink(),
-                      BlocBuilder<ConnectivityCubit, bool>(
-                        builder: (_, online) => online
-                            ? const SizedBox.shrink()
-                            : Positioned(
+                      BlocListener<ConnectivityCubit, ConnectivityBannerState>(
+                        listenWhen: (a, b) => a != b && b == ConnectivityBannerState.reconnecting,
+                        listener: (_, __) => offlineSyncService.syncPending(),
+                        child: BlocBuilder<ConnectivityCubit, ConnectivityBannerState>(
+                          builder: (_, state) => state == ConnectivityBannerState.online
+                              ? const SizedBox.shrink()
+                              : Positioned(
                                 top: 0,
                                 left: 0,
                                 right: 0,
                                 child: Material(
-                                  color: Colors.red.shade700,
-                                  child: const SafeArea(
+                                  color: state == ConnectivityBannerState.offline ? Colors.red.shade700 : Colors.green.shade700,
+                                  child: SafeArea(
                                     bottom: false,
                                     child: Padding(
-                                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      child: Text('Sin conexión. Mostrando datos cacheados cuando estén disponibles.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      child: Text(
+                                        state == ConnectivityBannerState.offline
+                                            ? 'Sin conexión · Trabajando offline'
+                                            : 'Conexión recuperada, sincronizando…',
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                                        textAlign: TextAlign.center,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
+                        ),
                       ),
                     ],
                   ),

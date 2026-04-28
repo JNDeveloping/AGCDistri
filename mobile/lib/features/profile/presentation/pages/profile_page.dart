@@ -9,6 +9,8 @@ import '../../../clientes/presentation/pages/zones_management_page.dart';
 import '../../../productos/presentation/pages/product_categories_page.dart';
 import '../../../users/data/repositories/users_repository.dart';
 import '../../../users/presentation/pages/users_page.dart';
+import '../../../../core/offline/offline_sync_service.dart';
+import 'sync_status_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({required this.usersRepository, super.key});
@@ -89,6 +91,20 @@ class _ProfilePageState extends State<ProfilePage> {
                   actions: [
                     TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar')),
                   ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.sync_alt_rounded),
+              title: const Text('Sincronización'),
+              subtitle: const Text('Pendientes, errores y reintentos offline'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SyncStatusPage(syncService: context.read<OfflineSyncService>()),
                 ),
               ),
             ),

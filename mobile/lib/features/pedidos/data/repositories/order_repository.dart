@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/offline/offline_store.dart';
 
 import '../../domain/models/order_model.dart';
 import '../datasources/order_remote_datasource.dart';
@@ -9,6 +10,7 @@ class OrderRepository {
   OrderRepository({required OrderRemoteDataSource remoteDataSource}) : _remoteDataSource = remoteDataSource;
 
   final OrderRemoteDataSource _remoteDataSource;
+  final OfflineStore _offlineStore = OfflineStore.instance;
 
   Future<OrdersListResult> list({
     String? status,
@@ -44,14 +46,11 @@ class OrderRepository {
         countsByStatus: (data['countsByStatus'] as Map<String, dynamic>? ?? const {})
             .map((k, v) => MapEntry(k, (v as num?)?.toInt() ?? 0)),
       );
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('orders_cache_v1', jsonEncode(payload));
+      await _offlineStore.saveCache('orders_cache_v1', payload);
       return result;
     } on DioException catch (e) {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString('orders_cache_v1');
-      if (raw != null) {
-        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final decoded = await _offlineStore.readCache('orders_cache_v1');
+      if (decoded != null) {
         final data = decoded['data'] as Map<String, dynamic>? ?? {};
         return OrdersListResult(
           items: (data['items'] as List<dynamic>? ?? []).map((e) => OrderModel.fromJson(e as Map<String, dynamic>)).toList(),
@@ -83,8 +82,10 @@ class OrderRepository {
     String? paymentTerms,
     String? notes,
   }) async {
+    final localRequestId = 'local_${DateTime.now().microsecondsSinceEpoch}';
     try {
       final data = {
+        'clientRequestId': localRequestId,
         'clientId': clientId,
         'items': items.map((e) => e.toJson()).toList(),
         'discountTotal': discountTotal,
@@ -94,6 +95,19 @@ class OrderRepository {
       final payload = id == null ? await _remoteDataSource.createOrder(data) : await _remoteDataSource.updateOrder(id, data);
       return OrderModel.fromJson(payload['data'] as Map<String, dynamic>);
     } on DioException catch (e) {
+      final isOffline = e.type == DioExceptionType.connectionError || e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.unknown;
+      if (id == null && isOffline) {
+        final payload = {
+          'clientRequestId': localRequestId,
+          'clientId': clientId,
+          'items': items.map((entry) => entry.toJson()).toList(),
+          'discountTotal': discountTotal,
+          'paymentTerms': paymentTerms,
+          'notes': notes,
+        };
+        await _offlineStore.enqueue(actionType: 'create_order', payload: payload);
+        throw const OrderException(message: 'Sin conexión: pedido guardado localmente. Estado: Pendiente de sincronizar.');
+      }
       throw _mapError(e);
     }
   }

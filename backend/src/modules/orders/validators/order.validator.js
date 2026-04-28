@@ -13,6 +13,7 @@ const orderItemSchema = z.object({
 });
 
 export const createOrderSchema = z.object({
+  clientRequestId: z.string().trim().min(8).max(120).optional(),
   clientId: z.string().uuid(),
   notes: z.string().max(4000).optional().nullable(),
   paymentTerms: z.enum(paymentTermsValues).optional().default('contado'),

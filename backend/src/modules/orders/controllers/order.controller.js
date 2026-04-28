@@ -1,4 +1,5 @@
-import { created, ok } from '../../../utils/api-response.js';
+import { ok } from '../../../utils/api-response.js';
+import { runIdempotent } from '../../../utils/idempotency.js';
 import { orderService } from '../services/order.service.js';
 
 export const listOrdersController = async (req, res) => {
@@ -43,8 +44,20 @@ export const getOrderController = async (req, res) => {
 };
 
 export const createOrderController = async (req, res) => {
-  const data = await orderService.create(req.body, req.user);
-  return created(res, data, 'Pedido creado correctamente.');
+  const result = await runIdempotent({
+    userId: req.user.sub,
+    action: 'create_order',
+    clientRequestId: req.body.clientRequestId,
+    execute: async () => {
+      const data = await orderService.create(req.body, req.user);
+      return {
+        statusCode: 201,
+        body: { message: 'Pedido creado correctamente.', data },
+      };
+    },
+  });
+
+  return res.status(result.statusCode).json(result.body);
 };
 
 export const updateOrderController = async (req, res) => {

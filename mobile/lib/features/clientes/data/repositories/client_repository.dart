@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/offline/offline_store.dart';
 
 import '../../domain/models/client_model.dart';
 import '../datasources/client_remote_datasource.dart';
@@ -9,6 +10,7 @@ class ClientRepository {
   ClientRepository({required ClientRemoteDataSource remoteDataSource}) : _remoteDataSource = remoteDataSource;
 
   final ClientRemoteDataSource _remoteDataSource;
+  final OfflineStore _offlineStore = OfflineStore.instance;
 
   Future<ClientListResponse> list({required String query, bool? isActive, String? zoneId, int page = 1}) async {
     try {
@@ -69,6 +71,18 @@ class ClientRepository {
       if (data == null) throw ClientException('No se pudo actualizar el cliente.');
       return ClientModel.fromJson(data);
     } on DioException catch (error) {
+      final isOffline = error.type == DioExceptionType.connectionError || error.type == DioExceptionType.connectionTimeout || error.type == DioExceptionType.unknown;
+      if (isOffline) {
+        await _offlineStore.enqueue(
+          actionType: 'update_client_location',
+          payload: {
+            'clientRequestId': 'local_${DateTime.now().microsecondsSinceEpoch}',
+            'clientId': id,
+            'data': client.toJson(),
+          },
+        );
+        throw ClientException('Sin conexión: cambios del cliente guardados para sincronizar.');
+      }
       throw _extractError(error);
     }
   }
