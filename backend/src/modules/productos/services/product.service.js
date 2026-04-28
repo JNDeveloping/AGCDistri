@@ -153,8 +153,7 @@ export class ProductService {
 
 
   async autocomplete({ q, limit }) {
-    if (!q || q.trim().length < 2) return { total: 0, items: [] };
-    const rows = await productRepository.autocomplete({ q: q.trim(), limit: limit ?? 20 });
+    const rows = await productRepository.autocomplete({ q: q?.trim() ?? '', limit: limit ?? 20 });
 
     return {
       total: rows.length,
