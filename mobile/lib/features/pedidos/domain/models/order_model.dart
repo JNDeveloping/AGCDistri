@@ -34,6 +34,8 @@ class OrderModel extends Equatable {
     required this.clientId,
     required this.clientName,
     required this.clientPhone,
+    this.zoneName,
+    this.zoneId,
     required this.sellerId,
     required this.sellerName,
     required this.orderDate,
@@ -60,6 +62,8 @@ class OrderModel extends Equatable {
   final String clientId;
   final String clientName;
   final String? clientPhone;
+  final String? zoneName;
+  final String? zoneId;
   final String sellerId;
   final String sellerName;
   final DateTime? orderDate;
@@ -86,6 +90,8 @@ class OrderModel extends Equatable {
         clientId: json['clientId'] as String,
         clientName: json['clientName'] as String? ?? '-',
         clientPhone: json['clientPhone'] as String?,
+        zoneName: json['zoneName'] as String?,
+        zoneId: json['zoneId'] as String?,
         sellerId: json['sellerId'] as String,
         sellerName: json['sellerName'] as String? ?? '-',
         orderDate: json['orderDate'] != null ? DateTime.tryParse(json['orderDate'] as String) : null,
@@ -110,7 +116,7 @@ class OrderModel extends Equatable {
       );
 
   @override
-  List<Object?> get props => [id, orderNumber, clientId, status, total, totalCredited, netTotal, hasCreditNotes, itemsCount, totalUnits, clientPhone];
+  List<Object?> get props => [id, orderNumber, clientId, status, total, totalCredited, netTotal, hasCreditNotes, itemsCount, totalUnits, clientPhone, zoneName, zoneId];
 }
 
 int? _asInt(dynamic value) {

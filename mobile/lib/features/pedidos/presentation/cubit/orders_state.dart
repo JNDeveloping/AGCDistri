@@ -11,6 +11,14 @@ class OrdersState extends Equatable {
     this.errorMessage,
     this.query = '',
     this.statusFilter,
+    this.dateFrom,
+    this.dateTo,
+    this.paymentCondition,
+    this.zoneQuery = '',
+    this.sortBy = 'orderDate',
+    this.sortDirection = 'desc',
+    this.groupBy = 'none',
+    this.countsByStatus = const {},
   });
 
   final OrdersStatus status;
@@ -18,6 +26,14 @@ class OrdersState extends Equatable {
   final String? errorMessage;
   final String query;
   final String? statusFilter;
+  final String? dateFrom;
+  final String? dateTo;
+  final String? paymentCondition;
+  final String zoneQuery;
+  final String sortBy;
+  final String sortDirection;
+  final String groupBy;
+  final Map<String, int> countsByStatus;
 
   OrdersState copyWith({
     OrdersStatus? status,
@@ -25,6 +41,16 @@ class OrdersState extends Equatable {
     String? errorMessage,
     String? query,
     String? statusFilter,
+    String? dateFrom,
+    String? dateTo,
+    String? paymentCondition,
+    String? zoneQuery,
+    String? sortBy,
+    String? sortDirection,
+    String? groupBy,
+    Map<String, int>? countsByStatus,
+    bool clearDateRange = false,
+    bool clearPaymentCondition = false,
     bool clearStatusFilter = false,
   }) {
     return OrdersState(
@@ -33,9 +59,17 @@ class OrdersState extends Equatable {
       errorMessage: errorMessage,
       query: query ?? this.query,
       statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
+      dateFrom: clearDateRange ? null : (dateFrom ?? this.dateFrom),
+      dateTo: clearDateRange ? null : (dateTo ?? this.dateTo),
+      paymentCondition: clearPaymentCondition ? null : (paymentCondition ?? this.paymentCondition),
+      zoneQuery: zoneQuery ?? this.zoneQuery,
+      sortBy: sortBy ?? this.sortBy,
+      sortDirection: sortDirection ?? this.sortDirection,
+      groupBy: groupBy ?? this.groupBy,
+      countsByStatus: countsByStatus ?? this.countsByStatus,
     );
   }
 
   @override
-  List<Object?> get props => [status, items, errorMessage, query, statusFilter];
+  List<Object?> get props => [status, items, errorMessage, query, statusFilter, dateFrom, dateTo, paymentCondition, zoneQuery, sortBy, sortDirection, groupBy, countsByStatus];
 }

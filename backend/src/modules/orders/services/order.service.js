@@ -14,6 +14,8 @@ const mapOrder = (row, items = []) => ({
   clientId: row.client_id,
   clientName: row.client_name,
   clientPhone: row.client_phone,
+  zoneName: row.zone_name,
+  zoneId: row.client_zone_id,
   sellerId: row.seller_id,
   sellerName: row.seller_name,
   assignedDeliveryUserId: row.assigned_delivery_user_id,
@@ -63,8 +65,19 @@ const mapItem = (row) => ({
 
 export class OrderService {
   async list({ filters, pagination, role, userId }) {
-    const { rows, total } = await orderRepository.list({ filters, pagination, role, userId });
-    return { total, page: pagination.page, limit: pagination.limit, items: rows.map((r) => mapOrder(r)) };
+    const { rows, total, statusCounts } = await orderRepository.list({ filters, pagination, role, userId });
+    const countsByStatus = Object.fromEntries(['pendiente', 'preparado', 'en_reparto', 'entregado', 'cancelado'].map((s) => [s, 0]));
+    for (const row of statusCounts ?? []) {
+      countsByStatus[row.status] = Number(row.total ?? 0);
+    }
+    return {
+      total,
+      page: pagination.page,
+      limit: pagination.limit,
+      totalPages: Math.max(1, Math.ceil(Number(total) / Number(pagination.limit || 1))),
+      countsByStatus,
+      items: rows.map((r) => mapOrder(r)),
+    };
   }
 
   async getById(id, role, userId) {

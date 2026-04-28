@@ -7,6 +7,8 @@ const baseOrderSelect = `
     o.client_id,
     c.business_name AS client_name,
     c.phone AS client_phone,
+    c.zone_id AS client_zone_id,
+    COALESCE(z.name, c.route_zone) AS zone_name,
     o.seller_id,
     u.full_name AS seller_name,
     o.assigned_delivery_user_id,
@@ -30,6 +32,7 @@ const baseOrderSelect = `
     o.canceled_at
   FROM orders o
   JOIN clients c ON c.id = o.client_id
+  LEFT JOIN zones z ON z.id = c.zone_id
   JOIN users u ON u.id = o.seller_id
   LEFT JOIN users du ON du.id = o.assigned_delivery_user_id
   LEFT JOIN (
@@ -45,57 +48,103 @@ const baseOrderSelect = `
 export class OrderRepository {
   async list({ filters, pagination, role, userId }) {
     const values = [];
-    const where = [];
+    const whereBase = [];
+    const whereStatus = [];
 
     if (filters.clientId) {
       values.push(filters.clientId);
-      where.push(`o.client_id = $${values.length}`);
+      whereBase.push(`o.client_id = $${values.length}`);
     }
     if (filters.sellerId) {
       values.push(filters.sellerId);
-      where.push(`o.seller_id = $${values.length}`);
+      whereBase.push(`o.seller_id = $${values.length}`);
     }
     if (filters.status) {
       values.push(filters.status);
-      where.push(`o.status = $${values.length}`);
+      whereStatus.push(`o.status = $${values.length}`);
     }
     if (filters.dateFrom) {
       values.push(filters.dateFrom);
-      where.push(`o.order_date::date >= $${values.length}`);
+      whereBase.push(`o.order_date::date >= $${values.length}`);
     }
     if (filters.dateTo) {
       values.push(filters.dateTo);
-      where.push(`o.order_date::date <= $${values.length}`);
+      whereBase.push(`o.order_date::date <= $${values.length}`);
     }
     if (filters.orderNumber) {
       values.push(Number(filters.orderNumber));
-      where.push(`o.order_number = $${values.length}`);
+      whereBase.push(`o.order_number = $${values.length}`);
+    }
+    if (filters.zoneId) {
+      values.push(filters.zoneId);
+      whereBase.push(`c.zone_id = $${values.length}`);
+    }
+    if (filters.paymentCondition) {
+      values.push(filters.paymentCondition);
+      whereBase.push(`o.payment_terms = $${values.length}`);
+    }
+    if (filters.search) {
+      values.push(`%${filters.search}%`);
+      const idx = values.length;
+      whereBase.push(`(
+        CAST(o.order_number AS TEXT) ILIKE $${idx}
+        OR c.business_name ILIKE $${idx}
+        OR COALESCE(c.phone, '') ILIKE $${idx}
+        OR COALESCE(z.name, c.route_zone, '') ILIKE $${idx}
+        OR EXISTS (
+          SELECT 1 FROM order_items oi
+          WHERE oi.order_id = o.id
+            AND (
+              COALESCE(oi.product_name_snapshot, oi.product_name, '') ILIKE $${idx}
+              OR COALESCE(oi.variant_name_snapshot, '') ILIKE $${idx}
+            )
+        )
+      )`);
     }
 
     if (role === 'vendedor') {
       values.push(userId);
-      where.push(`o.seller_id = $${values.length}`);
+      whereBase.push(`o.seller_id = $${values.length}`);
     }
 
     if (role === 'repartidor') {
       values.push(userId);
-      where.push(`o.assigned_delivery_user_id = $${values.length}`);
+      whereBase.push(`o.assigned_delivery_user_id = $${values.length}`);
     }
 
-    const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const whereClause = [...whereBase, ...whereStatus].length ? `WHERE ${[...whereBase, ...whereStatus].join(' AND ')}` : '';
+    const whereCountsClause = whereBase.length ? `WHERE ${whereBase.join(' AND ')}` : '';
+    const sortFieldMap = {
+      orderDate: 'o.order_date',
+      total: 'o.total',
+      client: 'c.business_name',
+      zone: 'COALESCE(z.name, c.route_zone)',
+      status: 'o.status',
+    };
+    const sortBy = sortFieldMap[filters.sortBy] ?? 'o.order_date';
+    const sortDirection = filters.sortDirection === 'asc' ? 'ASC' : 'DESC';
 
     values.push(pagination.limit);
     values.push((pagination.page - 1) * pagination.limit);
 
-    const dataQuery = `${baseOrderSelect} ${whereClause} ORDER BY o.order_date DESC LIMIT $${values.length - 1} OFFSET $${values.length}`;
-    const countQuery = `SELECT COUNT(*)::int AS total FROM orders o ${whereClause}`;
+    const dataQuery = `${baseOrderSelect} ${whereClause} ORDER BY ${sortBy} ${sortDirection}, o.order_date DESC LIMIT $${values.length - 1} OFFSET $${values.length}`;
+    const countQuery = `SELECT COUNT(*)::int AS total FROM orders o JOIN clients c ON c.id = o.client_id LEFT JOIN zones z ON z.id = c.zone_id ${whereClause}`;
+    const statusCountQuery = `
+      SELECT o.status, COUNT(*)::int AS total
+      FROM orders o
+      JOIN clients c ON c.id = o.client_id
+      LEFT JOIN zones z ON z.id = c.zone_id
+      ${whereCountsClause}
+      GROUP BY o.status
+    `;
 
-    const [data, count] = await Promise.all([
+    const [data, count, statusCounts] = await Promise.all([
       pool.query(dataQuery, values),
       pool.query(countQuery, values.slice(0, values.length - 2)),
+      pool.query(statusCountQuery, values.slice(0, values.length - 2)),
     ]);
 
-    return { rows: data.rows, total: count.rows[0].total };
+    return { rows: data.rows, total: count.rows[0].total, statusCounts: statusCounts.rows };
   }
 
   async findById(id) {

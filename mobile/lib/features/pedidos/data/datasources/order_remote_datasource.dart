@@ -5,12 +5,33 @@ class OrderRemoteDataSource {
 
   final ApiClient _apiClient;
 
-  Future<Map<String, dynamic>> listOrders({String? status, String? clientId, String? sellerId, String? query}) async {
+  Future<Map<String, dynamic>> listOrders({
+    String? status,
+    String? clientId,
+    String? sellerId,
+    String? zoneId,
+    String? paymentCondition,
+    String? search,
+    String? dateFrom,
+    String? dateTo,
+    String? sortBy,
+    String? sortDirection,
+    int page = 1,
+    int limit = 50,
+  }) async {
     final response = await _apiClient.get('/orders', queryParameters: {
       if (status != null) 'status': status,
       if (clientId != null) 'clientId': clientId,
       if (sellerId != null) 'sellerId': sellerId,
-      if (query != null && query.isNotEmpty) 'orderNumber': query,
+      if (zoneId != null) 'zoneId': zoneId,
+      if (paymentCondition != null) 'paymentCondition': paymentCondition,
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (dateFrom != null) 'dateFrom': dateFrom,
+      if (dateTo != null) 'dateTo': dateTo,
+      if (sortBy != null) 'sortBy': sortBy,
+      if (sortDirection != null) 'sortDirection': sortDirection,
+      'page': page,
+      'limit': limit,
     });
     return response.data ?? {};
   }

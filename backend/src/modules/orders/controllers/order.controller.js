@@ -10,6 +10,11 @@ export const listOrdersController = async (req, res) => {
       dateFrom: req.query.dateFrom,
       dateTo: req.query.dateTo,
       orderNumber: req.query.orderNumber,
+      zoneId: req.query.zoneId,
+      paymentCondition: req.query.paymentCondition,
+      search: req.query.search,
+      sortBy: req.query.sortBy,
+      sortDirection: req.query.sortDirection,
     },
     pagination: {
       page: Number(req.query.page ?? 1),

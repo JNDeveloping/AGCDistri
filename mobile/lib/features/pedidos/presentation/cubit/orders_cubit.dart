@@ -14,7 +14,16 @@ class OrdersCubit extends Cubit<OrdersState> {
   final Map<String, List<OrderModel>> _cache = {};
 
   Future<void> load({bool forceRefresh = false}) async {
-    final cacheKey = '${state.statusFilter ?? 'all'}|${state.query.trim()}';
+    final cacheKey = [
+      state.statusFilter ?? 'all',
+      state.query.trim(),
+      state.dateFrom ?? '-',
+      state.dateTo ?? '-',
+      state.paymentCondition ?? '-',
+      state.zoneQuery.trim(),
+      state.sortBy,
+      state.sortDirection,
+    ].join('|');
     if (!forceRefresh && _cache.containsKey(cacheKey)) {
       emit(state.copyWith(status: OrdersStatus.success, items: _cache[cacheKey], errorMessage: null));
       return;
@@ -22,9 +31,17 @@ class OrdersCubit extends Cubit<OrdersState> {
 
     emit(state.copyWith(status: OrdersStatus.loading, errorMessage: null));
     try {
-      final items = await _repository.list(status: state.statusFilter, query: state.query);
-      _cache[cacheKey] = items;
-      emit(state.copyWith(status: OrdersStatus.success, items: items));
+      final result = await _repository.list(
+        status: state.statusFilter,
+        search: state.query.trim().isEmpty ? null : state.query.trim(),
+        dateFrom: state.dateFrom,
+        dateTo: state.dateTo,
+        paymentCondition: state.paymentCondition,
+        sortBy: state.sortBy,
+        sortDirection: state.sortDirection,
+      );
+      _cache[cacheKey] = result.items;
+      emit(state.copyWith(status: OrdersStatus.success, items: result.items, countsByStatus: result.countsByStatus));
     } on OrderException catch (e) {
       emit(state.copyWith(status: OrdersStatus.failure, errorMessage: e.message));
     }
@@ -39,6 +56,25 @@ class OrdersCubit extends Cubit<OrdersState> {
   Future<void> setStatusFilter(String? status) async {
     emit(state.copyWith(statusFilter: status, clearStatusFilter: status == null));
     await load();
+  }
+
+  Future<void> setPaymentCondition(String? value) async {
+    emit(state.copyWith(paymentCondition: value, clearPaymentCondition: value == null));
+    await load();
+  }
+
+  Future<void> setDateRange({String? from, String? to}) async {
+    emit(state.copyWith(dateFrom: from, dateTo: to, clearDateRange: from == null && to == null));
+    await load();
+  }
+
+  Future<void> setSorting({required String sortBy, required String sortDirection}) async {
+    emit(state.copyWith(sortBy: sortBy, sortDirection: sortDirection));
+    await load();
+  }
+
+  void setGroupBy(String groupBy) {
+    emit(state.copyWith(groupBy: groupBy));
   }
 
   Future<OrderModel> getById(String id) => _repository.getById(id);

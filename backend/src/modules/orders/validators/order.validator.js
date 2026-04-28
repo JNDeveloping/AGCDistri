@@ -30,7 +30,12 @@ export const changeOrderStatusSchema = z.object({
 export const listOrdersQuerySchema = z.object({
   clientId: z.string().uuid().optional(),
   sellerId: z.string().uuid().optional(),
+  zoneId: z.string().uuid().optional(),
   status: z.enum(orderStatusValues).optional(),
+  paymentCondition: z.enum(paymentTermsValues).optional(),
+  search: z.string().trim().min(1).max(120).optional(),
+  sortBy: z.enum(['orderDate', 'total', 'client', 'zone', 'status']).optional(),
+  sortDirection: z.enum(['asc', 'desc']).optional(),
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),
   orderNumber: z.coerce.number().int().positive().optional(),

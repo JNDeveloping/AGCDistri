@@ -87,7 +87,7 @@ class _PedidosPageState extends State<PedidosPage> {
                   },
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search),
-                    hintText: 'Buscar pedido por número o cliente',
+                    hintText: 'Buscar: pedido, cliente, teléfono, zona, producto',
                     filled: true,
                     fillColor: Theme.of(context).colorScheme.surface,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
@@ -108,14 +108,17 @@ class _PedidosPageState extends State<PedidosPage> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      _chip('Todos', null),
-                      _chip('Pendiente', 'pendiente'),
-                      _chip('Preparado', 'preparado'),
-                      _chip('En reparto', 'en_reparto'),
-                      _chip('Entregado', 'entregado'),
+                      _chip('Todos', null, _totalCount()),
+                      _chip('Pendientes', 'pendiente', _count('pendiente')),
+                      _chip('Preparados', 'preparado', _count('preparado')),
+                      _chip('En reparto', 'en_reparto', _count('en_reparto')),
+                      _chip('Entregados', 'entregado', _count('entregado')),
+                      _chip('Cancelados', 'cancelado', _count('cancelado')),
                     ],
                   ),
                 ),
+                const SizedBox(height: 8),
+                _filtersRow(),
               ],
             ),
           ),
@@ -137,44 +140,25 @@ class _PedidosPageState extends State<PedidosPage> {
                       : null,
                 );
               }
-              final visibleCount = state.items.length < _visibleItems ? state.items.length : _visibleItems;
+              final grouped = _groupOrders(state.items, state.groupBy);
+              final visibleCount = grouped.length < _visibleItems ? grouped.length : _visibleItems;
               return ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.all(12),
                 itemCount: visibleCount,
                 itemBuilder: (_, i) {
-                  final o = state.items[i];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    elevation: 0,
-                    color: Theme.of(context).colorScheme.surfaceContainerLow,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailPage(orderId: o.id))),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(children: [Expanded(child: Text('Pedido #${o.orderNumber}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17))), _statusBadge(o.status)]),
-                            const SizedBox(height: 6),
-                            Text(o.clientName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 10),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 6,
-                              children: [
-                                _infoPill(icon: Icons.attach_money_rounded, label: _money(o.total)),
-                                _infoPill(icon: Icons.inventory_2_outlined, label: '${o.itemsCount} productos'),
-                                _infoPill(icon: Icons.format_list_numbered_rounded, label: '${o.totalUnits.toStringAsFixed(0)} unidades'),
-                                _infoPill(icon: Icons.payments_outlined, label: o.paymentTerms == 'cuenta_corriente' ? 'Cta. cte.' : 'Contado'),
-                              ],
-                            ),
-                          ],
+                  final group = grouped[i];
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (state.groupBy != 'none') ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8, top: 4),
+                          child: Text(group.$1, style: const TextStyle(fontWeight: FontWeight.w700)),
                         ),
-                      ),
-                    ),
+                      ],
+                      ...group.$2.map(_orderCard),
+                    ],
                   );
                 },
               );
@@ -185,13 +169,97 @@ class _PedidosPageState extends State<PedidosPage> {
     );
   }
 
-  Widget _chip(String label, String? value) {
+  Widget _chip(String label, String? value, int count) {
     final selected = context.watch<OrdersCubit>().state.statusFilter == value;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(label: Text(label), selected: selected, onSelected: (_) => context.read<OrdersCubit>().setStatusFilter(value)),
+      child: ChoiceChip(label: Text('$label ($count)'), selected: selected, onSelected: (_) => context.read<OrdersCubit>().setStatusFilter(value)),
     );
   }
+
+  Widget _filtersRow() {
+    final cubit = context.read<OrdersCubit>();
+    final state = context.watch<OrdersCubit>().state;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          PopupMenuButton<String>(
+            tooltip: 'Fecha',
+            onSelected: (value) {
+              final now = DateTime.now();
+              String? from;
+              String? to;
+              if (value == 'today') {
+                from = _ymd(now); to = _ymd(now);
+              } else if (value == 'yesterday') {
+                final y = now.subtract(const Duration(days: 1));
+                from = _ymd(y); to = _ymd(y);
+              } else if (value == 'week') {
+                final fromDate = now.subtract(Duration(days: now.weekday - 1));
+                from = _ymd(fromDate); to = _ymd(now);
+              } else if (value == 'month') {
+                final fromDate = DateTime(now.year, now.month, 1);
+                from = _ymd(fromDate); to = _ymd(now);
+              }
+              cubit.setDateRange(from: from, to: to);
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'today', child: Text('Hoy')),
+              PopupMenuItem(value: 'yesterday', child: Text('Ayer')),
+              PopupMenuItem(value: 'week', child: Text('Esta semana')),
+              PopupMenuItem(value: 'month', child: Text('Este mes')),
+            ],
+            child: _filterChip('Fecha'),
+          ),
+          const SizedBox(width: 8),
+          PopupMenuButton<String?>(
+            tooltip: 'Pago',
+            onSelected: (value) => cubit.setPaymentCondition(value),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: null, child: Text('Todos')),
+              PopupMenuItem(value: 'contado', child: Text('Contado')),
+              PopupMenuItem(value: 'cuenta_corriente', child: Text('Cuenta corriente')),
+            ],
+            child: _filterChip(state.paymentCondition == null ? 'Pago' : state.paymentCondition!),
+          ),
+          const SizedBox(width: 8),
+          PopupMenuButton<String>(
+            tooltip: 'Ordenar por',
+            onSelected: (value) {
+              final parts = value.split('|');
+              cubit.setSorting(sortBy: parts[0], sortDirection: parts[1]);
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'orderDate|desc', child: Text('Más recientes primero')),
+              PopupMenuItem(value: 'orderDate|asc', child: Text('Más antiguos primero')),
+              PopupMenuItem(value: 'total|desc', child: Text('Mayor importe')),
+              PopupMenuItem(value: 'total|asc', child: Text('Menor importe')),
+              PopupMenuItem(value: 'client|asc', child: Text('Cliente A-Z')),
+              PopupMenuItem(value: 'zone|asc', child: Text('Zona/Ruta')),
+              PopupMenuItem(value: 'status|asc', child: Text('Estado')),
+            ],
+            child: _filterChip('Ordenar'),
+          ),
+          const SizedBox(width: 8),
+          PopupMenuButton<String>(
+            tooltip: 'Agrupar',
+            onSelected: (value) => cubit.setGroupBy(value),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'none', child: Text('Sin agrupar')),
+              PopupMenuItem(value: 'zone', child: Text('Por zona')),
+              PopupMenuItem(value: 'status', child: Text('Por estado')),
+              PopupMenuItem(value: 'date', child: Text('Por fecha')),
+              PopupMenuItem(value: 'client', child: Text('Por cliente')),
+            ],
+            child: _filterChip('Agrupar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChip(String label) => Chip(label: Text(label), visualDensity: VisualDensity.compact);
 
   Widget _statusBadge(String status) {
     final colors = Theme.of(context).colorScheme;
@@ -228,6 +296,86 @@ class _PedidosPageState extends State<PedidosPage> {
   }
 
   String _money(double value) => String.fromCharCode(36) + value.toStringAsFixed(2);
+
+  int _count(String status) => context.watch<OrdersCubit>().state.countsByStatus[status] ?? 0;
+  int _totalCount() => context.watch<OrdersCubit>().state.countsByStatus.values.fold(0, (a, b) => a + b);
+
+  String _ymd(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  List<(String, List<OrderModel>)> _groupOrders(List<OrderModel> items, String groupBy) {
+    if (groupBy == 'none') return [('Pedidos', items)];
+    final map = <String, List<OrderModel>>{};
+    for (final o in items) {
+      final key = switch (groupBy) {
+        'zone' => o.zoneName ?? 'Sin zona',
+        'status' => o.status,
+        'date' => o.orderDate == null ? 'Sin fecha' : _ymd(o.orderDate!.toLocal()),
+        'client' => o.clientName,
+        _ => 'Pedidos',
+      };
+      map.putIfAbsent(key, () => []).add(o);
+    }
+    final entries = map.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    return entries.map((e) => (e.key, e.value)).toList();
+  }
+
+  Widget _orderCard(OrderModel o) {
+    final role = context.select((AuthCubit cubit) => cubit.state.session?.user.role ?? 'vendedor');
+    final canCancel = role == 'admin' || role == 'vendedor';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [Expanded(child: Text('Pedido #${o.orderNumber}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17))), _statusBadge(o.status)]),
+            const SizedBox(height: 6),
+            Text(o.clientName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            Text('${o.zoneName ?? 'Sin zona'} · ${o.orderDate?.toLocal().toString().split(' ').first ?? '-'}'),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 6,
+              children: [
+                _infoPill(icon: Icons.attach_money_rounded, label: _money(o.total)),
+                _infoPill(icon: Icons.inventory_2_outlined, label: '${o.itemsCount} productos'),
+                _infoPill(icon: Icons.format_list_numbered_rounded, label: '${o.totalUnits.toStringAsFixed(0)} unidades'),
+                _infoPill(icon: Icons.payments_outlined, label: o.paymentTerms == 'cuenta_corriente' ? 'Cta. cte.' : 'Contado'),
+                if (o.hasCreditNotes) _infoPill(icon: Icons.receipt_long_rounded, label: 'NC'),
+                if (o.paymentTerms == 'cuenta_corriente') _infoPill(icon: Icons.account_balance_wallet_rounded, label: 'Cuenta corriente'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                OutlinedButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailPage(orderId: o.id))), child: const Text('Ver detalle')),
+                PopupMenuButton<String>(
+                  onSelected: (v) => context.read<OrdersCubit>().changeStatus(o.id, v),
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'pendiente', child: Text('Pendiente')),
+                    PopupMenuItem(value: 'preparado', child: Text('Preparado')),
+                    PopupMenuItem(value: 'en_reparto', child: Text('En reparto')),
+                    PopupMenuItem(value: 'entregado', child: Text('Entregado')),
+                  ],
+                  child: const Chip(label: Text('Cambiar estado')),
+                ),
+                if (canCancel && o.status != 'cancelado')
+                  OutlinedButton(
+                    onPressed: () => context.read<OrdersCubit>().cancel(o.id),
+                    child: const Text('Cancelar'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _EmptyState extends StatelessWidget {

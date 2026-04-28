@@ -8,11 +8,40 @@ class OrderRepository {
 
   final OrderRemoteDataSource _remoteDataSource;
 
-  Future<List<OrderModel>> list({String? status, String? query}) async {
+  Future<OrdersListResult> list({
+    String? status,
+    String? search,
+    String? zoneId,
+    String? paymentCondition,
+    String? dateFrom,
+    String? dateTo,
+    String? sortBy,
+    String? sortDirection,
+    int page = 1,
+    int limit = 50,
+  }) async {
     try {
-      final payload = await _remoteDataSource.listOrders(status: status, query: query);
+      final payload = await _remoteDataSource.listOrders(
+        status: status,
+        search: search,
+        zoneId: zoneId,
+        paymentCondition: paymentCondition,
+        dateFrom: dateFrom,
+        dateTo: dateTo,
+        sortBy: sortBy,
+        sortDirection: sortDirection,
+        page: page,
+        limit: limit,
+      );
       final data = payload['data'] as Map<String, dynamic>? ?? {};
-      return (data['items'] as List<dynamic>? ?? []).map((e) => OrderModel.fromJson(e as Map<String, dynamic>)).toList();
+      return OrdersListResult(
+        items: (data['items'] as List<dynamic>? ?? []).map((e) => OrderModel.fromJson(e as Map<String, dynamic>)).toList(),
+        total: (data['total'] as num?)?.toInt() ?? 0,
+        page: (data['page'] as num?)?.toInt() ?? page,
+        totalPages: (data['totalPages'] as num?)?.toInt() ?? 1,
+        countsByStatus: (data['countsByStatus'] as Map<String, dynamic>? ?? const {})
+            .map((k, v) => MapEntry(k, (v as num?)?.toInt() ?? 0)),
+      );
     } on DioException catch (e) {
       throw _mapError(e);
     }
@@ -137,4 +166,20 @@ class OrderException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class OrdersListResult {
+  const OrdersListResult({
+    required this.items,
+    required this.total,
+    required this.page,
+    required this.totalPages,
+    required this.countsByStatus,
+  });
+
+  final List<OrderModel> items;
+  final int total;
+  final int page;
+  final int totalPages;
+  final Map<String, int> countsByStatus;
 }
