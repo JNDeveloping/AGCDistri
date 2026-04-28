@@ -523,9 +523,23 @@ class _OrderFormPageState extends State<OrderFormPage> {
   }
 
   Future<void> _addProduct() async {
+    final addedSimple = _cart.values
+        .where((line) => line.selection.variant == null)
+        .map((line) => line.selection.product.id)
+        .toSet();
+    final addedVariants = _cart.values
+        .where((line) => line.selection.variant != null)
+        .map((line) => line.selection.variant!.id)
+        .toSet();
+
     final selected = await Navigator.push<List<OrderProductSelection>>(
       context,
-      MaterialPageRoute(builder: (_) => const OrderProductSelectorPage()),
+      MaterialPageRoute(
+        builder: (_) => OrderProductSelectorPage(
+          addedSimpleProductIds: addedSimple,
+          addedVariantIds: addedVariants,
+        ),
+      ),
     );
     if (selected == null || selected.isEmpty) return;
     for (final selection in selected) {

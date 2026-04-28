@@ -162,7 +162,41 @@ class OrderRepository {
   Future<List<OrderProductLookup>> searchProducts(String query) async {
     final payload = await _remoteDataSource.searchProducts(query);
     final data = payload['data'] as Map<String, dynamic>? ?? {};
-    return (data['items'] as List<dynamic>? ?? []).map((e) => OrderProductLookup.fromJson(e as Map<String, dynamic>)).toList();
+    final raw = (data['items'] as List<dynamic>? ?? []).map((e) => OrderProductLookup.fromJson(e as Map<String, dynamic>)).toList();
+    final grouped = <String, OrderProductLookup>{};
+    for (final item in raw) {
+      final existing = grouped[item.id];
+      if (existing == null) {
+        grouped[item.id] = OrderProductLookup(
+          id: item.id,
+          name: item.name,
+          internalCode: item.internalCode,
+          barcode: item.barcode,
+          brand: item.brand,
+          categoryName: item.categoryName,
+          salePrice: item.salePrice,
+          stockCurrent: item.stockCurrent,
+          hasVariants: item.hasVariants,
+          variantId: null,
+          variantName: null,
+        );
+        continue;
+      }
+      grouped[item.id] = OrderProductLookup(
+        id: existing.id,
+        name: existing.name,
+        internalCode: existing.internalCode,
+        barcode: existing.barcode,
+        brand: existing.brand,
+        categoryName: existing.categoryName,
+        salePrice: existing.salePrice,
+        stockCurrent: item.hasVariants ? (existing.stockCurrent + item.stockCurrent) : existing.stockCurrent,
+        hasVariants: existing.hasVariants || item.hasVariants,
+        variantId: null,
+        variantName: null,
+      );
+    }
+    return grouped.values.toList();
   }
 
 

@@ -10,3 +10,4 @@ export const getReportsDebtController = async (req, res) => ok(res, await report
 export const getReportsStockController = async (req, res) => ok(res, await reportService.getStockReport(req.query, req.user), 'Reporte de stock obtenido.');
 export const getReportsPaymentsController = async (req, res) => ok(res, await reportService.getPayments(req.query, req.user), 'Reporte de pagos obtenido.');
 export const getReportsZonesController = async (req, res) => ok(res, await reportService.getZones(req.query, req.user), 'Reporte por zonas obtenido.');
+export const getReportsPaymentRankingController = async (req, res) => ok(res, await reportService.getPaymentRanking(req.query, req.user), 'Ranking de pagadores obtenido.');
