@@ -82,8 +82,8 @@ export class ClientService {
     return formatClient(created);
   }
 
-  async list({ q, isActive, page, limit, role }) {
-    const result = await clientRepository.list({ q, isActive, page, limit });
+  async list({ q, isActive, zoneId, page, limit, role }) {
+    const result = await clientRepository.list({ q, isActive, zoneId, page, limit });
     const data = result.rows.map((row) => formatClient(row));
     return {
       total: result.total,

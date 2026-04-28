@@ -35,3 +35,8 @@ export const deleteZoneController = async (req, res) => {
   const data = await zoneService.remove(req.params.id);
   return ok(res, data, 'Zona eliminada correctamente.');
 };
+
+export const zoneSummaryController = async (req, res) => {
+  const data = await zoneService.summary(req.params.id);
+  return ok(res, data, 'Resumen de zona obtenido correctamente.');
+};

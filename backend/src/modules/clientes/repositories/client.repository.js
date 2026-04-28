@@ -99,7 +99,7 @@ export class ClientRepository {
     return rows[0] ?? null;
   }
 
-  async list({ q, isActive, page, limit }) {
+  async list({ q, isActive, zoneId, page, limit }) {
     const offset = (page - 1) * limit;
     const filters = [];
     const values = [];
@@ -119,6 +119,10 @@ export class ClientRepository {
     if (typeof isActive === 'boolean') {
       values.push(isActive);
       filters.push(`c.is_active = $${values.length}`);
+    }
+    if (zoneId) {
+      values.push(zoneId);
+      filters.push(`c.zone_id = $${values.length}`);
     }
 
     const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';

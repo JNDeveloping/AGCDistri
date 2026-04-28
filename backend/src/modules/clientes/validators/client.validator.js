@@ -50,6 +50,7 @@ export const updateClientSchema = baseClientSchema.partial().superRefine((value,
 export const listClientQuerySchema = z.object({
   q: z.string().optional(),
   isActive: z.enum(['true', 'false']).optional(),
+  zoneId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });

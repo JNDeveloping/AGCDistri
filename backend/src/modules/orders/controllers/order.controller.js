@@ -10,6 +10,11 @@ export const listOrdersController = async (req, res) => {
       dateFrom: req.query.dateFrom,
       dateTo: req.query.dateTo,
       orderNumber: req.query.orderNumber,
+      zoneId: req.query.zoneId,
+      paymentCondition: req.query.paymentCondition,
+      search: req.query.search,
+      sortBy: req.query.sortBy,
+      sortDirection: req.query.sortDirection,
     },
     pagination: {
       page: Number(req.query.page ?? 1),
@@ -20,6 +25,16 @@ export const listOrdersController = async (req, res) => {
   });
 
   return ok(res, data, 'Pedidos obtenidos correctamente.');
+};
+
+export const listPendingDeliveryOrdersController = async (req, res) => {
+  const data = await orderService.listPendingDelivery({
+    zoneId: req.query.zoneId,
+    role: req.user.role,
+    userId: req.user.sub,
+  });
+
+  return ok(res, { items: data, total: data.length }, 'Pedidos pendientes para reparto obtenidos correctamente.');
 };
 
 export const getOrderController = async (req, res) => {
@@ -45,6 +60,11 @@ export const cancelOrderController = async (req, res) => {
 export const changeOrderStatusController = async (req, res) => {
   const data = await orderService.changeStatus(req.params.id, req.body.status, req.user);
   return ok(res, data, 'Estado de pedido actualizado correctamente.');
+};
+
+export const validateOrderStockController = async (req, res) => {
+  const data = await orderService.validateStockForOrder(req.params.id, req.user.role, req.user.sub);
+  return ok(res, data, 'Stock del pedido validado correctamente.');
 };
 
 export const deleteOrderController = async (req, res) => {

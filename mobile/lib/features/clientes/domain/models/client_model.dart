@@ -91,6 +91,59 @@ class ClientModel extends Equatable {
     };
   }
 
+  ClientModel copyWith({
+    String? id,
+    String? internalCode,
+    String? businessName,
+    String? phone,
+    String? email,
+    String? taxId,
+    String? addressLine,
+    String? city,
+    String? province,
+    String? routeZone,
+    String? zoneId,
+    String? zoneName,
+    String? notes,
+    String? vatCondition,
+    double? creditLimit,
+    double? currentBalance,
+    double? latitude,
+    double? longitude,
+    bool? isActive,
+    DateTime? createdAt,
+    bool clearEmail = false,
+    bool clearTaxId = false,
+    bool clearZoneId = false,
+    bool clearZoneName = false,
+    bool clearNotes = false,
+    bool clearLatitude = false,
+    bool clearLongitude = false,
+  }) {
+    return ClientModel(
+      id: id ?? this.id,
+      internalCode: internalCode ?? this.internalCode,
+      businessName: businessName ?? this.businessName,
+      phone: phone ?? this.phone,
+      email: clearEmail ? null : (email ?? this.email),
+      taxId: clearTaxId ? null : (taxId ?? this.taxId),
+      addressLine: addressLine ?? this.addressLine,
+      city: city ?? this.city,
+      province: province ?? this.province,
+      routeZone: routeZone ?? this.routeZone,
+      zoneId: clearZoneId ? null : (zoneId ?? this.zoneId),
+      zoneName: clearZoneName ? null : (zoneName ?? this.zoneName),
+      notes: clearNotes ? null : (notes ?? this.notes),
+      vatCondition: vatCondition ?? this.vatCondition,
+      creditLimit: creditLimit ?? this.creditLimit,
+      currentBalance: currentBalance ?? this.currentBalance,
+      latitude: clearLatitude ? null : (latitude ?? this.latitude),
+      longitude: clearLongitude ? null : (longitude ?? this.longitude),
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   @override
   List<Object?> get props => [
         id,

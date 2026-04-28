@@ -22,10 +22,10 @@ class AuthCubit extends Cubit<AuthState> {
     emit(state.copyWith(status: AuthStatus.authenticated, session: session));
   }
 
-  Future<void> login({required String email, required String password}) async {
+  Future<void> login({required String identifier, required String password}) async {
     emit(state.copyWith(status: AuthStatus.authenticating, errorMessage: null));
     try {
-      final session = await _authRepository.login(email: email, password: password);
+      final session = await _authRepository.login(identifier: identifier, password: password);
       emit(state.copyWith(status: AuthStatus.authenticated, session: session));
     } on AuthException catch (error) {
       emit(state.copyWith(status: AuthStatus.failure, errorMessage: error.message, clearSession: true));

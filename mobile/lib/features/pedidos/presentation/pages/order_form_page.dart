@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../data/repositories/order_repository.dart';
 import '../../domain/models/order_model.dart';
 import '../cubit/orders_cubit.dart';
 import 'order_client_selector_page.dart';
@@ -40,6 +41,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
     final subtotal = _cart.values.fold<double>(0, (acc, l) => acc + l.netSubtotal);
+    final hasInvalidItems = _cart.values.any((line) => !line.isValidStock);
     final discountPercent = (double.tryParse(_discountPercent.text) ?? 0).clamp(0, 100);
     final discountTotal = subtotal * (discountPercent / 100);
     final total = subtotal - discountTotal;
@@ -93,6 +95,14 @@ class _OrderFormPageState extends State<OrderFormPage> {
                 child: Text('Advertencia: este pedido supera el límite de crédito del cliente.'),
               ),
             ),
+          if (hasInvalidItems)
+            const Card(
+              color: Color(0xFFFFECEC),
+              child: Padding(
+                padding: EdgeInsets.all(10),
+                child: Text('Hay productos sin stock o con cantidad mayor al disponible. Corregí el carrito para poder guardar.'),
+              ),
+            ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -135,14 +145,39 @@ class _OrderFormPageState extends State<OrderFormPage> {
   }
 
   Widget _itemCard(_CartLine line) {
+    final canIncrease = line.stock > 0 && line.quantity < line.stock;
+    final canDecrease = line.quantity > 1;
+    final isInvalid = !line.isValidStock;
     return Card(
+      key: ValueKey('cart-item-${line.key}'),
+      color: isInvalid ? const Color(0xFFFFF1F1) : null,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(line.product.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-            Text('Precio unitario: ${line.product.salePrice.toStringAsFixed(2)} · Stock ${line.product.stockCurrent.toStringAsFixed(0)}'),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    line.displayName,
+                    style: TextStyle(fontWeight: FontWeight.w700, color: isInvalid ? Colors.grey.shade700 : null),
+                  ),
+                ),
+                if (isInvalid)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(999)),
+                    child: const Text('Sin stock', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  ),
+              ],
+            ),
+            Text('Precio unitario: ${line.unitPrice.toStringAsFixed(2)} · Stock ${line.stock.toStringAsFixed(0)}'),
+            if (isInvalid)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text('Sin stock disponible', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+              ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -157,18 +192,19 @@ class _OrderFormPageState extends State<OrderFormPage> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(onPressed: () => _changeQty(line.product.id, line.quantity - 1), icon: const Icon(Icons.remove_circle_outline)),
+                      IconButton(onPressed: canDecrease ? () => _changeQty(line.key, line.quantity - 1) : null, icon: const Icon(Icons.remove_circle_outline)),
                       SizedBox(
                         width: 70,
                         child: TextFormField(
+                          key: ValueKey('qty-${line.key}-${line.quantity.toStringAsFixed(2)}'),
                           initialValue: line.quantity.toStringAsFixed(0),
                           style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700),
                           textAlign: TextAlign.center,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          onFieldSubmitted: (v) => _changeQty(line.product.id, double.tryParse(v) ?? line.quantity),
+                          onFieldSubmitted: (v) => _changeQty(line.key, double.tryParse(v) ?? line.quantity),
                         ),
                       ),
-                      IconButton(onPressed: () => _changeQty(line.product.id, line.quantity + 1), icon: const Icon(Icons.add_circle_outline)),
+                      IconButton(onPressed: canIncrease ? () => _changeQty(line.key, line.quantity + 1) : null, icon: const Icon(Icons.add_circle_outline)),
                     ],
                   ),
                 ),
@@ -182,20 +218,21 @@ class _OrderFormPageState extends State<OrderFormPage> {
                       DropdownMenuItem(value: 'amount', child: Text('Monto')),
                       DropdownMenuItem(value: 'percentage', child: Text('%')),
                     ],
-                    onChanged: (v) => _changeDiscountType(line.product.id, v ?? 'amount'),
+                    onChanged: (v) => _changeDiscountType(line.key, v ?? 'amount'),
                   ),
                 ),
                 SizedBox(
                   width: 96,
                   child: TextFormField(
+                    key: ValueKey('discount-${line.key}-${line.discountValue.toStringAsFixed(2)}'),
                     initialValue: line.discountValue.toStringAsFixed(0),
                     style: const TextStyle(color: Colors.black),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(labelText: 'Valor'),
-                    onFieldSubmitted: (v) => _changeDiscountValue(line.product.id, double.tryParse(v) ?? 0),
+                    onFieldSubmitted: (v) => _changeDiscountValue(line.key, double.tryParse(v) ?? 0),
                   ),
                 ),
-                IconButton(onPressed: () => setState(() => _cart.remove(line.product.id)), icon: const Icon(Icons.delete_outline)),
+                IconButton(onPressed: () => setState(() => _cart.remove(line.key)), icon: const Icon(Icons.delete_outline)),
               ],
             ),
             const SizedBox(height: 6),
@@ -224,51 +261,91 @@ class _OrderFormPageState extends State<OrderFormPage> {
         ..clear()
         ..addEntries(
           order.items.map(
-            (i) => MapEntry(
-              i.productId,
-              _CartLine(
-                product: OrderProductLookup(id: i.productId, name: i.productName, salePrice: i.unitPrice),
-                quantity: i.quantity,
-                discountType: i.discountType,
-                discountValue: i.discountValue,
-              ),
-            ),
+            (i) {
+              final product = OrderProductLookup(id: i.productId, name: i.productName, salePrice: i.unitPrice);
+              final variant = i.productVariantId == null
+                  ? null
+                  : OrderProductVariantLookup(id: i.productVariantId!, productId: i.productId, name: i.variantNameSnapshot ?? '-', active: true, effectivePrice: i.unitPrice);
+              final selection = OrderProductSelection(product: product, variant: variant, initialQuantity: i.quantity);
+              return MapEntry(
+                selection.cartKey,
+                _CartLine(
+                  key: selection.cartKey,
+                  selection: selection,
+                  quantity: i.quantity,
+                  discountType: i.discountType,
+                  discountValue: i.discountValue,
+                ),
+              );
+            },
           ),
         );
     });
   }
 
   Future<void> _addProduct() async {
-    final selected = await Navigator.push<OrderProductLookup>(context, MaterialPageRoute(builder: (_) => const OrderProductSelectorPage()));
-    if (selected == null) return;
-    setState(() {
-      final existing = _cart[selected.id];
-      _cart[selected.id] = _CartLine(
-        product: selected,
-        quantity: (existing?.quantity ?? 0) + 1,
+    final selected = await Navigator.push<List<OrderProductSelection>>(context, MaterialPageRoute(builder: (_) => const OrderProductSelectorPage()));
+    if (selected == null || selected.isEmpty) return;
+
+    bool addedAny = false;
+    for (final selection in selected) {
+      final existing = _cart[selection.cartKey];
+      final increment = selection.initialQuantity <= 0 ? 1 : selection.initialQuantity;
+      final nextQty = (existing?.quantity ?? 0) + increment;
+      if (!_hasStockFor(selection, nextQty)) {
+        final available = _availableFor(selection);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Stock insuficiente para ${selection.displayName}. Disponible: ${available.toStringAsFixed(0)}.')),
+        );
+        continue;
+      }
+
+      addedAny = true;
+      _cart[selection.cartKey] = _CartLine(
+        key: selection.cartKey,
+        selection: selection,
+        quantity: nextQty,
         discountType: existing?.discountType ?? 'amount',
         discountValue: existing?.discountValue ?? 0,
       );
-    });
+    }
+
+    if (!addedAny) return;
+    setState(() {});
   }
 
-  void _changeQty(String id, double value) {
-    final line = _cart[id];
+  void _changeQty(String key, double value) {
+    final line = _cart[key];
     if (line == null) return;
-    if (value <= 0) return setState(() => _cart.remove(id));
-    setState(() => _cart[id] = line.copyWith(quantity: value));
+    if (value <= 0) return setState(() => _cart.remove(key));
+    if (!_hasStockFor(line.selection, value)) {
+      final available = _availableFor(line.selection);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Stock insuficiente para ${line.displayName}. Disponible: ${available.toStringAsFixed(0)}.')),
+      );
+      return;
+    }
+    setState(() => _cart[key] = line.copyWith(quantity: value));
   }
 
-  void _changeDiscountType(String id, String type) {
-    final line = _cart[id];
+  void _changeDiscountType(String key, String type) {
+    final line = _cart[key];
     if (line == null) return;
-    setState(() => _cart[id] = line.copyWith(discountType: type));
+    setState(() => _cart[key] = line.copyWith(discountType: type));
   }
 
-  void _changeDiscountValue(String id, double value) {
-    final line = _cart[id];
+  void _changeDiscountValue(String key, double value) {
+    final line = _cart[key];
     if (line == null) return;
-    setState(() => _cart[id] = line.copyWith(discountValue: value));
+    setState(() => _cart[key] = line.copyWith(discountValue: value));
+  }
+
+  bool _hasStockFor(OrderProductSelection selection, double quantity) {
+    return quantity <= _availableFor(selection);
+  }
+
+  double _availableFor(OrderProductSelection selection) {
+    return selection.effectiveStock;
   }
 
   Future<void> _save() async {
@@ -280,12 +357,16 @@ class _OrderFormPageState extends State<OrderFormPage> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Agregá productos al carrito.')));
       return;
     }
+    if (_cart.values.any((line) => !line.isValidStock)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hay productos sin stock o con cantidad mayor al disponible.')));
+      return;
+    }
 
     setState(() => _saving = true);
     try {
       final subtotal = _cart.values.fold<double>(0, (acc, l) => acc + l.netSubtotal);
       final items = _cart.values
-          .map((l) => OrderItemInput(productId: l.product.id, quantity: l.quantity, discountType: l.discountType, discountValue: l.discountValue))
+          .map((l) => OrderItemInput(productId: l.selection.product.id, productVariantId: l.selection.variant?.id, quantity: l.quantity, discountType: l.discountType, discountValue: l.discountValue))
           .toList();
       await context.read<OrdersCubit>().save(
             id: widget.orderId,
@@ -296,8 +377,18 @@ class _OrderFormPageState extends State<OrderFormPage> {
             notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
           );
       if (mounted) Navigator.pop(context, true);
+    } on OrderException catch (e) {
+      if (!mounted) return;
+      if (e.isInsufficientStock) {
+        final itemName = [e.productName, e.variantName].whereType<String>().where((v) => v.trim().isNotEmpty).join(' - ');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Stock insuficiente para ${itemName.isEmpty ? 'un producto' : itemName}. Disponible: ${(e.availableStock ?? 0).toStringAsFixed(0)}')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo guardar el pedido.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -305,24 +396,31 @@ class _OrderFormPageState extends State<OrderFormPage> {
 }
 
 class _CartLine {
-  _CartLine({required this.product, required this.quantity, this.discountType = 'amount', this.discountValue = 0});
+  _CartLine({required this.key, required this.selection, required this.quantity, this.discountType = 'amount', this.discountValue = 0});
 
-  final OrderProductLookup product;
+  final String key;
+  final OrderProductSelection selection;
   final double quantity;
   final String discountType;
   final double discountValue;
 
+  String get displayName => selection.displayName;
+  double get unitPrice => selection.effectivePrice;
+  double get stock => selection.effectiveStock;
+  bool get isValidStock => stock > 0 && quantity <= stock;
+
   double get discountAmount {
     if (discountType == 'percentage') {
-      return (product.salePrice * quantity * discountValue) / 100;
+      return (unitPrice * quantity * discountValue) / 100;
     }
     return discountValue;
   }
 
-  double get netSubtotal => (product.salePrice * quantity - discountAmount).clamp(0, double.infinity);
+  double get netSubtotal => isValidStock ? (unitPrice * quantity - discountAmount).clamp(0, double.infinity) : 0;
 
   _CartLine copyWith({double? quantity, String? discountType, double? discountValue}) => _CartLine(
-        product: product,
+        key: key,
+        selection: selection,
         quantity: quantity ?? this.quantity,
         discountType: discountType ?? this.discountType,
         discountValue: discountValue ?? this.discountValue,

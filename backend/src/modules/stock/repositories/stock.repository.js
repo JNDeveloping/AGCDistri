@@ -12,9 +12,24 @@ export class StockRepository {
     if (outOfStock) where.push('p.stock_current <= 0');
 
     const { rows } = await pool.query(
-      `SELECT p.id, p.internal_code, p.barcode, p.name, p.stock_current, p.stock_minimum, pc.name AS category_name
+      `SELECT p.id, p.internal_code, p.barcode, p.name, p.stock_current, p.stock_minimum, p.has_variants,
+              pc.name AS category_name,
+              COALESCE(vs.variants, '[]'::json) AS variants
        FROM products p
        LEFT JOIN product_categories pc ON pc.id = p.category_id
+       LEFT JOIN LATERAL (
+         SELECT json_agg(
+                  json_build_object(
+                    'id', pv.id,
+                    'name', pv.name,
+                    'stock', pv.stock,
+                    'isActive', pv.is_active
+                  )
+                  ORDER BY pv.name ASC
+                ) AS variants
+         FROM product_variants pv
+         WHERE pv.product_id = p.id
+       ) vs ON TRUE
        WHERE ${where.join(' AND ')}
        ORDER BY p.name ASC`,
       values,
@@ -24,7 +39,7 @@ export class StockRepository {
 
   async findProduct(productId) {
     const { rows } = await pool.query(
-      `SELECT id, internal_code, barcode, name, stock_current, stock_minimum, is_active
+      `SELECT id, internal_code, barcode, name, stock_current, stock_minimum, has_variants, is_active
        FROM products WHERE id = $1 LIMIT 1`,
       [productId],
     );
@@ -35,15 +50,36 @@ export class StockRepository {
     await pool.query('UPDATE products SET stock_current = $2, updated_at = NOW() WHERE id = $1', [productId, newStock]);
   }
 
+  async findVariant(variantId) {
+    const { rows } = await pool.query('SELECT id, product_id, name, stock, is_active FROM product_variants WHERE id = $1 LIMIT 1', [variantId]);
+    return rows[0] ?? null;
+  }
+
+  async listVariantsByProduct(productId) {
+    const { rows } = await pool.query(
+      `SELECT id, product_id, name, stock, is_active
+       FROM product_variants
+       WHERE product_id = $1
+       ORDER BY name ASC`,
+      [productId],
+    );
+    return rows;
+  }
+
+  async updateVariantStock(variantId, newStock) {
+    await pool.query('UPDATE product_variants SET stock = $2, updated_at = NOW() WHERE id = $1', [variantId, newStock]);
+  }
+
   async insertMovement(movement) {
     const { rows } = await pool.query(
       `INSERT INTO stock_movements (
-        product_id, movement_type, quantity, previous_stock, new_stock, reason, notes,
+        product_id, product_variant_id, movement_type, quantity, previous_stock, new_stock, reason, notes,
         user_id, reference_type, reference_id, source_location, destination_location
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
       RETURNING *`,
       [
         movement.productId,
+        movement.productVariantId ?? null,
         movement.movementType,
         movement.quantity,
         movement.previousStock,
@@ -70,9 +106,10 @@ export class StockRepository {
     if (dateTo) { values.push(dateTo); where.push(`sm.created_at::date <= $${values.length}`); }
 
     const { rows } = await pool.query(
-      `SELECT sm.*, p.name AS product_name, p.internal_code, u.full_name AS user_name
+      `SELECT sm.*, p.name AS product_name, p.internal_code, pv.name AS variant_name, u.full_name AS user_name
        FROM stock_movements sm
        JOIN products p ON p.id = sm.product_id
+       LEFT JOIN product_variants pv ON pv.id = sm.product_variant_id
        LEFT JOIN users u ON u.id = sm.user_id
        ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
        ORDER BY sm.created_at DESC`,
@@ -81,12 +118,14 @@ export class StockRepository {
     return rows;
   }
 
-  async findMovementByReference({ referenceType, referenceId, productId, movementType }) {
+  async findMovementByReference({ referenceType, referenceId, productId, productVariantId = null, movementType }) {
     const { rows } = await pool.query(
       `SELECT id FROM stock_movements
-       WHERE reference_type = $1 AND reference_id = $2 AND product_id = $3 AND movement_type = $4
+       WHERE reference_type = $1 AND reference_id = $2 AND product_id = $3
+         AND COALESCE(product_variant_id::text, '') = COALESCE($4::text, '')
+         AND movement_type = $5
        LIMIT 1`,
-      [referenceType, referenceId, productId, movementType],
+      [referenceType, referenceId, productId, productVariantId, movementType],
     );
     return rows[0] ?? null;
   }

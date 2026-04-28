@@ -76,6 +76,22 @@ export class ZoneService {
 
     return { id };
   }
+
+  async summary(id) {
+    const zone = await zoneRepository.findById(id);
+    if (!zone) throw new AppError('Zona/ruta no encontrada.', 404);
+    const summary = await zoneRepository.summary(id);
+    return {
+      zone: mapZone(zone),
+      total_clients: Number(summary?.total_clients ?? 0),
+      total_orders: Number(summary?.total_orders ?? 0),
+      pending_orders: Number(summary?.pending_orders ?? 0),
+      prepared_orders: Number(summary?.prepared_orders ?? 0),
+      delivered_orders: Number(summary?.delivered_orders ?? 0),
+      total_sales: Number(summary?.total_sales ?? 0),
+      total_debt: Number(summary?.total_debt ?? 0),
+    };
+  }
 }
 
 export const zoneService = new ZoneService();

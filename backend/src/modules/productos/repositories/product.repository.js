@@ -1,11 +1,32 @@
 import { pool } from '../../../database/pool.js';
 
-const baseSelect = `
+let hasVariantsColumnCache;
+
+const resolveHasVariantsSupport = async () => {
+  if (typeof hasVariantsColumnCache === 'boolean') return hasVariantsColumnCache;
+
+  const { rows } = await pool.query(
+    `SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'products'
+        AND column_name = 'has_variants'
+    ) AS exists`,
+  );
+
+  hasVariantsColumnCache = rows[0]?.exists === true;
+  return hasVariantsColumnCache;
+};
+
+const buildBaseSelect = (supportsHasVariants) => `
   SELECT
     p.id, p.internal_code, p.name, p.short_description, p.long_description,
     p.brand, p.barcode, p.unit_measure,
     p.cost, p.wholesale_price, p.margin_percentage,
-    p.stock_current, p.stock_minimum, p.is_active, p.is_featured, p.image_url,
+    p.stock_current, p.stock_minimum, p.is_active,
+    ${supportsHasVariants ? 'p.has_variants' : 'FALSE AS has_variants'},
+    p.is_featured, p.image_url,
     p.tax_rate, p.notes, p.created_at, p.updated_at, p.deactivated_at,
     p.category_id,
     c.name AS category_name,
@@ -16,18 +37,22 @@ const baseSelect = `
 
 export class ProductRepository {
   async create(payload) {
+    const supportsHasVariants = await resolveHasVariantsSupport();
+    const hasVariantsColumns = supportsHasVariants ? ', has_variants' : '';
+    const hasVariantsValues = supportsHasVariants ? ', $13' : '';
+
     const query = `
       INSERT INTO products (
         internal_code, name, short_description, long_description,
         brand, barcode, unit_measure,
         cost, wholesale_price, margin_percentage,
-        stock_current, stock_minimum, is_featured, image_url, tax_rate,
+        stock_current, stock_minimum${hasVariantsColumns}, is_featured, image_url, tax_rate,
         category_id, notes
       ) VALUES (
         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-        $11,$12,$13,$14,$15,$16,$17
+        $11,$12${hasVariantsValues},$${supportsHasVariants ? '14' : '13'},$${supportsHasVariants ? '15' : '14'},$${supportsHasVariants ? '16' : '15'},$${supportsHasVariants ? '17' : '16'},$${supportsHasVariants ? '18' : '17'}
       )
-      RETURNING *
+      RETURNING id
     `;
 
     const values = [
@@ -43,6 +68,7 @@ export class ProductRepository {
       payload.marginPercentage,
       payload.stockCurrent,
       payload.stockMinimum,
+      ...(supportsHasVariants ? [payload.hasVariants ?? false] : []),
       payload.isFeatured,
       payload.imageUrl,
       payload.taxRate,
@@ -55,6 +81,8 @@ export class ProductRepository {
   }
 
   async findById(id) {
+    const supportsHasVariants = await resolveHasVariantsSupport();
+    const baseSelect = buildBaseSelect(supportsHasVariants);
     const { rows } = await pool.query(`${baseSelect} WHERE p.id = $1 LIMIT 1`, [id]);
     return rows[0] ?? null;
   }
@@ -91,6 +119,8 @@ export class ProductRepository {
   }
 
   async list({ q, isActive, lowStock, page, limit }) {
+    const supportsHasVariants = await resolveHasVariantsSupport();
+    const baseSelect = buildBaseSelect(supportsHasVariants);
     const offset = (page - 1) * limit;
     const filters = [];
     const values = [];
@@ -128,6 +158,7 @@ export class ProductRepository {
   }
 
   async update(id, patch) {
+    const supportsHasVariants = await resolveHasVariantsSupport();
     const dbMap = {
       internalCode: 'internal_code',
       name: 'name',
@@ -141,6 +172,7 @@ export class ProductRepository {
       marginPercentage: 'margin_percentage',
       stockCurrent: 'stock_current',
       stockMinimum: 'stock_minimum',
+      ...(supportsHasVariants ? { hasVariants: 'has_variants' } : {}),
       isFeatured: 'is_featured',
       imageUrl: 'image_url',
       taxRate: 'tax_rate',

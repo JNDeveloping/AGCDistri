@@ -1,10 +1,11 @@
 import { z } from 'zod';
 
-export const orderStatusValues = ['pendiente', 'confirmado', 'preparado', 'en_reparto', 'entregado', 'cancelado'];
+export const orderStatusValues = ['pendiente', 'preparado', 'en_reparto', 'entregado', 'cancelado'];
 export const paymentTermsValues = ['contado', 'cuenta_corriente'];
 
 const orderItemSchema = z.object({
   productId: z.string().uuid(),
+  productVariantId: z.string().uuid().optional().nullable(),
   quantity: z.coerce.number().positive(),
   discountType: z.enum(['amount', 'percentage']).optional().default('amount'),
   discountValue: z.coerce.number().min(0).optional().default(0),
@@ -29,10 +30,19 @@ export const changeOrderStatusSchema = z.object({
 export const listOrdersQuerySchema = z.object({
   clientId: z.string().uuid().optional(),
   sellerId: z.string().uuid().optional(),
+  zoneId: z.string().uuid().optional(),
   status: z.enum(orderStatusValues).optional(),
+  paymentCondition: z.enum(paymentTermsValues).optional(),
+  search: z.string().trim().min(1).max(120).optional(),
+  sortBy: z.enum(['orderDate', 'total', 'client', 'zone', 'status']).optional(),
+  sortDirection: z.enum(['asc', 'desc']).optional(),
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),
   orderNumber: z.coerce.number().int().positive().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+export const pendingDeliveryOrdersQuerySchema = z.object({
+  zoneId: z.string().uuid().optional(),
 });

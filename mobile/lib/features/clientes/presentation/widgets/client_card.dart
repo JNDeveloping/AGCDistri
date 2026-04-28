@@ -56,6 +56,7 @@ class ClientCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text('${client.internalCode} · ${client.city}, ${client.province}'),
+              Text('Zona/Ruta: ${client.zoneName ?? client.routeZone}'),
               Text('Teléfono: ${client.phone}'),
               const SizedBox(height: 10),
               Row(

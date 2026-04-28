@@ -5,12 +5,13 @@ class ClientRemoteDataSource {
 
   final ApiClient _apiClient;
 
-  Future<Map<String, dynamic>> fetchClients({required String query, bool? isActive, int page = 1, int limit = 20}) {
+  Future<Map<String, dynamic>> fetchClients({required String query, bool? isActive, String? zoneId, int page = 1, int limit = 20}) {
     return _get(
       '/clientes',
       queryParameters: {
         if (query.isNotEmpty) 'q': query,
         if (isActive != null) 'isActive': isActive,
+        if (zoneId != null) 'zoneId': zoneId,
         'page': page,
         'limit': limit,
       },
@@ -67,6 +68,10 @@ class ClientRemoteDataSource {
 
   Future<Map<String, dynamic>> deleteZone(String id) {
     return _delete('/zones/$id');
+  }
+
+  Future<Map<String, dynamic>> get(String path, {Map<String, dynamic>? queryParameters}) {
+    return _get(path, queryParameters: queryParameters);
   }
 
   Future<Map<String, dynamic>> _get(String path, {Map<String, dynamic>? queryParameters}) async {

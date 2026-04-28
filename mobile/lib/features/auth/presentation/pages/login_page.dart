@@ -17,12 +17,12 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -58,16 +58,12 @@ class _LoginPageState extends State<LoginPage> {
                             const AuthHeader(),
                             const SizedBox(height: 28),
                             TextFormField(
-                              controller: _emailController,
-                              keyboardType: TextInputType.emailAddress,
-                              decoration: const InputDecoration(labelText: 'Correo corporativo'),
+                              controller: _identifierController,
+                              decoration: const InputDecoration(labelText: 'Usuario o email'),
                               validator: (value) {
                                 final text = value?.trim() ?? '';
                                 if (text.isEmpty) {
-                                  return 'Ingresá tu correo.';
-                                }
-                                if (!text.contains('@') || !text.contains('.')) {
-                                  return 'Ingresá un correo válido.';
+                                  return 'Ingresá usuario o email.';
                                 }
                                 return null;
                               },
@@ -91,7 +87,7 @@ class _LoginPageState extends State<LoginPage> {
                                   : () {
                                       if (_formKey.currentState?.validate() ?? false) {
                                         context.read<AuthCubit>().login(
-                                              email: _emailController.text.trim(),
+                                              identifier: _identifierController.text.trim(),
                                               password: _passwordController.text,
                                             );
                                       }

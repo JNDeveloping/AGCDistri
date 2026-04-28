@@ -54,6 +54,21 @@ class StockProductCard extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 12),
+              if (item.hasVariants && item.variants.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: item.variants
+                      .where((v) => v.isActive)
+                      .map((v) => Chip(
+                            label: Text('${v.name}: ${(v.stock ?? item.stockCurrent).toStringAsFixed(0)}'),
+                            visualDensity: VisualDensity.compact,
+                          ))
+                      .toList(),
+                ),
+              ],
+
               Row(
                 children: [
                   Expanded(
