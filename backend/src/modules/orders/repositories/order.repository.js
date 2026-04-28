@@ -113,7 +113,6 @@ export class OrderRepository {
     }
 
     const whereClause = [...whereBase, ...whereStatus].length ? `WHERE ${[...whereBase, ...whereStatus].join(' AND ')}` : '';
-    const whereCountsClause = whereBase.length ? `WHERE ${whereBase.join(' AND ')}` : '';
     const sortFieldMap = {
       orderDate: 'o.order_date',
       total: 'o.total',
@@ -134,7 +133,7 @@ export class OrderRepository {
       FROM orders o
       JOIN clients c ON c.id = o.client_id
       LEFT JOIN zones z ON z.id = c.zone_id
-      ${whereCountsClause}
+      ${whereClause}
       GROUP BY o.status
     `;
 
