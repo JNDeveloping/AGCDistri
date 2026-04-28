@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/navigation/app_bottom_nav_bar.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../clientes/data/repositories/client_repository.dart';
+import '../../data/repositories/order_repository.dart';
 import '../../domain/models/order_model.dart';
 import '../cubit/orders_cubit.dart';
 import '../cubit/orders_state.dart';
@@ -398,14 +399,25 @@ class _PedidosPageState extends State<PedidosPage> {
                   child: const Text('Ver detalle'),
                 ),
                 PopupMenuButton<String>(
-                  onSelected: (v) => context.read<OrdersCubit>().changeStatus(o.id, v),
+                  onSelected: (v) async {
+                    try {
+                      await context.read<OrdersCubit>().changeStatus(o.id, v);
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Estado actualizado correctamente.')),
+                      );
+                    } on OrderException catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+                    }
+                  },
                   itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'pendiente', child: Text('Pendiente')),
                     PopupMenuItem(value: 'preparado', child: Text('Preparado')),
-                    PopupMenuItem(value: 'en_reparto', child: Text('En reparto')),
-                    PopupMenuItem(value: 'entregado', child: Text('Entregado')),
                   ],
-                  child: const Chip(label: Text('Cambiar estado')),
+                  enabled: o.status == 'pendiente',
+                  child: Chip(
+                    label: Text(o.status == 'pendiente' ? 'Cambiar estado' : 'Solo desde pendiente'),
+                  ),
                 ),
                 if (canCancel && o.status != 'cancelado')
                   OutlinedButton(
