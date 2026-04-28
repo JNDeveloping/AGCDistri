@@ -1,0 +1,134 @@
+import { pool } from '../../../database/pool.js';
+
+export class StockRepository {
+  async listStock({ q, lowStock, outOfStock }) {
+    const values = [];
+    const where = ['p.is_active = TRUE'];
+    if (q) {
+      values.push(`%${q}%`);
+      where.push(`(p.name ILIKE $${values.length} OR p.internal_code ILIKE $${values.length} OR COALESCE(p.barcode, '') ILIKE $${values.length})`);
+    }
+    if (lowStock) where.push('p.stock_current <= p.stock_minimum');
+    if (outOfStock) where.push('p.stock_current <= 0');
+
+    const { rows } = await pool.query(
+      `SELECT p.id, p.internal_code, p.barcode, p.name, p.stock_current, p.stock_minimum, p.has_variants,
+              pc.name AS category_name,
+              COALESCE(vs.variants, '[]'::json) AS variants
+       FROM products p
+       LEFT JOIN product_categories pc ON pc.id = p.category_id
+       LEFT JOIN LATERAL (
+         SELECT json_agg(
+                  json_build_object(
+                    'id', pv.id,
+                    'name', pv.name,
+                    'stock', pv.stock,
+                    'isActive', pv.is_active
+                  )
+                  ORDER BY pv.name ASC
+                ) AS variants
+         FROM product_variants pv
+         WHERE pv.product_id = p.id
+       ) vs ON TRUE
+       WHERE ${where.join(' AND ')}
+       ORDER BY p.name ASC`,
+      values,
+    );
+    return rows;
+  }
+
+  async findProduct(productId) {
+    const { rows } = await pool.query(
+      `SELECT id, internal_code, barcode, name, stock_current, stock_minimum, has_variants, is_active
+       FROM products WHERE id = $1 LIMIT 1`,
+      [productId],
+    );
+    return rows[0] ?? null;
+  }
+
+  async updateStock(productId, newStock) {
+    await pool.query('UPDATE products SET stock_current = $2, updated_at = NOW() WHERE id = $1', [productId, newStock]);
+  }
+
+  async findVariant(variantId) {
+    const { rows } = await pool.query('SELECT id, product_id, name, stock, is_active FROM product_variants WHERE id = $1 LIMIT 1', [variantId]);
+    return rows[0] ?? null;
+  }
+
+  async listVariantsByProduct(productId) {
+    const { rows } = await pool.query(
+      `SELECT id, product_id, name, stock, is_active
+       FROM product_variants
+       WHERE product_id = $1
+       ORDER BY name ASC`,
+      [productId],
+    );
+    return rows;
+  }
+
+  async updateVariantStock(variantId, newStock) {
+    await pool.query('UPDATE product_variants SET stock = $2, updated_at = NOW() WHERE id = $1', [variantId, newStock]);
+  }
+
+  async insertMovement(movement) {
+    const { rows } = await pool.query(
+      `INSERT INTO stock_movements (
+        product_id, product_variant_id, movement_type, quantity, previous_stock, new_stock, reason, notes,
+        user_id, reference_type, reference_id, source_location, destination_location
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      RETURNING *`,
+      [
+        movement.productId,
+        movement.productVariantId ?? null,
+        movement.movementType,
+        movement.quantity,
+        movement.previousStock,
+        movement.newStock,
+        movement.reason,
+        movement.notes ?? null,
+        movement.userId,
+        movement.referenceType ?? null,
+        movement.referenceId ?? null,
+        movement.sourceLocation ?? null,
+        movement.destinationLocation ?? null,
+      ],
+    );
+    return rows[0];
+  }
+
+  async listMovements({ productId, type, userId, dateFrom, dateTo }) {
+    const values = [];
+    const where = [];
+    if (productId) { values.push(productId); where.push(`sm.product_id = $${values.length}`); }
+    if (type) { values.push(type); where.push(`sm.movement_type = $${values.length}`); }
+    if (userId) { values.push(userId); where.push(`sm.user_id = $${values.length}`); }
+    if (dateFrom) { values.push(dateFrom); where.push(`sm.created_at::date >= $${values.length}`); }
+    if (dateTo) { values.push(dateTo); where.push(`sm.created_at::date <= $${values.length}`); }
+
+    const { rows } = await pool.query(
+      `SELECT sm.*, p.name AS product_name, p.internal_code, pv.name AS variant_name, u.full_name AS user_name
+       FROM stock_movements sm
+       JOIN products p ON p.id = sm.product_id
+       LEFT JOIN product_variants pv ON pv.id = sm.product_variant_id
+       LEFT JOIN users u ON u.id = sm.user_id
+       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+       ORDER BY sm.created_at DESC`,
+      values,
+    );
+    return rows;
+  }
+
+  async findMovementByReference({ referenceType, referenceId, productId, productVariantId = null, movementType }) {
+    const { rows } = await pool.query(
+      `SELECT id FROM stock_movements
+       WHERE reference_type = $1 AND reference_id = $2 AND product_id = $3
+         AND COALESCE(product_variant_id::text, '') = COALESCE($4::text, '')
+         AND movement_type = $5
+       LIMIT 1`,
+      [referenceType, referenceId, productId, productVariantId, movementType],
+    );
+    return rows[0] ?? null;
+  }
+}
+
+export const stockRepository = new StockRepository();
