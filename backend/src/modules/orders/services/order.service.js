@@ -189,11 +189,9 @@ export class OrderService {
     if (!existing) throw new AppError('Pedido no encontrado.', 404);
     this.ensureAccess(existing, user.role, user.sub);
     if (terminalStatuses.includes(existing.status)) throw new AppError('No se puede cambiar estado de pedidos entregados o cancelados.', 409);
-    if (status !== 'preparado' && status !== 'cancelado') {
-      throw new AppError('Desde Pedidos solo se permite pasar a preparado o cancelar. Los estados de reparto se gestionan en Entregas.', 409);
+    if (status !== 'preparado') {
+      throw new AppError('Desde Pedidos solo se permite pasar a preparado. Los estados de reparto se gestionan en Entregas.', 409);
     }
-
-    if (status === 'cancelado') return this.cancel(id, user);
 
     if (stockCommitStatuses.includes(status) && !existing.stock_discounted) {
       await this.ensureStockForOrder(id);
@@ -203,14 +201,6 @@ export class OrderService {
     }
 
     await orderRepository.updateStatus(id, status);
-    if (status === 'entregado' && existing.payment_terms === 'cuenta_corriente') {
-      await accountService.applyOrderDebt({
-        orderId: id,
-        clientId: existing.client_id,
-        total: Number(existing.total),
-        userId: user.sub,
-      });
-    }
     return this.getById(id, user.role, user.sub);
   }
 

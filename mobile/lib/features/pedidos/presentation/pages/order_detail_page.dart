@@ -211,7 +211,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   List<String> _availableStatuses(String current) {
     switch (current) {
       case 'pendiente':
-        return const ['preparado', 'cancelado'];
+        return const ['preparado'];
       default:
         return const [];
     }
@@ -248,7 +248,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     );
 
     if (selected == null) return;
-    final requiresConfirm = selected == 'entregado' || selected == 'cancelado';
+    final requiresConfirm = selected == 'preparado';
     if (requiresConfirm) {
       final ok = await showDialog<bool>(
         context: context,

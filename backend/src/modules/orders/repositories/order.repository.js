@@ -153,7 +153,7 @@ export class OrderRepository {
 
   async listPendingDelivery({ zoneId, role, userId }) {
     const values = [];
-    const filters = [`o.status IN ('pendiente', 'preparado', 'en_reparto')`];
+    const filters = [`o.status = 'preparado'`];
 
     if (zoneId) {
       values.push(zoneId);

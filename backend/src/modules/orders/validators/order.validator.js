@@ -24,7 +24,7 @@ export const createOrderSchema = z.object({
 export const updateOrderSchema = createOrderSchema;
 
 export const changeOrderStatusSchema = z.object({
-  status: z.enum(['preparado', 'cancelado']),
+  status: z.enum(['preparado']),
 });
 
 export const listOrdersQuerySchema = z.object({
