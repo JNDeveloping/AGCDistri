@@ -70,24 +70,32 @@ class ProductsCubit extends Cubit<ProductsState> {
     return _repository.listCategories(includeInactive: includeInactive);
   }
 
-  Future<void> saveCategory({String? id, required String name, String? description}) {
-    return _repository.saveCategory(id: id, name: name, description: description);
+  Future<void> saveCategory({String? id, required String name, String? description}) async {
+    await _repository.saveCategory(id: id, name: name, description: description);
+    _cache.clear();
+    await load(forceRefresh: true);
   }
 
-  Future<void> deactivateCategory(String id) {
-    return _repository.deactivateCategory(id);
+  Future<void> deactivateCategory(String id) async {
+    await _repository.deactivateCategory(id);
+    _cache.clear();
+    await load(forceRefresh: true);
   }
 
-  Future<void> activateCategory(String id) {
-    return _repository.activateCategory(id);
+  Future<void> activateCategory(String id) async {
+    await _repository.activateCategory(id);
+    _cache.clear();
+    await load(forceRefresh: true);
   }
 
   Future<int> moveCategoryProducts({required String id, required String categoryId}) {
     return _repository.moveCategoryProducts(id: id, categoryId: categoryId);
   }
 
-  Future<void> deleteCategory(String id) {
-    return _repository.deleteCategory(id);
+  Future<void> deleteCategory(String id) async {
+    await _repository.deleteCategory(id);
+    _cache.clear();
+    await load(forceRefresh: true);
   }
 
   Future<List<ProductVariantModel>> listVariants(String productId) => _repository.listVariants(productId);

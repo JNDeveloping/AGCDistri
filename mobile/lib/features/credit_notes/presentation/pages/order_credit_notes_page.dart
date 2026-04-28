@@ -63,17 +63,22 @@ class _OrderCreditNotesPageState extends State<OrderCreditNotesPage> {
                   subtitle: Text('${n.reason}\n${n.createdAt?.toLocal().toString().split('.').first ?? '-'}'),
                   isThreeLine: true,
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CreditNoteDetailPage(
-                        creditNoteId: n.id,
-                        repository: widget.repository,
-                        clientPhone: widget.order.clientPhone,
-                        orderNumber: widget.order.orderNumber,
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CreditNoteDetailPage(
+                          creditNoteId: n.id,
+                          repository: widget.repository,
+                          clientPhone: widget.order.clientPhone,
+                          orderNumber: widget.order.orderNumber,
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                    if (mounted) {
+                      setState(() => _future = widget.repository.listByOrder(widget.order.id));
+                    }
+                  },
                 ),
               );
             },
@@ -93,6 +98,7 @@ class _OrderCreditNotesPageState extends State<OrderCreditNotesPage> {
 
     if (created == true && mounted) {
       setState(() => _future = widget.repository.listByOrder(widget.order.id));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nota de crédito creada y lista actualizada.')));
     }
   }
 }

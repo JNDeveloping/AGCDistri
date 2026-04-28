@@ -57,7 +57,20 @@ class _ClientesPageState extends State<ClientesPage> {
     final canEdit = role == 'admin' || role == 'vendedor';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Clientes'), actions: [if (role == 'admin') TextButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ZonesManagementPage(canManage: true))), icon: const Icon(Icons.route), label: const Text('Zonas'))]),
+      appBar: AppBar(
+        title: const Text('Clientes'),
+        actions: [
+          if (role == 'admin')
+            TextButton.icon(
+              onPressed: () async {
+                await Navigator.push(context, MaterialPageRoute(builder: (_) => const ZonesManagementPage(canManage: true)));
+                if (mounted) await context.read<ClientsCubit>().load(forceRefresh: true);
+              },
+              icon: const Icon(Icons.route),
+              label: const Text('Zonas'),
+            ),
+        ],
+      ),
       bottomNavigationBar: AppBottomNavBar(currentRoute: ClientesPage.path, role: role),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(

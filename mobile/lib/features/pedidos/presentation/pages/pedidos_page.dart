@@ -354,7 +354,16 @@ class _PedidosPageState extends State<PedidosPage> {
             Wrap(
               spacing: 8,
               children: [
-                OutlinedButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailPage(orderId: o.id))), child: const Text('Ver detalle')),
+                OutlinedButton(
+                  onPressed: () async {
+                    await Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailPage(orderId: o.id)));
+                    if (mounted) {
+                      await context.read<OrdersCubit>().load(forceRefresh: true);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Listado de pedidos actualizado.')));
+                    }
+                  },
+                  child: const Text('Ver detalle'),
+                ),
                 PopupMenuButton<String>(
                   onSelected: (v) => context.read<OrdersCubit>().changeStatus(o.id, v),
                   itemBuilder: (_) => const [

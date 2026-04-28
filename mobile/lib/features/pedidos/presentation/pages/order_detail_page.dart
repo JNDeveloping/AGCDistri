@@ -134,14 +134,18 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           ),
         if (o.status == 'entregado')
           OutlinedButton.icon(
-            onPressed: () {
+            onPressed: () async {
               final creditRepo = context.read<CreditNoteRepository>();
-              Navigator.push(
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => OrderCreditNotesPage(order: o, repository: creditRepo),
                 ),
               );
+              if (mounted) {
+                setState(() => _future = context.read<OrdersCubit>().getById(widget.orderId));
+                await context.read<OrdersCubit>().load(forceRefresh: true);
+              }
             },
             icon: const Icon(Icons.request_page_outlined),
             label: const Text('Notas de crédito'),

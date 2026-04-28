@@ -123,6 +123,11 @@ class ClientsCubit extends Cubit<ClientsState> {
     return _clientRepository.deleteZone(id);
   }
 
+  Future<void> refreshAfterZoneMutation() async {
+    _cache.clear();
+    await load(forceRefresh: true);
+  }
+
   @override
   Future<void> close() {
     _debounce?.cancel();

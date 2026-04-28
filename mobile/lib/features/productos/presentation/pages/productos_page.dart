@@ -59,7 +59,10 @@ class _ProductosPageState extends State<ProductosPage> {
         actions: [
           if (canEdit)
             TextButton.icon(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductCategoriesPage(canManage: role == 'admin'))),
+              onPressed: () async {
+                await Navigator.push(context, MaterialPageRoute(builder: (_) => ProductCategoriesPage(canManage: role == 'admin')));
+                if (mounted) await context.read<ProductsCubit>().load(forceRefresh: true);
+              },
               icon: const Icon(Icons.category),
               label: const Text('Categorías'),
             ),
@@ -164,6 +167,9 @@ class _ProductosPageState extends State<ProductosPage> {
 
   Future<void> _openDetail(BuildContext context, String id) async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailPage(productId: id)));
+    if (context.mounted) {
+      await context.read<ProductsCubit>().load(forceRefresh: true);
+    }
   }
 
   Future<void> _openForm(BuildContext context, {ProductModel? product}) async {
