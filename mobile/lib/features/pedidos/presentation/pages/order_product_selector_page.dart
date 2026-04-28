@@ -77,7 +77,7 @@ class _OrderProductSelectorPageState extends State<OrderProductSelectorPage> {
                     ],
                   ),
                   subtitle: Text(
-                    '${p.internalCode ?? '-'} · Stock ${p.stockCurrent.toStringAsFixed(0)} · ${p.salePrice.toStringAsFixed(2)}${p.hasVariants ? ' · Con variantes' : ''}',
+                    '${p.internalCode ?? '-'} · Stock ${p.stockCurrent.toStringAsFixed(0)} · ${p.salePrice.toStringAsFixed(2)}${p.variantName != null ? ' · ${p.variantName}' : (p.hasVariants ? ' · Con variantes' : '')}',
                   ),
                   onTap: isOutOfStock ? null : () => _selectProduct(p),
                 );
@@ -90,6 +90,19 @@ class _OrderProductSelectorPageState extends State<OrderProductSelectorPage> {
   }
 
   Future<void> _selectProduct(OrderProductLookup product) async {
+    if (product.variantId != null) {
+      final variant = OrderProductVariantLookup(
+        id: product.variantId!,
+        productId: product.id,
+        name: product.variantName ?? 'Variante',
+        active: true,
+        effectivePrice: product.salePrice,
+        effectiveStock: product.stockCurrent,
+      );
+      Navigator.pop(context, [OrderProductSelection(product: product, variant: variant)]);
+      return;
+    }
+
     if (!product.hasVariants) {
       Navigator.pop(context, [OrderProductSelection(product: product)]);
       return;

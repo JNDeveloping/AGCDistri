@@ -52,7 +52,16 @@ class OrderRemoteDataSource {
   Future<Map<String, dynamic>> getProductVariants(String productId) async => (await _apiClient.get('/products/$productId/variants')).data ?? {};
 
   Future<Map<String, dynamic>> searchProducts(String query) async {
-    final response = await _apiClient.get('/productos', queryParameters: {'q': query, 'limit': 30, 'isActive': true});
+    final response = await _apiClient.get('/productos/autocomplete', queryParameters: {'q': query, 'limit': 30});
     return response.data ?? {};
   }
+
+  Future<Map<String, dynamic>> getPurchaseHistory(String clientId) async =>
+      (await _apiClient.get('/clients/$clientId/purchase-history')).data ?? {};
+
+  Future<Map<String, dynamic>> getSuggestedProducts(String clientId) async =>
+      (await _apiClient.get('/clients/$clientId/suggested-products')).data ?? {};
+
+  Future<Map<String, dynamic>> getLastOrder(String clientId) async =>
+      (await _apiClient.get('/clients/$clientId/last-order')).data ?? {};
 }

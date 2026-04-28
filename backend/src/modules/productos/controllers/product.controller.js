@@ -1,6 +1,15 @@
 import { created, ok } from '../../../utils/api-response.js';
 import { productService } from '../services/product.service.js';
 
+export const autocompleteProductsController = async (req, res) => {
+  const payload = await productService.autocomplete({
+    q: req.query.q,
+    limit: Number(req.query.limit ?? 20),
+  });
+
+  return ok(res, payload, 'Autocomplete de productos obtenido correctamente.');
+};
+
 export const listProductsController = async (req, res) => {
   const payload = await productService.list({
     q: req.query.q,

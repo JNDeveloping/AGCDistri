@@ -151,6 +151,31 @@ export class ProductService {
     return formatProduct(created, 'admin');
   }
 
+
+  async autocomplete({ q, limit }) {
+    if (!q || q.trim().length < 2) return { total: 0, items: [] };
+    const rows = await productRepository.autocomplete({ q: q.trim(), limit: limit ?? 20 });
+
+    return {
+      total: rows.length,
+      items: rows.map((row) => ({
+        productId: row.product_id,
+        productName: row.product_name,
+        internalCode: row.product_internal_code,
+        barcode: row.product_barcode,
+        brand: row.brand,
+        categoryName: row.category_name,
+        hasVariants: row.has_variants === true,
+        variantId: row.variant_id,
+        variantName: row.variant_name,
+        variantInternalCode: row.variant_internal_code,
+        variantBarcode: row.variant_barcode,
+        effectivePrice: Number(row.variant_id ? row.variant_price ?? 0 : row.product_price ?? 0),
+        effectiveStock: Number(row.variant_id ? row.variant_stock ?? 0 : row.product_stock ?? 0),
+      })),
+    };
+  }
+
   async list({ q, isActive, lowStock, page, limit, role }) {
     const { rows, total } = await productRepository.list({ q, isActive, lowStock, page, limit });
     return {

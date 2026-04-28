@@ -133,6 +133,78 @@ export class ClientService {
     return formatClient(updated);
   }
 
+
+  async getPurchaseHistory(clientId) {
+    const client = await clientRepository.findById(clientId);
+    if (!client) throw new AppError('Cliente no encontrado.', 404);
+
+    const rows = await clientRepository.getPurchaseHistory(clientId);
+    return rows.map((row) => ({
+      productId: row.product_id,
+      productName: row.product_name,
+      productVariantId: row.product_variant_id,
+      variantName: row.variant_name,
+      lastPurchaseDate: row.last_purchase_date,
+      averageQuantity: Number(row.avg_quantity ?? 0),
+      lastPrice: Number(row.last_price ?? 0),
+      frequency: row.frequency,
+      purchaseCount: Number(row.purchase_count ?? 0),
+    }));
+  }
+
+  async getSuggestedProducts(clientId) {
+    const client = await clientRepository.findById(clientId);
+    if (!client) throw new AppError('Cliente no encontrado.', 404);
+
+    const rows = await clientRepository.getSuggestedProducts(clientId);
+    return rows.map((row) => ({
+      productId: row.product_id,
+      productName: row.product_name,
+      productVariantId: row.product_variant_id,
+      variantName: row.variant_name,
+      hasVariants: row.has_variants === true,
+      stockAvailable: Number(row.stock_available ?? 0),
+      currentPrice: Number(row.current_price ?? 0),
+      lastPrice: row.last_price == null ? null : Number(row.last_price),
+      averageQuantity: row.avg_quantity == null ? null : Number(row.avg_quantity),
+      relevanceReason: row.relevance_reason,
+      relevanceScore: Number(row.relevance_score ?? 0),
+      zoneName: row.zone_name,
+    }));
+  }
+
+  async getLastOrder(clientId) {
+    const client = await clientRepository.findById(clientId);
+    if (!client) throw new AppError('Cliente no encontrado.', 404);
+
+    const order = await clientRepository.getLastOrder(clientId);
+    if (!order) return { order: null, items: [] };
+
+    const items = await clientRepository.getLastOrderItems(order.id);
+    return {
+      order: {
+        id: order.id,
+        orderNumber: Number(order.order_number),
+        orderDate: order.order_date,
+        total: Number(order.total ?? 0),
+        paymentTerms: order.payment_terms,
+      },
+      items: items.map((row) => ({
+        productId: row.product_id,
+        productName: row.product_name,
+        productVariantId: row.product_variant_id,
+        variantName: row.variant_name,
+        quantity: Number(row.quantity ?? 0),
+        previousPrice: Number(row.unit_price ?? 0),
+        currentPrice: Number(row.current_price ?? 0),
+        priceChanged: Number(row.unit_price ?? 0) !== Number(row.current_price ?? 0),
+        stockAvailable: Number(row.stock_available ?? 0),
+        hasStock: Number(row.stock_available ?? 0) >= Number(row.quantity ?? 0),
+        hasVariants: row.has_variants === true,
+      })),
+    };
+  }
+
   async deactivate(id) {
     const row = await clientRepository.deactivate(id);
     if (!row) {

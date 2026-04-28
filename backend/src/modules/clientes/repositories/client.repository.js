@@ -151,6 +151,231 @@ export class ClientRepository {
     };
   }
 
+
+  async getPurchaseHistory(clientId, limit = 12) {
+    const { rows } = await pool.query(
+      `
+      WITH purchase_base AS (
+        SELECT
+          oi.product_id,
+          oi.product_variant_id,
+          MAX(o.order_date)::date AS last_purchase_date,
+          AVG(oi.quantity)::numeric(12,2) AS avg_quantity,
+          COUNT(*)::int AS purchase_count,
+          AVG(EXTRACT(DAY FROM (o.order_date - LAG(o.order_date) OVER (
+            PARTITION BY oi.product_id, oi.product_variant_id
+            ORDER BY o.order_date
+          ))))::numeric(12,2) AS avg_days_between
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE o.client_id = $1
+          AND o.status <> 'cancelado'
+        GROUP BY oi.product_id, oi.product_variant_id
+      ),
+      last_price AS (
+        SELECT DISTINCT ON (oi.product_id, oi.product_variant_id)
+          oi.product_id,
+          oi.product_variant_id,
+          oi.unit_price AS last_price
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE o.client_id = $1
+          AND o.status <> 'cancelado'
+        ORDER BY oi.product_id, oi.product_variant_id, o.order_date DESC, o.created_at DESC
+      )
+      SELECT
+        pb.product_id,
+        p.name AS product_name,
+        pb.product_variant_id,
+        pv.name AS variant_name,
+        pb.last_purchase_date,
+        pb.avg_quantity,
+        lp.last_price,
+        pb.purchase_count,
+        CASE
+          WHEN pb.avg_days_between IS NULL THEN 'ocasional'
+          WHEN pb.avg_days_between <= 10 THEN 'semanal'
+          WHEN pb.avg_days_between <= 25 THEN 'quincenal'
+          WHEN pb.avg_days_between <= 45 THEN 'mensual'
+          ELSE 'esporadica'
+        END AS frequency
+      FROM purchase_base pb
+      JOIN products p ON p.id = pb.product_id
+      LEFT JOIN product_variants pv ON pv.id = pb.product_variant_id
+      LEFT JOIN last_price lp ON lp.product_id = pb.product_id
+        AND lp.product_variant_id IS NOT DISTINCT FROM pb.product_variant_id
+      WHERE p.is_active = TRUE
+      ORDER BY pb.last_purchase_date DESC, pb.purchase_count DESC
+      LIMIT $2
+      `,
+      [clientId, limit],
+    );
+    return rows;
+  }
+
+  async getSuggestedProducts(clientId, limit = 20) {
+    const { rows } = await pool.query(
+      `
+      WITH client_zone AS (
+        SELECT c.zone_id, z.name AS zone_name
+        FROM clients c
+        LEFT JOIN zones z ON z.id = c.zone_id
+        WHERE c.id = $1
+      ),
+      frequent AS (
+        SELECT
+          oi.product_id,
+          oi.product_variant_id,
+          100 + COUNT(*)::int AS relevance_score,
+          'compra_frecuente'::text AS relevance_reason,
+          AVG(oi.quantity)::numeric(12,2) AS avg_quantity,
+          MAX(o.order_date)::date AS last_purchase_date,
+          MAX(oi.unit_price)::numeric(12,2) AS last_price
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE o.client_id = $1
+          AND o.status <> 'cancelado'
+        GROUP BY oi.product_id, oi.product_variant_id
+      ),
+      stale AS (
+        SELECT
+          f.product_id,
+          f.product_variant_id,
+          90 AS relevance_score,
+          'hace_tiempo_no_compra'::text AS relevance_reason,
+          f.avg_quantity,
+          f.last_purchase_date,
+          f.last_price
+        FROM frequent f
+        WHERE f.last_purchase_date <= (CURRENT_DATE - INTERVAL '30 days')
+      ),
+      top_global AS (
+        SELECT
+          oi.product_id,
+          oi.product_variant_id,
+          70 + COUNT(*)::int AS relevance_score,
+          'mas_vendido_general'::text AS relevance_reason,
+          AVG(oi.quantity)::numeric(12,2) AS avg_quantity,
+          MAX(o.order_date)::date AS last_purchase_date,
+          MAX(oi.unit_price)::numeric(12,2) AS last_price
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        WHERE o.status <> 'cancelado'
+        GROUP BY oi.product_id, oi.product_variant_id
+        ORDER BY COUNT(*) DESC
+        LIMIT 40
+      ),
+      top_zone AS (
+        SELECT
+          oi.product_id,
+          oi.product_variant_id,
+          80 + COUNT(*)::int AS relevance_score,
+          'mas_vendido_zona'::text AS relevance_reason,
+          AVG(oi.quantity)::numeric(12,2) AS avg_quantity,
+          MAX(o.order_date)::date AS last_purchase_date,
+          MAX(oi.unit_price)::numeric(12,2) AS last_price
+        FROM order_items oi
+        JOIN orders o ON o.id = oi.order_id
+        JOIN clients c ON c.id = o.client_id
+        JOIN client_zone cz ON cz.zone_id = c.zone_id
+        WHERE o.status <> 'cancelado'
+        GROUP BY oi.product_id, oi.product_variant_id
+        ORDER BY COUNT(*) DESC
+        LIMIT 30
+      ),
+      merged AS (
+        SELECT * FROM frequent
+        UNION ALL
+        SELECT * FROM stale
+        UNION ALL
+        SELECT * FROM top_global
+        UNION ALL
+        SELECT * FROM top_zone
+      ),
+      ranked AS (
+        SELECT
+          m.product_id,
+          m.product_variant_id,
+          MAX(m.relevance_score)::int AS relevance_score,
+          (ARRAY_AGG(m.relevance_reason ORDER BY m.relevance_score DESC))[1] AS relevance_reason,
+          MAX(m.avg_quantity) AS avg_quantity,
+          MAX(m.last_purchase_date) AS last_purchase_date,
+          MAX(m.last_price) AS last_price
+        FROM merged m
+        GROUP BY m.product_id, m.product_variant_id
+      )
+      SELECT
+        r.product_id,
+        p.name AS product_name,
+        r.product_variant_id,
+        pv.name AS variant_name,
+        p.has_variants,
+        COALESCE(pv.stock, p.stock_current, 0)::numeric AS stock_available,
+        COALESCE(pv.price, p.wholesale_price, 0)::numeric AS current_price,
+        r.last_price,
+        r.avg_quantity,
+        r.relevance_reason,
+        r.relevance_score,
+        cz.zone_name
+      FROM ranked r
+      JOIN products p ON p.id = r.product_id
+      LEFT JOIN product_variants pv ON pv.id = r.product_variant_id
+      LEFT JOIN client_zone cz ON TRUE
+      WHERE p.is_active = TRUE
+        AND (r.product_variant_id IS NULL OR pv.is_active = TRUE)
+        AND COALESCE(pv.stock, p.stock_current, 0) > 0
+      ORDER BY r.relevance_score DESC, p.name ASC
+      LIMIT $2
+      `,
+      [clientId, limit],
+    );
+
+    return rows;
+  }
+
+  async getLastOrder(clientId) {
+    const { rows } = await pool.query(
+      `
+      SELECT id, order_number, order_date, total, payment_terms
+      FROM orders
+      WHERE client_id = $1
+        AND status <> 'cancelado'
+      ORDER BY order_date DESC, created_at DESC
+      LIMIT 1
+      `,
+      [clientId],
+    );
+
+    return rows[0] ?? null;
+  }
+
+  async getLastOrderItems(orderId) {
+    const { rows } = await pool.query(
+      `
+      SELECT
+        oi.product_id,
+        p.name AS product_name,
+        oi.product_variant_id,
+        pv.name AS variant_name,
+        oi.quantity,
+        oi.unit_price,
+        p.has_variants,
+        COALESCE(pv.price, p.wholesale_price, 0)::numeric AS current_price,
+        COALESCE(pv.stock, p.stock_current, 0)::numeric AS stock_available
+      FROM order_items oi
+      JOIN products p ON p.id = oi.product_id
+      LEFT JOIN product_variants pv ON pv.id = oi.product_variant_id
+      WHERE oi.order_id = $1
+        AND p.is_active = TRUE
+        AND (oi.product_variant_id IS NULL OR pv.is_active = TRUE)
+      ORDER BY oi.created_at ASC
+      `,
+      [orderId],
+    );
+
+    return rows;
+  }
+
   async update(id, patch) {
     const keys = Object.keys(patch);
     if (keys.length === 0) {

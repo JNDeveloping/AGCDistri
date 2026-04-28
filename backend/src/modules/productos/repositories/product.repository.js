@@ -157,6 +157,86 @@ export class ProductRepository {
     return { rows: data.rows, total: count.rows[0].total };
   }
 
+
+  async autocomplete({ q, limit = 20 }) {
+    const term = `%${q}%`;
+    const { rows } = await pool.query(
+      `
+      SELECT * FROM (
+        SELECT
+          p.id AS product_id,
+          p.name AS product_name,
+          p.internal_code AS product_internal_code,
+          p.barcode AS product_barcode,
+          p.brand,
+          p.has_variants,
+          p.wholesale_price AS product_price,
+          p.stock_current AS product_stock,
+          NULL::numeric AS variant_price,
+          NULL::numeric AS variant_stock,
+          NULL::uuid AS variant_id,
+          NULL::text AS variant_name,
+          NULL::text AS variant_internal_code,
+          NULL::text AS variant_barcode,
+          c.name AS category_name,
+          120 AS relevance
+        FROM products p
+        LEFT JOIN product_categories c ON c.id = p.category_id
+        WHERE p.is_active = TRUE
+          AND p.has_variants = FALSE
+          AND (
+            p.name ILIKE $1
+            OR p.internal_code ILIKE $1
+            OR COALESCE(p.barcode, '') ILIKE $1
+            OR COALESCE(p.brand, '') ILIKE $1
+            OR COALESCE(c.name, '') ILIKE $1
+          )
+
+        UNION ALL
+
+        SELECT
+          p.id AS product_id,
+          p.name AS product_name,
+          p.internal_code AS product_internal_code,
+          p.barcode AS product_barcode,
+          p.brand,
+          p.has_variants,
+          p.wholesale_price AS product_price,
+          p.stock_current AS product_stock,
+          pv.price AS variant_price,
+          pv.stock AS variant_stock,
+          pv.id AS variant_id,
+          pv.name AS variant_name,
+          pv.internal_code AS variant_internal_code,
+          pv.barcode AS variant_barcode,
+          c.name AS category_name,
+          140 AS relevance
+        FROM products p
+        JOIN product_variants pv ON pv.product_id = p.id
+        LEFT JOIN product_categories c ON c.id = p.category_id
+        WHERE p.is_active = TRUE
+          AND p.has_variants = TRUE
+          AND pv.is_active = TRUE
+          AND (
+            p.name ILIKE $1
+            OR p.internal_code ILIKE $1
+            OR COALESCE(p.barcode, '') ILIKE $1
+            OR COALESCE(p.brand, '') ILIKE $1
+            OR COALESCE(c.name, '') ILIKE $1
+            OR pv.name ILIKE $1
+            OR COALESCE(pv.internal_code, '') ILIKE $1
+            OR COALESCE(pv.barcode, '') ILIKE $1
+          )
+      ) q
+      ORDER BY relevance DESC, product_name ASC, variant_name ASC NULLS LAST
+      LIMIT $2
+      `,
+      [term, limit],
+    );
+
+    return rows;
+  }
+
   async update(id, patch) {
     const supportsHasVariants = await resolveHasVariantsSupport();
     const dbMap = {

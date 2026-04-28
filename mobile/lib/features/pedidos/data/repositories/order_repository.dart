@@ -132,6 +132,40 @@ class OrderRepository {
     return (data['items'] as List<dynamic>? ?? []).map((e) => OrderProductLookup.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+
+  Future<List<ClientPurchaseHistoryItem>> getPurchaseHistory(String clientId) async {
+    try {
+      final payload = await _remoteDataSource.getPurchaseHistory(clientId);
+      final data = payload['data'] as Map<String, dynamic>? ?? {};
+      return (data['items'] as List<dynamic>? ?? [])
+          .map((e) => ClientPurchaseHistoryItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
+  }
+
+  Future<List<SuggestedProductItem>> getSuggestedProducts(String clientId) async {
+    try {
+      final payload = await _remoteDataSource.getSuggestedProducts(clientId);
+      final data = payload['data'] as Map<String, dynamic>? ?? {};
+      return (data['items'] as List<dynamic>? ?? [])
+          .map((e) => SuggestedProductItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
+  }
+
+  Future<ClientLastOrderSuggestion> getLastOrder(String clientId) async {
+    try {
+      final payload = await _remoteDataSource.getLastOrder(clientId);
+      return ClientLastOrderSuggestion.fromJson(payload['data'] as Map<String, dynamic>? ?? {});
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
+  }
+
   OrderException _mapError(DioException error) {
     if (error.response?.data is Map<String, dynamic>) {
       final data = error.response?.data as Map<String, dynamic>;

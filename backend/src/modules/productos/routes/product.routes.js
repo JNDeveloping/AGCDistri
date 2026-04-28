@@ -6,6 +6,7 @@ import { asyncHandler } from '../../../middlewares/async-handler.js';
 import { authorize } from '../../../middlewares/authorize.js';
 import { validate } from '../../../middlewares/validate.js';
 import {
+  autocompleteProductsController,
   createProductController,
   deactivateProductController,
   getProductController,
@@ -17,6 +18,7 @@ import { createProductSchema, listProductQuerySchema, updateProductSchema } from
 const productRouter = Router();
 
 productRouter.use(authenticate);
+productRouter.get('/autocomplete', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), asyncHandler(autocompleteProductsController));
 productRouter.get('/', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), validate(listProductQuerySchema, 'query'), asyncHandler(listProductsController));
 productRouter.get('/:id', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), asyncHandler(getProductController));
 productRouter.post('/', authorize(USER_ROLES.ADMIN), validate(createProductSchema), asyncHandler(createProductController));
