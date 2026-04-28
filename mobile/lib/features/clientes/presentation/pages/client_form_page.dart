@@ -156,22 +156,45 @@ class _ClientFormPageState extends State<ClientFormPage> {
                 validator: (value) => value == null || value.isEmpty ? 'Seleccioná una condición de IVA' : null,
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _latitude == null || _longitude == null
-                          ? 'Ubicación no guardada'
-                          : 'Ubicación: ${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}',
-                    ),
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on_outlined),
+                          const SizedBox(width: 8),
+                          Text(
+                            _latitude != null && _longitude != null ? 'Ubicación guardada' : 'Ubicación no guardada',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (_latitude != null && _longitude != null) ...[
+                        Text('Latitud: ${_latitude!.toStringAsFixed(6)}'),
+                        Text('Longitud: ${_longitude!.toStringAsFixed(6)}'),
+                        const SizedBox(height: 8),
+                      ],
+                      if (_loadingLocation) ...[
+                        const LinearProgressIndicator(),
+                        const SizedBox(height: 8),
+                      ],
+                      FilledButton.icon(
+                        onPressed: _loadingLocation ? null : _saveLocation,
+                        icon: const Icon(Icons.my_location_rounded),
+                        label: Text(
+                          _loadingLocation
+                              ? 'Obteniendo ubicación...'
+                              : (_latitude == null || _longitude == null ? 'Guardar ubicación' : 'Actualizar ubicación'),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: _loadingLocation ? null : _saveLocation,
-                    icon: const Icon(Icons.my_location_rounded),
-                    label: Text(_loadingLocation ? 'Obteniendo...' : 'Guardar ubicación'),
-                  ),
-                ],
+                ),
               ),
               const SizedBox(height: 12),
               _field(_creditLimit, 'Límite de crédito', isNumber: true, requiredField: true),
@@ -195,7 +218,7 @@ class _ClientFormPageState extends State<ClientFormPage> {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        throw Exception('GPS desactivado. Activá el servicio de ubicación.');
+        throw Exception('GPS apagado. Activá la ubicación del dispositivo.');
       }
 
       var permission = await Geolocator.checkPermission();
@@ -207,18 +230,31 @@ class _ClientFormPageState extends State<ClientFormPage> {
         throw Exception('Permiso de ubicación denegado.');
       }
 
-      final position = await Geolocator.getCurrentPosition();
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
       setState(() {
         _latitude = position.latitude;
         _longitude = position.longitude;
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ubicación guardada correctamente.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ubicación guardada correctamente')));
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+        final message = error.toString();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              message.contains('denegado')
+                  ? 'Permiso de ubicación denegado.'
+                  : message.contains('GPS apagado')
+                      ? 'GPS apagado. Activá la ubicación del dispositivo.'
+                      : 'No se pudo obtener ubicación.',
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _loadingLocation = false);
