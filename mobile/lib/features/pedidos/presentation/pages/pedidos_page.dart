@@ -158,7 +158,7 @@ class _PedidosPageState extends State<PedidosPage> {
                           child: Text(group.$1, style: const TextStyle(fontWeight: FontWeight.w700)),
                         ),
                       ],
-                      ...group.$2.map(_orderCard),
+                      ...group.$2.map((order) => _orderCard(order, role)),
                     ],
                   );
                 },
@@ -320,8 +320,7 @@ class _PedidosPageState extends State<PedidosPage> {
     return entries.map((e) => (e.key, e.value)).toList();
   }
 
-  Widget _orderCard(OrderModel o) {
-    final role = context.select((AuthCubit cubit) => cubit.state.session?.user.role ?? 'vendedor');
+  Widget _orderCard(OrderModel o, String role) {
     final canCancel = role == 'admin' || role == 'vendedor';
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
