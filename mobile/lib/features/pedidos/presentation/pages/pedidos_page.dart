@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/navigation/app_bottom_nav_bar.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../domain/models/order_model.dart';
 import '../cubit/orders_cubit.dart';
 import '../cubit/orders_state.dart';
 import 'order_detail_page.dart';
