@@ -16,4 +16,5 @@ class AccountsRemoteDataSource {
   Future<Map<String, dynamic>> adjust(String clientId, Map<String, dynamic> data) async => (await _apiClient.post('/clients/$clientId/account-adjustment', data: data)).data ?? {};
 
   Future<Map<String, dynamic>> createPayment(Map<String, dynamic> data) async => (await _apiClient.post('/client-payments', data: data)).data ?? {};
+  Future<Map<String, dynamic>> paymentById(String paymentId) async => (await _apiClient.get('/client-payments/$paymentId')).data ?? {};
 }

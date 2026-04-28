@@ -106,6 +106,17 @@ class _StockProductDetailPageState extends State<StockProductDetailPage> {
                                 style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w800, height: 1),
                               ),
                               Text('Stock mínimo: ${_item!.stockMinimum.toStringAsFixed(2)}'),
+                              if (_item!.hasVariants && _item!.variants.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: _item!.variants
+                                      .where((v) => v.isActive)
+                                      .map((v) => Chip(label: Text('${v.name}: ${(v.stock ?? _item!.stockCurrent).toStringAsFixed(2)}')))
+                                      .toList(),
+                                ),
+                              ],
                               const SizedBox(height: 8),
                               if (canAdjust)
                                 FilledButton.icon(
@@ -158,6 +169,7 @@ class _StockProductDetailPageState extends State<StockProductDetailPage> {
     final reason = TextEditingController();
     final notes = TextEditingController();
     final isAbsolute = ValueNotifier<bool>(true);
+    final selectedVariantId = ValueNotifier<String?>(null);
 
     final ok = await showModalBottomSheet<bool>(
       context: context,
@@ -168,6 +180,23 @@ class _StockProductDetailPageState extends State<StockProductDetailPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_item!.hasVariants && _item!.variants.isNotEmpty)
+              ValueListenableBuilder<String?>(
+                valueListenable: selectedVariantId,
+                builder: (_, selected, __) => DropdownButtonFormField<String?>(
+                  value: selected,
+                  isExpanded: true,
+                  items: [
+                    const DropdownMenuItem<String?>(value: null, child: Text('Stock general del producto')),
+                    ..._item!.variants
+                        .where((v) => v.isActive)
+                        .map((v) => DropdownMenuItem<String?>(value: v.id, child: Text('${v.name} · Stock ${(v.stock ?? 0).toStringAsFixed(2)}'))),
+                  ],
+                  onChanged: (value) => selectedVariantId.value = value,
+                  decoration: const InputDecoration(labelText: 'Variante a ajustar'),
+                ),
+              ),
+            const SizedBox(height: 8),
             ValueListenableBuilder<String>(
               valueListenable: type,
               builder: (_, v, __) => DropdownButtonFormField<String>(
@@ -227,19 +256,23 @@ class _StockProductDetailPageState extends State<StockProductDetailPage> {
       }
 
       try {
+        final selectedVariant = _item!.variants.where((v) => v.id == selectedVariantId.value).toList();
+        final currentVariant = selectedVariant.isEmpty ? null : selectedVariant.first;
         if (isAbsolute.value) {
           await _repo.adjust(
             productId: _item!.productId,
+            productVariantId: selectedVariantId.value,
             newStock: val,
             reason: reason.text.trim(),
             notes: notes.text.trim().isEmpty ? null : notes.text.trim(),
           );
         } else {
-          final current = _item!.stockCurrent;
+          final current = currentVariant == null ? _item!.stockCurrent : (currentVariant.stock ?? _item!.stockCurrent);
           final goesOut = type.value == 'salida' || type.value == 'merma' || type.value == 'transferencia';
           final next = goesOut ? current - val : current + val;
           await _repo.adjust(
             productId: _item!.productId,
+            productVariantId: selectedVariantId.value,
             newStock: next,
             reason: reason.text.trim(),
             notes: notes.text.trim().isEmpty ? null : notes.text.trim(),

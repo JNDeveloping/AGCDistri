@@ -6,7 +6,7 @@ class DashboardRemoteDataSource {
   final ApiClient _apiClient;
 
   Future<Map<String, dynamic>> fetchStats() async {
-    final response = await _apiClient.get('/dashboard/stats');
+    final response = await _apiClient.get('/dashboard');
     return response.data ?? {};
   }
 }

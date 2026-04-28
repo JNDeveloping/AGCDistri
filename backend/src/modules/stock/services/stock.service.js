@@ -5,8 +5,9 @@ const affectsDecrease = new Set(['salida', 'merma', 'transferencia']);
 const mapMovement = (row) => ({
   id: row.id,
   productId: row.product_id,
-  productName: row.product_name,
+  productName: row.variant_name ? `${row.product_name} - ${row.variant_name}` : row.product_name,
   movementType: row.movement_type,
+  productVariantId: row.product_variant_id ?? null,
   quantity: Number(row.quantity),
   previousStock: Number(row.previous_stock),
   newStock: Number(row.new_stock),
@@ -21,6 +22,14 @@ const mapMovement = (row) => ({
   createdAt: row.created_at,
 });
 
+const mapVariantStock = (row) => ({
+  id: row.id,
+  productId: row.product_id,
+  name: row.name,
+  stock: row.stock == null ? null : Number(row.stock),
+  isActive: row.is_active === true,
+});
+
 export class StockService {
   async listStock(filters) {
     const rows = await stockRepository.listStock(filters);
@@ -32,6 +41,15 @@ export class StockService {
       categoryName: row.category_name,
       stockCurrent: Number(row.stock_current),
       stockMinimum: Number(row.stock_minimum),
+      hasVariants: row.has_variants === true,
+      variants: Array.isArray(row.variants)
+        ? row.variants.map((v) => ({
+            id: v.id,
+            name: v.name,
+            stock: v.stock == null ? null : Number(v.stock),
+            isActive: v.isActive !== false,
+          }))
+        : [],
       status: Number(row.stock_current) <= 0 ? 'sin_stock' : Number(row.stock_current) <= Number(row.stock_minimum) ? 'stock_bajo' : 'normal',
     }));
   }
@@ -39,6 +57,7 @@ export class StockService {
   async getProductStock(productId) {
     const product = await stockRepository.findProduct(productId);
     if (!product) throw new AppError('Producto no encontrado.', 404);
+    const variants = await stockRepository.listVariantsByProduct(productId);
     return {
       productId: product.id,
       internalCode: product.internal_code,
@@ -46,6 +65,8 @@ export class StockService {
       name: product.name,
       stockCurrent: Number(product.stock_current),
       stockMinimum: Number(product.stock_minimum),
+      hasVariants: product.has_variants === true,
+      variants: variants.map(mapVariantStock),
       isActive: product.is_active,
     };
   }
@@ -62,21 +83,32 @@ export class StockService {
     const product = await stockRepository.findProduct(payload.productId);
     if (!product) throw new AppError('Producto no encontrado.', 404);
 
-    const previous = Number(product.stock_current);
+    const variant = payload.productVariantId ? await stockRepository.findVariant(payload.productVariantId) : null;
+    if (payload.productVariantId && (!variant || variant.product_id !== product.id)) {
+      throw new AppError('Variante no encontrada para el producto seleccionado.', 404);
+    }
+
+    const previous = variant && variant.stock != null ? Number(variant.stock) : Number(product.stock_current);
     const isDecrease = affectsDecrease.has(payload.movementType);
     const next = isDecrease ? previous - quantity : previous + quantity;
     if (next < 0) throw new AppError('Stock insuficiente para realizar la salida.', 409);
 
-    await stockRepository.updateStock(product.id, next);
+    if (variant && variant.stock != null) {
+      await stockRepository.updateVariantStock(variant.id, next);
+    } else {
+      await stockRepository.updateStock(product.id, next);
+    }
+
     const saved = await stockRepository.insertMovement({
       ...payload,
+      productVariantId: variant?.id ?? null,
       quantity,
       previousStock: previous,
       newStock: next,
       userId: user.sub,
     });
 
-    return mapMovement({ ...saved, product_name: product.name, user_name: user.fullName });
+    return mapMovement({ ...saved, product_name: product.name, variant_name: variant?.name ?? null, user_name: user.fullName });
   }
 
   async adjust(payload, user) {
@@ -84,13 +116,24 @@ export class StockService {
     const product = await stockRepository.findProduct(payload.productId);
     if (!product) throw new AppError('Producto no encontrado.', 404);
 
-    const previous = Number(product.stock_current);
+    const variant = payload.productVariantId ? await stockRepository.findVariant(payload.productVariantId) : null;
+    if (payload.productVariantId && (!variant || variant.product_id !== product.id)) {
+      throw new AppError('Variante no encontrada para el producto seleccionado.', 404);
+    }
+
+    const previous = variant && variant.stock != null ? Number(variant.stock) : Number(product.stock_current);
     const next = Number(payload.newStock);
     if (!Number.isFinite(next) || next < 0) throw new AppError('El nuevo stock debe ser >= 0.', 400);
 
-    await stockRepository.updateStock(product.id, next);
+    if (variant && variant.stock != null) {
+      await stockRepository.updateVariantStock(variant.id, next);
+    } else {
+      await stockRepository.updateStock(product.id, next);
+    }
+
     const saved = await stockRepository.insertMovement({
       productId: product.id,
+      productVariantId: variant?.id ?? null,
       movementType: 'ajuste',
       quantity: Math.abs(next - previous),
       previousStock: previous,
@@ -103,22 +146,39 @@ export class StockService {
       sourceLocation: payload.sourceLocation,
       destinationLocation: payload.destinationLocation,
     });
-    return mapMovement({ ...saved, product_name: product.name, user_name: user.fullName });
+    return mapMovement({ ...saved, product_name: product.name, variant_name: variant?.name ?? null, user_name: user.fullName });
   }
 
   async applyOrderStockMovement(orderId, items, userId, movementType, reason) {
     for (const item of items) {
-      const exists = await stockRepository.findMovementByReference({ referenceType: 'order', referenceId: orderId, productId: item.product_id, movementType });
+      const exists = await stockRepository.findMovementByReference({
+        referenceType: 'order',
+        referenceId: orderId,
+        productId: item.product_id,
+        productVariantId: item.product_variant_id,
+        movementType,
+      });
       if (exists) continue;
+
       const product = await stockRepository.findProduct(item.product_id);
       if (!product) continue;
-      const previous = Number(product.stock_current);
+
+      const variant = item.product_variant_id ? await stockRepository.findVariant(item.product_variant_id) : null;
+      const trackVariantStock = variant && variant.stock != null;
+      const previous = trackVariantStock ? Number(variant.stock) : Number(product.stock_current);
       const quantity = Number(item.quantity);
       const next = movementType === 'salida' ? previous - quantity : previous + quantity;
       if (next < 0) throw new AppError(`Stock insuficiente para ${item.product_name}.`, 409);
-      await stockRepository.updateStock(item.product_id, next);
+
+      if (trackVariantStock) {
+        await stockRepository.updateVariantStock(variant.id, next);
+      } else {
+        await stockRepository.updateStock(item.product_id, next);
+      }
+
       await stockRepository.insertMovement({
         productId: item.product_id,
+        productVariantId: item.product_variant_id,
         movementType,
         quantity,
         previousStock: previous,

@@ -5,6 +5,7 @@ export const listClientsController = async (req, res) => {
   const payload = await clientService.list({
     q: req.query.q,
     isActive: req.query.isActive === undefined ? undefined : req.query.isActive === 'true',
+    zoneId: req.query.zoneId,
     page: Number(req.query.page ?? 1),
     limit: Number(req.query.limit ?? 20),
     role: req.user.role,

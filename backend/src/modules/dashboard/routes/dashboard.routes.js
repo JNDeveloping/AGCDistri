@@ -9,6 +9,7 @@ import { getDashboardStatsController } from '../controllers/dashboard.controller
 const dashboardRouter = Router();
 
 dashboardRouter.use(authenticate);
+dashboardRouter.get('/', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), asyncHandler(getDashboardStatsController));
 dashboardRouter.get('/stats', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), asyncHandler(getDashboardStatsController));
 
 export { dashboardRouter };

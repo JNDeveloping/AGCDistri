@@ -34,9 +34,9 @@ class StockRepository {
     }
   }
 
-  Future<void> adjust({required String productId, required double newStock, required String reason, String? notes}) async {
+  Future<void> adjust({required String productId, String? productVariantId, required double newStock, required String reason, String? notes}) async {
     try {
-      await _remote.adjust({'productId': productId, 'newStock': newStock, 'reason': reason, 'notes': notes});
+      await _remote.adjust({'productId': productId, 'productVariantId': productVariantId, 'newStock': newStock, 'reason': reason, 'notes': notes});
     } on DioException catch (e) {
       throw StockException(_msg(e));
     }

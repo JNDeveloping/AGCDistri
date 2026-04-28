@@ -106,6 +106,24 @@ export class ZoneRepository {
     const { rowCount } = await pool.query('DELETE FROM zones WHERE id = $1', [id]);
     return rowCount > 0;
   }
+
+  async summary(id) {
+    const { rows } = await pool.query(
+      `
+      SELECT
+        (SELECT COUNT(*)::int FROM clients c WHERE c.zone_id = $1) AS total_clients,
+        (SELECT COUNT(*)::int FROM orders o JOIN clients c ON c.id = o.client_id WHERE c.zone_id = $1) AS total_orders,
+        (SELECT COUNT(*)::int FROM orders o JOIN clients c ON c.id = o.client_id WHERE c.zone_id = $1 AND o.status = 'pendiente') AS pending_orders,
+        (SELECT COUNT(*)::int FROM orders o JOIN clients c ON c.id = o.client_id WHERE c.zone_id = $1 AND o.status = 'preparado') AS prepared_orders,
+        (SELECT COUNT(*)::int FROM orders o JOIN clients c ON c.id = o.client_id WHERE c.zone_id = $1 AND o.status = 'entregado') AS delivered_orders,
+        (SELECT COALESCE(SUM(o.total), 0)::numeric FROM orders o JOIN clients c ON c.id = o.client_id WHERE c.zone_id = $1 AND o.status <> 'cancelado') AS total_sales,
+        (SELECT COALESCE(SUM(GREATEST(c.current_balance, 0)), 0)::numeric FROM clients c WHERE c.zone_id = $1) AS total_debt
+      `,
+      [id],
+    );
+
+    return rows[0] ?? null;
+  }
 }
 
 export const zoneRepository = new ZoneRepository();

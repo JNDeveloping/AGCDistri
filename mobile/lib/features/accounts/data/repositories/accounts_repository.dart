@@ -41,6 +41,15 @@ class AccountsRepository {
     }
   }
 
+  Future<ClientPayment> getPaymentById(String paymentId) async {
+    try {
+      final payload = await _remote.paymentById(paymentId);
+      return ClientPayment.fromJson(payload['data'] as Map<String, dynamic>? ?? {});
+    } on DioException catch (e) {
+      throw AccountsException(_msg(e));
+    }
+  }
+
   String _msg(DioException e) {
     if (e.response?.data is Map<String, dynamic>) return (e.response?.data['message'] as String?) ?? 'Error cuenta corriente.';
     return 'No se pudo conectar con cuenta corriente.';
@@ -50,4 +59,7 @@ class AccountsRepository {
 class AccountsException implements Exception {
   AccountsException(this.message);
   final String message;
+
+  @override
+  String toString() => message;
 }

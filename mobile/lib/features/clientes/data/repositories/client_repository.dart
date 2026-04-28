@@ -8,9 +8,9 @@ class ClientRepository {
 
   final ClientRemoteDataSource _remoteDataSource;
 
-  Future<ClientListResponse> list({required String query, bool? isActive, int page = 1}) async {
+  Future<ClientListResponse> list({required String query, bool? isActive, String? zoneId, int page = 1}) async {
     try {
-      final payload = await _remoteDataSource.fetchClients(query: query, isActive: isActive, page: page);
+      final payload = await _remoteDataSource.fetchClients(query: query, isActive: isActive, zoneId: zoneId, page: page);
       final data = payload['data'] as Map<String, dynamic>? ?? {};
       final items = (data['items'] as List<dynamic>? ?? [])
           .map((raw) => ClientModel.fromJson(raw as Map<String, dynamic>))
@@ -163,6 +163,16 @@ class ClientRepository {
     }
   }
 
+  Future<ZoneSummary> getZoneSummary(String id) async {
+    try {
+      final payload = await _remoteDataSource.get('/zones/$id/summary');
+      final data = payload['data'] as Map<String, dynamic>? ?? const {};
+      return ZoneSummary.fromJson(data);
+    } on DioException catch (error) {
+      throw _extractError(error);
+    }
+  }
+
   ClientException _extractError(DioException error) {
     if (error.response?.data is Map<String, dynamic>) {
       final data = error.response!.data as Map<String, dynamic>;
@@ -217,5 +227,35 @@ class ClientZone {
         name: json['name'] as String,
         isActive: json['isActive'] as bool? ?? true,
         description: json['description'] as String?,
+      );
+}
+
+class ZoneSummary {
+  const ZoneSummary({
+    required this.totalClients,
+    required this.totalOrders,
+    required this.pendingOrders,
+    required this.preparedOrders,
+    required this.deliveredOrders,
+    required this.totalSales,
+    required this.totalDebt,
+  });
+
+  final int totalClients;
+  final int totalOrders;
+  final int pendingOrders;
+  final int preparedOrders;
+  final int deliveredOrders;
+  final double totalSales;
+  final double totalDebt;
+
+  factory ZoneSummary.fromJson(Map<String, dynamic> json) => ZoneSummary(
+        totalClients: (json['total_clients'] as num?)?.toInt() ?? 0,
+        totalOrders: (json['total_orders'] as num?)?.toInt() ?? 0,
+        pendingOrders: (json['pending_orders'] as num?)?.toInt() ?? 0,
+        preparedOrders: (json['prepared_orders'] as num?)?.toInt() ?? 0,
+        deliveredOrders: (json['delivered_orders'] as num?)?.toInt() ?? 0,
+        totalSales: (json['total_sales'] as num?)?.toDouble() ?? 0,
+        totalDebt: (json['total_debt'] as num?)?.toDouble() ?? 0,
       );
 }

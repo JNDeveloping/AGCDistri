@@ -23,11 +23,29 @@ class ProductosPage extends StatefulWidget {
 
 class _ProductosPageState extends State<ProductosPage> {
   final _search = TextEditingController();
+  final _scrollController = ScrollController();
+  static const _pageSize = 20;
+  int _visibleItems = _pageSize;
 
   @override
   void initState() {
     super.initState();
     context.read<ProductsCubit>().load();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.offset >= (_scrollController.position.maxScrollExtent - 200)) {
+      setState(() => _visibleItems += _pageSize);
+    }
   }
 
   @override
@@ -41,7 +59,10 @@ class _ProductosPageState extends State<ProductosPage> {
         actions: [
           if (canEdit)
             TextButton.icon(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductCategoriesPage(canManage: role == 'admin'))),
+              onPressed: () async {
+                await Navigator.push(context, MaterialPageRoute(builder: (_) => ProductCategoriesPage(canManage: role == 'admin')));
+                if (mounted) await context.read<ProductsCubit>().load(forceRefresh: true);
+              },
               icon: const Icon(Icons.category),
               label: const Text('Categorías'),
             ),
@@ -61,10 +82,23 @@ class _ProductosPageState extends State<ProductosPage> {
             padding: const EdgeInsets.all(12),
             child: TextField(
               controller: _search,
-              onChanged: context.read<ProductsCubit>().onSearch,
-              decoration: const InputDecoration(
-                labelText: 'Buscar por nombre, código, marca, categoría o barras',
-                prefixIcon: Icon(Icons.search),
+              onChanged: (value) {
+                context.read<ProductsCubit>().onSearch(value);
+                setState(() => _visibleItems = _pageSize);
+              },
+              decoration: InputDecoration(
+                labelText: 'Buscar por nombre, código, categoría, variante o barras',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          _search.clear();
+                          context.read<ProductsCubit>().onSearch('');
+                          setState(() => _visibleItems = _pageSize);
+                        },
+                      ),
               ),
             ),
           ),
@@ -98,9 +132,20 @@ class _ProductosPageState extends State<ProductosPage> {
                 if (state.status == ProductsStatus.failure) {
                   return Center(child: Text(state.errorMessage ?? 'No se pudo cargar productos'));
                 }
+                if (state.items.isEmpty) {
+                  return _EmptyState(
+                    icon: Icons.inventory_2_rounded,
+                    title: 'No hay productos cargados',
+                    subtitle: 'Creá el primer producto para empezar a vender.',
+                    actionLabel: canEdit ? 'Nuevo producto' : null,
+                    onAction: canEdit ? () => _openForm(context) : null,
+                  );
+                }
+                final visibleCount = state.items.length < _visibleItems ? state.items.length : _visibleItems;
                 return ListView.builder(
+                  controller: _scrollController,
                   padding: const EdgeInsets.all(12),
-                  itemCount: state.items.length,
+                  itemCount: visibleCount,
                   itemBuilder: (_, i) {
                     final p = state.items[i];
                     return ProductCard(
@@ -122,12 +167,54 @@ class _ProductosPageState extends State<ProductosPage> {
 
   Future<void> _openDetail(BuildContext context, String id) async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailPage(productId: id)));
+    if (context.mounted) {
+      await context.read<ProductsCubit>().load(forceRefresh: true);
+    }
   }
 
   Future<void> _openForm(BuildContext context, {ProductModel? product}) async {
     final changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => ProductFormPage(product: product)));
     if (changed == true && context.mounted) {
-      await context.read<ProductsCubit>().load();
+      await context.read<ProductsCubit>().load(forceRefresh: true);
     }
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 48, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 10),
+            Text(title, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
+            const SizedBox(height: 6),
+            Text(subtitle, textAlign: TextAlign.center),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 12),
+              FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 }

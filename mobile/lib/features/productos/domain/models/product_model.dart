@@ -25,6 +25,7 @@ class ProductModel extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     required this.lowStock,
+    this.hasVariants = false,
   });
 
   final String id;
@@ -50,6 +51,7 @@ class ProductModel extends Equatable {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final bool lowStock;
+  final bool hasVariants;
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     return ProductModel(
@@ -76,6 +78,7 @@ class ProductModel extends Equatable {
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'] as String) : null,
       lowStock: json['lowStock'] as bool? ?? false,
+      hasVariants: json['hasVariants'] as bool? ?? false,
     );
   }
 
@@ -98,6 +101,7 @@ class ProductModel extends Equatable {
       'imageUrl': imageUrl,
       'taxRate': taxRate,
       'notes': notes,
+      'hasVariants': hasVariants,
     };
   }
 
@@ -113,6 +117,7 @@ class ProductModel extends Equatable {
         stockMinimum,
         isActive,
         lowStock,
+        hasVariants,
       ];
 }
 
@@ -140,4 +145,59 @@ class ProductCategory extends Equatable {
 
   @override
   List<Object?> get props => [id, name, description, isActive];
+}
+
+
+class ProductVariantModel extends Equatable {
+  const ProductVariantModel({
+    required this.id,
+    required this.productId,
+    required this.name,
+    this.internalCode,
+    this.barcode,
+    this.price,
+    this.cost,
+    this.stock,
+    required this.active,
+    this.effectivePrice,
+    this.effectiveStock,
+  });
+
+  final String id;
+  final String productId;
+  final String name;
+  final String? internalCode;
+  final String? barcode;
+  final double? price;
+  final double? cost;
+  final double? stock;
+  final bool active;
+  final double? effectivePrice;
+  final double? effectiveStock;
+
+  factory ProductVariantModel.fromJson(Map<String, dynamic> json) => ProductVariantModel(
+        id: json['id'] as String,
+        productId: json['productId'] as String? ?? '',
+        name: json['name'] as String? ?? '-',
+        internalCode: json['internalCode'] as String?,
+        barcode: json['barcode'] as String?,
+        price: (json['price'] as num?)?.toDouble(),
+        cost: (json['cost'] as num?)?.toDouble(),
+        stock: (json['stock'] as num?)?.toDouble(),
+        active: json['active'] as bool? ?? true,
+        effectivePrice: (json['effectivePrice'] as num?)?.toDouble(),
+        effectiveStock: (json['effectiveStock'] as num?)?.toDouble(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'internalCode': internalCode,
+        'barcode': barcode,
+        'price': price,
+        'cost': cost,
+        'stock': stock,
+      };
+
+  @override
+  List<Object?> get props => [id, productId, name, internalCode, barcode, price, cost, stock, active];
 }

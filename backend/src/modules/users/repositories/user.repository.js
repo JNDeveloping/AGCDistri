@@ -15,9 +15,9 @@ export class UserRepository {
 
   async findByEmail(email) {
     const query = `
-      SELECT id, full_name, email, password_hash, role, is_active
+      SELECT id, full_name, email, password_hash, role, is_active, is_deleted, deleted_at
       FROM users
-      WHERE email = $1
+      WHERE email = $1 AND is_deleted = FALSE
       LIMIT 1
     `;
 
@@ -27,7 +27,7 @@ export class UserRepository {
 
   async findById(id) {
     const query = `
-      SELECT id, full_name, email, role, is_active, created_at
+      SELECT id, full_name, email, role, is_active, is_deleted, deleted_at, created_at
       FROM users
       WHERE id = $1
       LIMIT 1
@@ -37,10 +37,29 @@ export class UserRepository {
     return rows[0] ?? null;
   }
 
+
+  async findByIdentifier(identifier) {
+    const normalized = String(identifier ?? '').trim().toLowerCase();
+    const query = `
+      SELECT id, full_name, email, password_hash, role, is_active, is_deleted, deleted_at
+      FROM users
+      WHERE is_deleted = FALSE
+        AND (
+          email = $1
+          OR split_part(email, '@', 1) = $1
+        )
+      LIMIT 1
+    `;
+
+    const { rows } = await pool.query(query, [normalized]);
+    return rows[0] ?? null;
+  }
+
   async list() {
     const query = `
-      SELECT id, full_name, email, role, is_active, created_at, updated_at
+      SELECT id, full_name, email, role, is_active, is_deleted, deleted_at, created_at, updated_at
       FROM users
+      WHERE is_deleted = FALSE
       ORDER BY created_at DESC
     `;
 
@@ -73,7 +92,7 @@ export class UserRepository {
       UPDATE users
       SET ${sets.join(', ')}, updated_at = NOW()
       WHERE id = $${values.length}
-      RETURNING id, full_name, email, role, is_active, created_at, updated_at
+      RETURNING id, full_name, email, role, is_active, is_deleted, deleted_at, created_at, updated_at
     `;
 
     const { rows } = await pool.query(query, values);
@@ -85,7 +104,7 @@ export class UserRepository {
       UPDATE users
       SET is_active = FALSE, updated_at = NOW()
       WHERE id = $1
-      RETURNING id, full_name, email, role, is_active, created_at, updated_at
+      RETURNING id, full_name, email, role, is_active, is_deleted, deleted_at, created_at, updated_at
     `;
 
     const { rows } = await pool.query(query, [id]);
@@ -97,7 +116,7 @@ export class UserRepository {
       UPDATE users
       SET is_active = TRUE, updated_at = NOW()
       WHERE id = $1
-      RETURNING id, full_name, email, role, is_active, created_at, updated_at
+      RETURNING id, full_name, email, role, is_active, is_deleted, deleted_at, created_at, updated_at
     `;
 
     const { rows } = await pool.query(query, [id]);
@@ -116,7 +135,15 @@ export class UserRepository {
   }
 
   async remove(id) {
-    const { rowCount } = await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    const { rowCount } = await pool.query(
+      `UPDATE users
+       SET is_deleted = TRUE,
+           is_active = FALSE,
+           deleted_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [id],
+    );
     return rowCount > 0;
   }
 }
