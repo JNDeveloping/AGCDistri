@@ -38,7 +38,7 @@ export class DeliveryRepository {
     return rows;
   }
 
-  async list({ date, status, driverId, zoneId, page, limit, role, userId }) {
+  async list({ date, status, driverId, zoneId, page, limit, role, userId, archived }) {
     const values = [];
     const where = [];
 
@@ -65,6 +65,11 @@ export class DeliveryRepository {
     if (role === 'repartidor') {
       values.push(userId);
       where.push(`d.driver_id = $${values.length}`);
+    }
+    if (archived === 'archived') {
+      where.push('d.deleted_at IS NOT NULL');
+    } else if (archived !== 'all') {
+      where.push('d.deleted_at IS NULL');
     }
 
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -182,6 +187,16 @@ export class DeliveryRepository {
       [id, status, shouldFinish],
     );
     return rows[0] ? this.findById(rows[0].id) : null;
+  }
+
+  async archive(id, userId, reason = null) {
+    const { rowCount } = await pool.query(
+      `UPDATE deliveries
+       SET deleted_at = NOW(), deleted_by = $2, delete_reason = $3, updated_at = NOW()
+       WHERE id = $1`,
+      [id, userId, reason],
+    );
+    return rowCount > 0;
   }
 
   async addOrders(deliveryId, orderIds) {

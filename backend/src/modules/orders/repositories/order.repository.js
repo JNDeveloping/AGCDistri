@@ -101,6 +101,11 @@ export class OrderRepository {
         )
       )`);
     }
+    if (filters.archived === 'archived') {
+      whereBase.push('o.deleted_at IS NOT NULL');
+    } else if (filters.archived !== 'all') {
+      whereBase.push('o.deleted_at IS NULL');
+    }
 
     if (role === 'vendedor') {
       values.push(userId);
@@ -381,7 +386,15 @@ export class OrderRepository {
   }
 
   async remove(id) {
-    const { rowCount } = await pool.query('DELETE FROM orders WHERE id = $1', [id]);
+    const { rowCount } = await pool.query('UPDATE orders SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1', [id]);
+    return rowCount > 0;
+  }
+
+  async archive(id, userId, reason = null) {
+    const { rowCount } = await pool.query(
+      'UPDATE orders SET deleted_at = NOW(), deleted_by = $2, delete_reason = $3, updated_at = NOW() WHERE id = $1',
+      [id, userId, reason],
+    );
     return rowCount > 0;
   }
 

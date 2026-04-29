@@ -13,6 +13,7 @@ export const listOrdersController = async (req, res) => {
       orderNumber: req.query.orderNumber,
       zoneId: req.query.zoneId,
       paymentCondition: req.query.paymentCondition,
+      archived: req.query.archived,
       search: req.query.search,
       sortBy: req.query.sortBy,
       sortDirection: req.query.sortDirection,
@@ -81,6 +82,6 @@ export const validateOrderStockController = async (req, res) => {
 };
 
 export const deleteOrderController = async (req, res) => {
-  const data = await orderService.remove(req.params.id, req.user);
-  return ok(res, data, 'Pedido eliminado correctamente.');
+  const data = await orderService.archive(req.params.id, req.user, req.body?.reason);
+  return ok(res, data, 'Pedido archivado correctamente.');
 };

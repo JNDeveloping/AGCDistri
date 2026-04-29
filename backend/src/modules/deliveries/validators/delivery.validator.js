@@ -6,6 +6,7 @@ const deliveryOrderStatus = z.enum(['pendiente', 'entregado', 'no_entregado', 'r
 export const listDeliveriesQuerySchema = z.object({
   date: z.string().date().optional(),
   status: deliveryStatus.optional(),
+  archived: z.enum(['active', 'archived', 'all']).optional().default('active'),
   driverId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),

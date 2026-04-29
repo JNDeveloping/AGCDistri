@@ -59,6 +59,16 @@ export class DeliveryService {
     return updated;
   }
 
+  async archive(id, authUser, reason = null) {
+    const delivery = await this.repository.findById(id);
+    if (!delivery) throw new AppError('Reparto no encontrado.', 404);
+    if (delivery.status === 'en_reparto') {
+      throw new AppError('No se puede archivar un reparto en curso con pedidos en reparto.', 409);
+    }
+    await this.repository.archive(id, authUser.sub, reason);
+    return { id, archived: true };
+  }
+
   async assignDriver(id, driverId) {
     const delivery = await this.repository.findById(id);
     if (!delivery) throw new AppError('Reparto no encontrado.', 404);

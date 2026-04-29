@@ -7,6 +7,7 @@ import { authorize } from '../../../middlewares/authorize.js';
 import { validate } from '../../../middlewares/validate.js';
 import {
   addOrdersToDeliveryController,
+  archiveDeliveryController,
   assignDeliveryDriverController,
   changeDeliveryStatusController,
   createDeliveryController,
@@ -52,5 +53,6 @@ deliveryRouter.patch('/delivery-orders/:id/delivered', authorize(USER_ROLES.ADMI
 deliveryRouter.patch('/delivery-orders/:id/not-delivered', authorize(USER_ROLES.ADMIN, USER_ROLES.REPARTIDOR), validate(markNotDeliveredSchema), asyncHandler(markDeliveryOrderNotDeliveredController));
 deliveryRouter.patch('/delivery-orders/:id/reschedule', authorize(USER_ROLES.ADMIN, USER_ROLES.REPARTIDOR), validate(markRescheduleSchema), asyncHandler(markDeliveryOrderRescheduleController));
 deliveryRouter.post('/deliveries/:id/optimize-route', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), validate(optimizeRouteSchema), asyncHandler(optimizeDeliveryRouteController));
+deliveryRouter.delete('/deliveries/:id', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), asyncHandler(archiveDeliveryController));
 
 export { deliveryRouter };

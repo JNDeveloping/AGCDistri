@@ -107,3 +107,8 @@ export const markDeliveryOrderRescheduleController = async (req, res) => {
   });
   res.status(result.statusCode).json(result.body);
 };
+
+export const archiveDeliveryController = async (req, res) => {
+  const data = await deliveryService.archive(req.params.id, req.user, req.body?.reason);
+  res.json({ message: 'Reparto archivado.', data });
+};

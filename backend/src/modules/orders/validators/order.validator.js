@@ -34,6 +34,7 @@ export const listOrdersQuerySchema = z.object({
   zoneId: z.string().uuid().optional(),
   status: z.enum(orderStatusValues).optional(),
   paymentCondition: z.enum(paymentTermsValues).optional(),
+  archived: z.enum(['active', 'archived', 'all']).optional().default('active'),
   search: z.string().trim().min(1).max(120).optional(),
   sortBy: z.enum(['orderDate', 'total', 'client', 'zone', 'status']).optional(),
   sortDirection: z.enum(['asc', 'desc']).optional(),
