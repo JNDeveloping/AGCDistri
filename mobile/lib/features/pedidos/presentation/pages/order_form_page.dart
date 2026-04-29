@@ -23,6 +23,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
   final Map<String, _CartLine> _cart = {};
   bool _saving = false;
   bool _loadingSmart = false;
+  String? _stockAdjustmentNotice;
   String _paymentTerms = 'contado';
 
   List<ClientPurchaseHistoryItem> _purchaseHistory = const [];
@@ -105,11 +106,13 @@ class _OrderFormPageState extends State<OrderFormPage> {
             _suggestionsSection(),
           ],
           if (hasInvalidItems)
-            const Card(
-              color: Color(0xFFFFECEC),
+            const Card(color: Color(0xFFFFECEC), child: Padding(padding: EdgeInsets.all(10), child: Text('Hay líneas con stock insuficiente.'))),
+          if (_stockAdjustmentNotice != null)
+            Card(
+              color: const Color(0xFFFFF7E8),
               child: Padding(
-                padding: EdgeInsets.all(10),
-                child: Text('Hay productos sin stock o con cantidad mayor al disponible. Corregí el carrito para poder guardar.'),
+                padding: const EdgeInsets.all(10),
+                child: Text(_stockAdjustmentNotice!, style: const TextStyle(fontWeight: FontWeight.w600)),
               ),
             ),
           const SizedBox(height: 8),
@@ -383,6 +386,56 @@ class _OrderFormPageState extends State<OrderFormPage> {
     final order = await context.read<OrdersCubit>().getById(widget.orderId!);
     if (!mounted) return;
 
+    final adjustedMessages = <String>[];
+    final nextCart = <String, _CartLine>{};
+    for (final item in order.items) {
+      final product = OrderProductLookup(id: item.productId, name: item.productName, salePrice: item.unitPrice);
+      double stock = 0;
+      if (item.productVariantId != null) {
+        final variants = await context.read<OrdersCubit>().searchProductVariants(item.productId);
+        final matches = variants.where((v) => v.id == item.productVariantId);
+        final variant = matches.isEmpty ? null : matches.first;
+        stock = variant?.effectiveStock ?? 0;
+      } else {
+        final products = await context.read<OrdersCubit>().searchProducts(item.productName);
+        final matches = products.where((p) => p.id == item.productId);
+        final current = matches.isEmpty ? null : matches.first;
+        stock = current?.stockCurrent ?? 0;
+      }
+
+      if (stock <= 0) {
+        adjustedMessages.add('${item.productName}: sin stock, se quitó del pedido.');
+        continue;
+      }
+      final adjustedQty = item.quantity > stock ? stock : item.quantity;
+      if (adjustedQty != item.quantity) {
+        adjustedMessages.add('${item.productName}: cantidad ajustada a ${adjustedQty.toStringAsFixed(0)}.');
+      }
+
+      final variant = item.productVariantId == null
+          ? null
+          : OrderProductVariantLookup(
+              id: item.productVariantId!,
+              productId: item.productId,
+              name: item.variantNameSnapshot ?? '-',
+              active: true,
+              effectivePrice: item.unitPrice,
+              effectiveStock: stock,
+            );
+      final selection = OrderProductSelection(
+        product: OrderProductLookup(id: item.productId, name: item.productName, salePrice: item.unitPrice, stockCurrent: stock),
+        variant: variant,
+        initialQuantity: adjustedQty,
+      );
+      nextCart[selection.cartKey] = _CartLine(
+        key: selection.cartKey,
+        selection: selection,
+        quantity: adjustedQty,
+        discountType: item.discountType,
+        discountValue: item.discountValue,
+      );
+    }
+
     setState(() {
       _client = OrderClientLookup(id: order.clientId, businessName: order.clientName, currentBalance: 0, creditLimit: 0);
       _notes.text = order.notes ?? '';
@@ -390,30 +443,12 @@ class _OrderFormPageState extends State<OrderFormPage> {
       _discountPercent.text = order.subtotal > 0 ? ((order.discountTotal / order.subtotal) * 100).toStringAsFixed(2) : '0';
       _cart
         ..clear()
-        ..addEntries(order.items.map((i) {
-          final product = OrderProductLookup(id: i.productId, name: i.productName, salePrice: i.unitPrice);
-          final variant = i.productVariantId == null
-              ? null
-              : OrderProductVariantLookup(
-                  id: i.productVariantId!,
-                  productId: i.productId,
-                  name: i.variantNameSnapshot ?? '-',
-                  active: true,
-                  effectivePrice: i.unitPrice,
-                );
-          final selection = OrderProductSelection(product: product, variant: variant, initialQuantity: i.quantity);
-          return MapEntry(
-            selection.cartKey,
-            _CartLine(
-              key: selection.cartKey,
-              selection: selection,
-              quantity: i.quantity,
-              discountType: i.discountType,
-              discountValue: i.discountValue,
-            ),
-          );
-        }));
+        ..addAll(nextCart);
+      _stockAdjustmentNotice = adjustedMessages.isEmpty ? null : 'Se ajustaron productos sin stock. Revisá el pedido antes de guardar.';
     });
+    if (adjustedMessages.isNotEmpty && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(adjustedMessages.take(2).join(' '))));
+    }
     await _loadSmartData();
   }
 
