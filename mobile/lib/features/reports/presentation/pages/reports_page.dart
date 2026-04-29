@@ -55,9 +55,20 @@ class _ReportsPageState extends State<ReportsPage> with SingleTickerProviderStat
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reportes'),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
+        elevation: 0,
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
+          labelColor: Theme.of(context).colorScheme.primary,
+          unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+          labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+          indicatorColor: Theme.of(context).colorScheme.primary,
+          indicatorWeight: 3,
+          dividerColor: Theme.of(context).colorScheme.outlineVariant,
+          tabAlignment: TabAlignment.start,
           tabs: const [
             Tab(text: 'Ventas'),
             Tab(text: 'Deuda'),
