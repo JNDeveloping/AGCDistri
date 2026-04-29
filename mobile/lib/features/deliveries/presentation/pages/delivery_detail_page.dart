@@ -151,7 +151,9 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido marcado como entregado.')));
-    setState(() => _future = _reload());
+    setState(() {
+      _future = _reload();
+    });
   }
 
   Future<void> _markNotDelivered(DeliveryOrderModel order) async {
@@ -160,14 +162,18 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
     await context.read<DeliveryRepository>().markNotDelivered(order.id, reason: reason);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido marcado como no entregado.')));
-    setState(() => _future = _reload());
+    setState(() {
+      _future = _reload();
+    });
   }
 
   Future<void> _markRescheduled(DeliveryOrderModel order) async {
     await context.read<DeliveryRepository>().markRescheduled(order.id);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido reprogramado para nuevo reparto.')));
-    setState(() => _future = _reload());
+    setState(() {
+      _future = _reload();
+    });
   }
 
   Future<void> _optimize() async {
@@ -191,7 +197,9 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recorrido optimizado y orden guardado.')));
-    setState(() => _future = _reload());
+    setState(() {
+      _future = _reload();
+    });
   }
 
   Future<(bool, double?)?> _askCashCollection(double suggestedAmount) async {
@@ -276,7 +284,11 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
 
   Future<void> _openOrder(DeliveryOrderModel order) async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailPage(orderId: order.orderId)));
-    if (mounted) setState(() => _future = _reload());
+    if (mounted) {
+      setState(() {
+        _future = _reload();
+      });
+    }
   }
 
   String _statusText(String status) {
