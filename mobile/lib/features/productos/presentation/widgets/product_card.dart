@@ -24,12 +24,15 @@ class ProductCard extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         title: Text(product.name),
-        subtitle: Text('${product.internalCode ?? '-'} · ${product.brand ?? '-'} · Stock: ${product.stockCurrent.toStringAsFixed(2)}'),
+        subtitle: Text(
+          '${product.internalCode ?? '-'} · ${product.brand ?? '-'} · ${product.hasVariants ? 'Stock por variantes' : 'Stock: ${product.stockCurrent.toStringAsFixed(2)}'}',
+        ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text('Venta ${product.salePrice.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            if (product.hasVariants) const Text('Con variantes', style: TextStyle(color: Colors.blueGrey, fontSize: 12)),
             if (product.lowStock)
               const Text('Stock bajo', style: TextStyle(color: Colors.red, fontSize: 12))
             else if (!product.isActive)

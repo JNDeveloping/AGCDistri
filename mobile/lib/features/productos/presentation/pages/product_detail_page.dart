@@ -83,8 +83,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 Text('Margen: ${(p.marginPercentage ?? 0).toStringAsFixed(2)}%'),
                 if ((p.barcode ?? '').isNotEmpty) Text('Código de barras: ${p.barcode}'),
                 const Divider(height: 30),
-                Text('Stock actual: ${p.stockCurrent.toStringAsFixed(2)}'),
-                Text('Stock mínimo: ${p.stockMinimum.toStringAsFixed(2)}'),
+                if (!p.hasVariants) ...[
+                  Text('Stock actual: ${p.stockCurrent.toStringAsFixed(2)}'),
+                  Text('Stock mínimo: ${p.stockMinimum.toStringAsFixed(2)}'),
+                ] else ...[
+                  const Text('Stock por variantes'),
+                  Text(
+                    'Este producto base no se vende directamente. El stock operativo se gestiona por cada variante.',
+                  ),
+                ],
                 Text('Estado: ${p.isActive ? 'Activo' : 'Inactivo'}'),
                 Text('Con variantes: ${p.hasVariants ? 'Sí' : 'No'}'),
                 const SizedBox(height: 10),

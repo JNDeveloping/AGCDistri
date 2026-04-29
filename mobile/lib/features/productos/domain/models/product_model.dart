@@ -52,6 +52,9 @@ class ProductModel extends Equatable {
   final DateTime? updatedAt;
   final bool lowStock;
   final bool hasVariants;
+  bool get isVariantProduct => hasVariants;
+  bool get canAdjustBaseStock => !hasVariants;
+  String get displayStockLabel => hasVariants ? 'Stock por variantes' : stockCurrent.toStringAsFixed(2);
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     return ProductModel(
