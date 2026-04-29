@@ -317,17 +317,17 @@ export class DeliveryRepository {
     const { rows } = await pool.query(
       `
       UPDATE delivery_orders
-      SET delivery_status = $2,
+      SET delivery_status = $2::delivery_order_status,
           notes = COALESCE($3, notes),
-          not_delivered_reason = CASE WHEN $2 = 'no_entregado' THEN $4 ELSE not_delivered_reason END,
+          not_delivered_reason = CASE WHEN $2::delivery_order_status = 'no_entregado' THEN $4 ELSE not_delivered_reason END,
           collected_cash = COALESCE($5, collected_cash),
           collected_amount = COALESCE($6, collected_amount),
           payment_status = CASE
               WHEN COALESCE($6, 0) > 0 THEN 'cobrado'
-              WHEN $2 = 'entregado' THEN payment_status
+              WHEN $2::delivery_order_status = 'entregado' THEN payment_status
               ELSE payment_status
           END,
-          delivered_at = CASE WHEN $2 = 'entregado' THEN NOW() ELSE delivered_at END,
+          delivered_at = CASE WHEN $2::delivery_order_status = 'entregado' THEN NOW() ELSE delivered_at END,
           updated_at = NOW()
       WHERE id = $1
       RETURNING *
