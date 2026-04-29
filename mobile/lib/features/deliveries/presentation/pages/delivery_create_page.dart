@@ -143,12 +143,13 @@ class _DeliveryCreatePageState extends State<DeliveryCreatePage> {
                                 (o) => Card(
                                   margin: const EdgeInsets.only(bottom: 10),
                                   child: CheckboxListTile(
-                                    value: _selectedOrderIds.contains(o.orderId),
+                                    value: _selectedOrderIds.contains(o.orderId.isNotEmpty ? o.orderId : o.id),
                                     onChanged: (value) => setState(() {
+                                      final selectedId = o.orderId.isNotEmpty ? o.orderId : o.id;
                                       if (value == true) {
-                                        _selectedOrderIds.add(o.orderId);
+                                        _selectedOrderIds.add(selectedId);
                                       } else {
-                                        _selectedOrderIds.remove(o.orderId);
+                                        _selectedOrderIds.remove(selectedId);
                                       }
                                     }),
                                     title: Text('#${o.orderNumber ?? '-'} · ${o.clientName}'),

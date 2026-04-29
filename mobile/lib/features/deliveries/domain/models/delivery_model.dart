@@ -109,7 +109,7 @@ class DeliveryOrderModel {
   factory DeliveryOrderModel.fromJson(Map<String, dynamic> json) => DeliveryOrderModel(
         id: json['id'] as String,
         deliveryId: (json['delivery_id'] as String?) ?? '',
-        orderId: (json['order_id'] as String?) ?? '',
+        orderId: (json['order_id'] as String?) ?? (json['id'] as String? ?? ''),
         status: (json['delivery_status'] as String?) ?? (json['status'] as String?) ?? 'pendiente',
         clientName: (json['client_name'] as String?) ?? '-',
         orderNumber: json['order_number'] == null ? null : _toInt(json['order_number']),
