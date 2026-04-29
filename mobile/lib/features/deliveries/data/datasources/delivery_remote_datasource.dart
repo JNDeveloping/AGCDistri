@@ -5,10 +5,11 @@ class DeliveryRemoteDataSource {
 
   final ApiClient _apiClient;
 
-  Future<Map<String, dynamic>> listDeliveries({String? date, String? status, int page = 1, int limit = 20}) async {
+  Future<Map<String, dynamic>> listDeliveries({String? date, String? status, String? archived, int page = 1, int limit = 20}) async {
     final response = await _apiClient.get('/deliveries', queryParameters: {
       if (date != null) 'date': date,
       if (status != null) 'status': status,
+      if (archived != null) 'archived': archived,
       'page': page,
       'limit': limit,
     });
@@ -73,4 +74,6 @@ class DeliveryRemoteDataSource {
 
   Future<Map<String, dynamic>> markRescheduled(String deliveryOrderId, {String? notes}) async =>
       (await _apiClient.patch('/delivery-orders/$deliveryOrderId/reschedule', data: {if (notes != null) 'notes': notes})).data ?? {};
+
+  Future<Map<String, dynamic>> archiveDelivery(String id) async => (await _apiClient.delete('/deliveries/$id')).data ?? {};
 }

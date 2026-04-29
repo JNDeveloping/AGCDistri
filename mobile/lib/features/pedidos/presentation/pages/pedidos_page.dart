@@ -247,6 +247,19 @@ class _PedidosPageState extends State<PedidosPage> {
           ),
           const SizedBox(width: 8),
           PopupMenuButton<String>(
+            tooltip: 'Archivado',
+            onSelected: (value) => cubit.setArchivedFilter(value),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'active', child: Text('Activos')),
+              PopupMenuItem(value: 'archived', child: Text('Archivados')),
+              PopupMenuItem(value: 'all', child: Text('Todos')),
+            ],
+            child: _filterChip(
+              state.archived == 'archived' ? 'Archivados' : state.archived == 'all' ? 'Todos' : 'Activos',
+            ),
+          ),
+          const SizedBox(width: 8),
+          PopupMenuButton<String>(
             tooltip: 'Ordenar por',
             onSelected: (value) {
               final parts = value.split('|');

@@ -20,6 +20,7 @@ class OrdersCubit extends Cubit<OrdersState> {
       state.dateFrom ?? '-',
       state.dateTo ?? '-',
       state.paymentCondition ?? '-',
+      state.archived,
       state.zoneId ?? '-',
       state.sortBy,
       state.sortDirection,
@@ -37,6 +38,7 @@ class OrdersCubit extends Cubit<OrdersState> {
         dateFrom: state.dateFrom,
         dateTo: state.dateTo,
         paymentCondition: state.paymentCondition,
+        archived: state.archived,
         zoneId: state.zoneId,
         sortBy: state.sortBy,
         sortDirection: state.sortDirection,
@@ -61,6 +63,11 @@ class OrdersCubit extends Cubit<OrdersState> {
 
   Future<void> setPaymentCondition(String? value) async {
     emit(state.copyWith(paymentCondition: value, clearPaymentCondition: value == null));
+    await load();
+  }
+
+  Future<void> setArchivedFilter(String value) async {
+    emit(state.copyWith(archived: value));
     await load();
   }
 

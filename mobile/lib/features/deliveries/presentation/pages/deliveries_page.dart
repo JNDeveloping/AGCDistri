@@ -21,6 +21,7 @@ class DeliveriesPage extends StatefulWidget {
 class _DeliveriesPageState extends State<DeliveriesPage> {
   late Future<List<DeliveryModel>> _future;
   String? _status;
+  String _archived = 'active';
 
   @override
   void initState() {
@@ -29,7 +30,7 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
   }
 
   Future<List<DeliveryModel>> _load() {
-    return context.read<DeliveryRepository>().list(status: _status);
+    return context.read<DeliveryRepository>().list(status: _status, archived: _archived);
   }
 
   @override
@@ -52,6 +53,18 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
               PopupMenuItem(value: 'pendiente', child: Text('Pendiente')),
               PopupMenuItem(value: 'en_reparto', child: Text('En reparto')),
               PopupMenuItem(value: 'finalizado', child: Text('Finalizado')),
+            ],
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.archive_outlined),
+            onSelected: (value) => setState(() {
+              _archived = value;
+              _future = _load();
+            }),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'active', child: Text('Activos')),
+              PopupMenuItem(value: 'archived', child: Text('Archivados')),
+              PopupMenuItem(value: 'all', child: Text('Todos')),
             ],
           ),
         ],

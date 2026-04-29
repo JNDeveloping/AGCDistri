@@ -10,13 +10,21 @@ class DeliveryRepository {
   final DeliveryRemoteDataSource _remoteDataSource;
   final OfflineStore _offlineStore = OfflineStore.instance;
 
-  Future<List<DeliveryModel>> list({String? date, String? status}) async {
+  Future<List<DeliveryModel>> list({String? date, String? status, String archived = 'active'}) async {
     try {
-      final payload = await _remoteDataSource.listDeliveries(date: date, status: status);
+      final payload = await _remoteDataSource.listDeliveries(date: date, status: status, archived: archived);
       final data = payload['data'] as Map<String, dynamic>? ?? {};
       return (data['items'] as List<dynamic>? ?? [])
           .map((row) => DeliveryModel.fromJson(row as Map<String, dynamic>))
           .toList();
+    } on DioException catch (error) {
+      throw DeliveryException(_message(error));
+    }
+  }
+
+  Future<void> archive(String id) async {
+    try {
+      await _remoteDataSource.archiveDelivery(id);
     } on DioException catch (error) {
       throw DeliveryException(_message(error));
     }

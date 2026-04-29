@@ -114,6 +114,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
   Widget _actions(OrderModel o, String role) {
     final canEditPending = o.status == 'pendiente';
+    final canArchive = role == 'admin' || role == 'vendedor';
     final canStatus = o.status != 'entregado' && o.status != 'cancelado';
     final blockedItem = _firstBlockedItem();
     final hasStockConflict = blockedItem != null || _validatingStock;
@@ -160,11 +161,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             icon: const Icon(Icons.edit_outlined),
             label: const Text('Editar'),
           ),
-        if (canEditPending)
+        if (canArchive)
           OutlinedButton.icon(
             onPressed: () => _confirmDelete(o),
             icon: const Icon(Icons.delete_outline),
-            label: const Text('Eliminar'),
+            label: const Text('Archivar'),
           ),
         if (canStatus)
           FilledButton.icon(
@@ -292,11 +293,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Eliminar pedido'),
-        content: const Text('Se eliminará solo si no tiene movimientos asociados. ¿Continuar?'),
+        title: const Text('Archivar pedido'),
+        content: const Text('¿Seguro que querés archivar este pedido? Esta acción no se puede deshacer.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton.tonal(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar')),
+          FilledButton.tonal(onPressed: () => Navigator.pop(context, true), child: const Text('Archivar')),
         ],
       ),
     );
@@ -305,7 +306,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     try {
       await context.read<OrdersCubit>().delete(order.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido eliminado correctamente.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido archivado correctamente.')));
         Navigator.pop(context);
       }
     } catch (e) {

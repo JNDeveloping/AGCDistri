@@ -105,6 +105,17 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
           return Column(
             children: [
               _DeliveryHeader(delivery: delivery, onOptimize: _optimize),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _archiveDelivery(delivery),
+                    icon: const Icon(Icons.archive_outlined),
+                    label: const Text('Archivar reparto'),
+                  ),
+                ),
+              ),
               Expanded(
                 child: delivery.orders.isEmpty
                     ? const Center(child: Text('Este reparto todavía no tiene pedidos.'))
@@ -256,6 +267,30 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
     setState(() {
       _future = _reload();
     });
+  }
+
+  Future<void> _archiveDelivery(DeliveryModel delivery) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Archivar reparto'),
+        content: const Text('¿Seguro que querés archivar este reparto?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Archivar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await context.read<DeliveryRepository>().archive(delivery.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reparto archivado correctamente.')));
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
   }
 
   Future<void> _optimize() async {
