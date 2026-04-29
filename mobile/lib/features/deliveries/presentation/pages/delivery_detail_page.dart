@@ -7,6 +7,70 @@ import '../../../pedidos/presentation/pages/order_detail_page.dart';
 import '../../data/repositories/delivery_repository.dart';
 import '../../domain/models/delivery_model.dart';
 
+class _CashCollectionDialog extends StatefulWidget {
+  const _CashCollectionDialog({required this.suggestedAmount});
+
+  final double suggestedAmount;
+
+  @override
+  State<_CashCollectionDialog> createState() => _CashCollectionDialogState();
+}
+
+class _CashCollectionDialogState extends State<_CashCollectionDialog> {
+  late final TextEditingController _controller;
+  bool _collected = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.suggestedAmount.toStringAsFixed(2));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Cobro contado'),
+      content: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 300),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                value: _collected,
+                onChanged: (value) => setState(() => _collected = value),
+                title: const Text('Pedido cobrado'),
+              ),
+              if (_collected)
+                TextField(
+                  controller: _controller,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Monto cobrado'),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            context,
+            (_collected, _collected ? (double.tryParse(_controller.text.replaceAll(',', '.')) ?? widget.suggestedAmount) : 0),
+          ),
+          child: const Text('Guardar'),
+        ),
+      ],
+    );
+  }
+}
+
 class DeliveryDetailPage extends StatefulWidget {
   const DeliveryDetailPage({required this.deliveryId, super.key});
 
@@ -143,11 +207,17 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
       collectedAmount = result.$2;
     }
 
-    await context.read<DeliveryRepository>().markDelivered(
-          order.id,
-          collectedCash: collectedCash,
-          collectedAmount: collectedAmount,
-        );
+    try {
+      await context.read<DeliveryRepository>().markDelivered(
+            order.id,
+            collectedCash: collectedCash,
+            collectedAmount: collectedAmount,
+          );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      return;
+    }
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido marcado como entregado.')));
@@ -159,7 +229,13 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
   Future<void> _markNotDelivered(DeliveryOrderModel order) async {
     final reason = await _askReason();
     if (reason == null || reason.trim().isEmpty) return;
-    await context.read<DeliveryRepository>().markNotDelivered(order.id, reason: reason);
+    try {
+      await context.read<DeliveryRepository>().markNotDelivered(order.id, reason: reason);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      return;
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido marcado como no entregado.')));
     setState(() {
@@ -168,7 +244,13 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
   }
 
   Future<void> _markRescheduled(DeliveryOrderModel order) async {
-    await context.read<DeliveryRepository>().markRescheduled(order.id);
+    try {
+      await context.read<DeliveryRepository>().markRescheduled(order.id);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      return;
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pedido reprogramado para nuevo reparto.')));
     setState(() {
@@ -189,11 +271,17 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
       }
     } catch (_) {}
 
-    await context.read<DeliveryRepository>().optimizeRoute(
-          widget.deliveryId,
-          lat: position?.latitude,
-          lng: position?.longitude,
-        );
+    try {
+      await context.read<DeliveryRepository>().optimizeRoute(
+            widget.deliveryId,
+            lat: position?.latitude,
+            lng: position?.longitude,
+          );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      return;
+    }
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recorrido optimizado y orden guardado.')));
@@ -203,46 +291,10 @@ class _DeliveryDetailPageState extends State<DeliveryDetailPage> {
   }
 
   Future<(bool, double?)?> _askCashCollection(double suggestedAmount) async {
-    final controller = TextEditingController(text: suggestedAmount.toStringAsFixed(2));
-    var collected = true;
-
-    final result = await showDialog<(bool, double?)>(
+    return showDialog<(bool, double?)>(
       context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Cobro contado'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SwitchListTile(
-                value: collected,
-                onChanged: (v) => setDialogState(() => collected = v),
-                title: const Text('Pedido cobrado'),
-              ),
-              if (collected)
-                TextField(
-                  controller: controller,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Monto cobrado'),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-            FilledButton(
-              onPressed: () => Navigator.pop(
-                context,
-                (collected, collected ? (double.tryParse(controller.text.replaceAll(',', '.')) ?? suggestedAmount) : 0),
-              ),
-              child: const Text('Guardar'),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => _CashCollectionDialog(suggestedAmount: suggestedAmount),
     );
-
-    controller.dispose();
-    return result;
   }
 
   Future<String?> _askReason() async {
