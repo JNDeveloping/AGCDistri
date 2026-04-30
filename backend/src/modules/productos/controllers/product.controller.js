@@ -27,6 +27,10 @@ export const getProductController = async (req, res) => {
   const payload = await productService.getById(req.params.id, req.user.role);
   return ok(res, payload, 'Detalle de producto obtenido correctamente.');
 };
+export const getProductActivePromotionsController = async (req, res) => {
+  const payload = await productService.getActivePromotions(req.params.id);
+  return ok(res, payload, 'Promociones activas del producto obtenidas correctamente.');
+};
 
 export const createProductController = async (req, res) => {
   const payload = await productService.create(req.body);

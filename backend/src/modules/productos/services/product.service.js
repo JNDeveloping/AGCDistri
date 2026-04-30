@@ -74,6 +74,7 @@ const formatProduct = (row, role) => {
     categoryName: row.category_name,
     categoryIsActive: row.category_is_active,
     lowStock: Number(row.stock_current ?? 0) <= Number(row.stock_minimum ?? 0),
+    hasActivePromotion: row.has_active_promotion === true,
   };
 
   if (role === 'admin') {
@@ -192,6 +193,24 @@ export class ProductService {
     }
 
     return formatProduct(row, role);
+  }
+
+  async getActivePromotions(id) {
+    const row = await productRepository.findById(id);
+    if (!row) throw new AppError('Producto no encontrado.', 404);
+    const promos = await productRepository.listActivePromotionsByProduct(id);
+    return promos.map((p) => ({
+      id: p.id,
+      name: p.name,
+      type: p.type,
+      startDate: p.start_date,
+      endDate: p.end_date,
+      discountType: p.discount_type,
+      discountValue: p.discount_value == null ? null : Number(p.discount_value),
+      fixedPrice: p.fixed_price == null ? null : Number(p.fixed_price),
+      scope: p.variant_id || p.item_variant_id ? 'variant' : 'product',
+      variantId: p.variant_id ?? p.item_variant_id ?? null,
+    }));
   }
 
   async update(id, payload) {

@@ -30,7 +30,23 @@ const buildBaseSelect = (supportsHasVariants) => `
     p.tax_rate, p.notes, p.created_at, p.updated_at, p.deactivated_at,
     p.category_id,
     c.name AS category_name,
-    c.is_active AS category_is_active
+    c.is_active AS category_is_active,
+    EXISTS (
+      SELECT 1
+      FROM promotions pr
+      WHERE pr.deleted_at IS NULL
+        AND pr.is_active = TRUE
+        AND (pr.start_date IS NULL OR pr.start_date <= NOW())
+        AND (pr.end_date IS NULL OR pr.end_date >= NOW())
+        AND (
+          pr.product_id = p.id
+          OR (pr.category_id IS NOT NULL AND pr.category_id = p.category_id)
+          OR EXISTS (
+            SELECT 1 FROM promotion_items pi
+            WHERE pi.promotion_id = pr.id AND (pi.product_id = p.id OR pi.category_id = p.category_id)
+          )
+        )
+    ) AS has_active_promotion
   FROM products p
   LEFT JOIN product_categories c ON c.id = p.category_id
 `;
@@ -276,6 +292,26 @@ export class ProductRepository {
     const query = `UPDATE products SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${values.length} RETURNING id`;
     const { rows } = await pool.query(query, values);
     return this.findById(rows[0].id);
+  }
+
+  async listActivePromotionsByProduct(productId) {
+    const { rows } = await pool.query(
+      `SELECT pr.id, pr.name, pr.type, pr.start_date, pr.end_date, pr.discount_type, pr.discount_value, pr.fixed_price,
+              pr.product_id, pr.variant_id, pi.variant_id AS item_variant_id
+       FROM promotions pr
+       LEFT JOIN promotion_items pi ON pi.promotion_id = pr.id
+       WHERE pr.deleted_at IS NULL
+         AND pr.is_active = TRUE
+         AND (pr.start_date IS NULL OR pr.start_date <= NOW())
+         AND (pr.end_date IS NULL OR pr.end_date >= NOW())
+         AND (
+           pr.product_id = $1
+           OR EXISTS (SELECT 1 FROM promotion_items x WHERE x.promotion_id = pr.id AND x.product_id = $1)
+         )
+       ORDER BY pr.priority DESC, pr.created_at ASC`,
+      [productId],
+    );
+    return rows;
   }
 
   async deactivate(id) {
