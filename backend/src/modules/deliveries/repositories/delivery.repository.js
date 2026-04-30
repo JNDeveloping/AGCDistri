@@ -440,7 +440,7 @@ export class DeliveryRepository {
       nextStatus = 'en_reparto';
     }
 
-    if (Number(stats.delivered) === Number(stats.total)) {
+    if (Number(stats.delivered) + Number(stats.unresolved) === Number(stats.total)) {
       nextStatus = 'finalizado';
     }
 

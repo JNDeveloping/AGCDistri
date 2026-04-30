@@ -198,8 +198,10 @@ class _ProductFormPageState extends State<ProductFormPage> {
                 ],
               ),
               _field(_cost, 'Costo', number: true, requiredField: false, enabled: !_hasVariants),
-              _field(_stock, 'Stock actual', number: true, requiredField: false, enabled: !_hasVariants),
-              _field(_stockMin, 'Stock mínimo', number: true, requiredField: false, enabled: !_hasVariants),
+              if (!_hasVariants) ...[
+                _field(_stock, 'Stock actual', number: true, requiredField: false, enabled: true),
+                _field(_stockMin, 'Stock mínimo', number: true, requiredField: false, enabled: true),
+              ],
               SwitchListTile(
                 value: _hasVariants,
                 title: const Text('Este producto tiene variantes'),
