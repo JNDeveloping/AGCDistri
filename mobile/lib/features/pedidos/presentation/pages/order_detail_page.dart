@@ -145,7 +145,9 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                 ),
               );
               if (mounted) {
-                setState(() => _future = context.read<OrdersCubit>().getById(widget.orderId));
+                setState(() {
+                  _future = context.read<OrdersCubit>().getById(widget.orderId);
+                });
                 await context.read<OrdersCubit>().load(forceRefresh: true);
               }
             },
@@ -156,7 +158,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           OutlinedButton.icon(
             onPressed: () async {
               final changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => OrderFormPage(orderId: o.id)));
-              if (changed == true && mounted) setState(() => _future = context.read<OrdersCubit>().getById(widget.orderId));
+              if (changed == true && mounted) {
+                setState(() {
+                  _future = context.read<OrdersCubit>().getById(widget.orderId);
+                });
+              }
             },
             icon: const Icon(Icons.edit_outlined),
             label: const Text('Editar'),
