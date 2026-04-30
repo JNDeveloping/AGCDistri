@@ -235,6 +235,25 @@ class OrderRepository {
     }
   }
 
+  Future<Map<String, dynamic>> previewPromotions({
+    required String clientId,
+    required List<OrderItemInput> items,
+  }) async {
+    try {
+      return await _remoteDataSource.previewPromotions({
+        'client_id': clientId,
+        'items': items.map((e) => {
+          'product_id': e.productId,
+          'variant_id': e.productVariantId,
+          'quantity': e.quantity,
+          'unit_price': 0,
+        }).toList(),
+      });
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
+  }
+
   OrderException _mapError(DioException error) {
     if (error.response?.data is Map<String, dynamic>) {
       final data = error.response?.data as Map<String, dynamic>;

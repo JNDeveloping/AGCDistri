@@ -66,4 +66,7 @@ class OrderRemoteDataSource {
 
   Future<Map<String, dynamic>> getLastOrder(String clientId) async =>
       (await _apiClient.get('/clients/$clientId/last-order')).data ?? {};
+
+  Future<Map<String, dynamic>> previewPromotions(Map<String, dynamic> data) async =>
+      (await _apiClient.post('/promotions/preview', data: data)).data ?? {};
 }

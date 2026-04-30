@@ -25,6 +25,9 @@ class _OrderFormPageState extends State<OrderFormPage> {
   bool _loadingSmart = false;
   String? _stockAdjustmentNotice;
   String _paymentTerms = 'contado';
+  double? _serverSubtotal;
+  double? _serverDiscount;
+  double? _serverTotal;
 
   List<ClientPurchaseHistoryItem> _purchaseHistory = const [];
   List<SuggestedProductItem> _suggestedProducts = const [];
@@ -46,11 +49,11 @@ class _OrderFormPageState extends State<OrderFormPage> {
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme;
-    final subtotal = _cart.values.fold<double>(0, (acc, l) => acc + l.netSubtotal);
+    final subtotal = _serverSubtotal ?? _cart.values.fold<double>(0, (acc, l) => acc + l.netSubtotal);
     final hasInvalidItems = _cart.values.any((line) => !line.isValidStock);
     final discountPercent = (double.tryParse(_discountPercent.text) ?? 0).clamp(0, 100);
-    final discountTotal = subtotal * (discountPercent / 100);
-    final total = subtotal - discountTotal;
+    final discountTotal = _serverDiscount ?? (subtotal * (discountPercent / 100));
+    final total = _serverTotal ?? (subtotal - discountTotal);
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.orderId == null ? 'Nuevo pedido' : 'Editar pedido')),
@@ -288,7 +291,8 @@ class _OrderFormPageState extends State<OrderFormPage> {
                   ),
               ],
             ),
-            Text('Precio unitario: ${line.unitPrice.toStringAsFixed(2)} · Stock ${line.stock.toStringAsFixed(0)}'),
+            Row(children:[if(line.hasPromo)...[Text(line.originalUnitPrice.toStringAsFixed(2),style:const TextStyle(decoration: TextDecoration.lineThrough)),const SizedBox(width:6)],Text('Precio: ${line.unitPrice.toStringAsFixed(2)} · Stock ${line.stock.toStringAsFixed(0)}')]),
+            if (line.hasPromo) Wrap(spacing:6,children:[Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:2),decoration:BoxDecoration(color:Colors.green.shade100,borderRadius:BorderRadius.circular(999)),child:const Text('Promo',style:TextStyle(fontWeight: FontWeight.w700,fontSize: 12))),Text(line.promoText)]),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -433,6 +437,8 @@ class _OrderFormPageState extends State<OrderFormPage> {
         quantity: adjustedQty,
         discountType: item.discountType,
         discountValue: item.discountValue,
+        originalUnitPrice: item.originalUnitPrice,
+        promoText: (item.appliedPromotions.isNotEmpty) ? 'Promoción aplicada' : '',
       );
     }
 
@@ -675,7 +681,9 @@ class _OrderFormPageState extends State<OrderFormPage> {
                 discountValue: l.discountValue,
               ))
           .toList();
-      await context.read<OrdersCubit>().save(
+      final localSubtotal = _cart.values.fold<double>(0, (acc, l) => acc + l.netSubtotal);
+      final localDiscount = localSubtotal * (((double.tryParse(_discountPercent.text) ?? 0).clamp(0, 100)) / 100);
+      final saved = await context.read<OrdersCubit>().save(
             id: widget.orderId,
             clientId: _client!.id,
             items: items,
@@ -683,6 +691,15 @@ class _OrderFormPageState extends State<OrderFormPage> {
             paymentTerms: _paymentTerms,
             notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
           );
+      final localTotal = localSubtotal - localDiscount;
+      setState(() {
+        _serverSubtotal = saved.subtotal;
+        _serverDiscount = saved.discountTotal;
+        _serverTotal = saved.total;
+      });
+      if ((saved.total - localTotal).abs() > 0.01 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El backend ajustó los totales por promociones/validaciones.')));
+      }
       if (mounted) Navigator.pop(context, true);
     } on OrderException catch (e) {
       if (!mounted) return;
@@ -780,18 +797,21 @@ class _VariantQuickSheetState extends State<_VariantQuickSheet> {
 }
 
 class _CartLine {
-  _CartLine({required this.key, required this.selection, required this.quantity, this.discountType = 'amount', this.discountValue = 0});
+  _CartLine({required this.key, required this.selection, required this.quantity, this.discountType = 'amount', this.discountValue = 0, double? originalUnitPrice, this.promoText = ''}) : originalUnitPrice = originalUnitPrice ?? selection.effectivePrice;
 
   final String key;
   final OrderProductSelection selection;
   final double quantity;
   final String discountType;
   final double discountValue;
+  final double originalUnitPrice;
+  final String promoText;
 
   String get displayName => selection.displayName;
   double get unitPrice => selection.effectivePrice;
   double get stock => selection.effectiveStock;
   bool get isValidStock => stock > 0 && quantity <= stock;
+  bool get hasPromo => discountAmount > 0;
 
   double get discountAmount {
     if (discountType == 'percentage') return (unitPrice * quantity * discountValue) / 100;
@@ -800,11 +820,13 @@ class _CartLine {
 
   double get netSubtotal => isValidStock ? (unitPrice * quantity - discountAmount).clamp(0, double.infinity) : 0;
 
-  _CartLine copyWith({double? quantity, String? discountType, double? discountValue}) => _CartLine(
+  _CartLine copyWith({double? quantity, String? discountType, double? discountValue, double? originalUnitPrice, String? promoText}) => _CartLine(
         key: key,
         selection: selection,
         quantity: quantity ?? this.quantity,
         discountType: discountType ?? this.discountType,
         discountValue: discountValue ?? this.discountValue,
+        originalUnitPrice: originalUnitPrice ?? this.originalUnitPrice,
+        promoText: promoText ?? this.promoText,
       );
 }

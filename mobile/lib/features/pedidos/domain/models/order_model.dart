@@ -133,11 +133,13 @@ class OrderItemModel extends Equatable {
     this.variantNameSnapshot,
     required this.quantity,
     required this.unitPrice,
+    required this.originalUnitPrice,
     required this.discountType,
     required this.discountValue,
     required this.discountAmount,
     required this.subtotal,
     required this.estimatedMargin,
+    this.appliedPromotions = const [],
   });
 
   final String productId;
@@ -146,11 +148,13 @@ class OrderItemModel extends Equatable {
   final String? variantNameSnapshot;
   final double quantity;
   final double unitPrice;
+  final double originalUnitPrice;
   final String discountType;
   final double discountValue;
   final double discountAmount;
   final double subtotal;
   final double estimatedMargin;
+  final List<dynamic> appliedPromotions;
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) => OrderItemModel(
         productId: json['productId'] as String,
@@ -159,11 +163,13 @@ class OrderItemModel extends Equatable {
         variantNameSnapshot: json['variantNameSnapshot'] as String?,
         quantity: (json['quantity'] as num?)?.toDouble() ?? 0,
         unitPrice: (json['unitPrice'] as num?)?.toDouble() ?? 0,
+        originalUnitPrice: (json['originalUnitPrice'] as num?)?.toDouble() ?? (json['unitPrice'] as num?)?.toDouble() ?? 0,
         discountType: json['discountType'] as String? ?? 'amount',
         discountValue: (json['discountValue'] as num?)?.toDouble() ?? 0,
         discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0,
         subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0,
         estimatedMargin: (json['estimatedMargin'] as num?)?.toDouble() ?? 0,
+        appliedPromotions: json['appliedPromotions'] as List<dynamic>? ?? const [],
       );
 
   @override
