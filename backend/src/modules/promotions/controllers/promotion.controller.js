@@ -7,3 +7,4 @@ export const createPromotionController = async (req,res)=> res.status(201).json(
 export const updatePromotionController = async (req,res)=> ok(res, await promotionService.update(req.params.id, req.body), 'Promoción actualizada.');
 export const deletePromotionController = async (req,res)=> ok(res, await promotionService.remove(req.params.id), 'Promoción archivada.');
 export const togglePromotionController = async (req,res)=> ok(res, await promotionService.toggle(req.params.id), 'Promoción actualizada.');
+export const previewPromotionController = async (req,res)=> ok(res, await promotionService.preview(req.body), 'Preview de promociones calculado.');

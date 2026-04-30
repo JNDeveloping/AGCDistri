@@ -26,6 +26,42 @@ export class PromotionRepository {
   async replaceTiers(promotionId, tiers){ await pool.query('DELETE FROM promotion_tiers WHERE promotion_id=$1',[promotionId]); for (const t of tiers){ await pool.query('INSERT INTO promotion_tiers (promotion_id,min_quantity,discount_type,discount_value,fixed_unit_price) VALUES ($1,$2,$3,$4,$5)',[promotionId,t.minQuantity,t.discountType,t.discountValue??null,t.fixedUnitPrice??null]); }}
   async softDelete(id){ await pool.query('UPDATE promotions SET deleted_at=NOW(), updated_at=NOW() WHERE id=$1',[id]); }
   async toggle(id){ const { rows } = await pool.query('UPDATE promotions SET is_active = NOT is_active, updated_at=NOW() WHERE id=$1 AND deleted_at IS NULL RETURNING *',[id]); return rows[0] ?? null; }
+  async listApplicablePromotions({ clientId = null, zoneId = null, now = new Date() }) {
+    const { rows } = await pool.query(
+      `SELECT p.*,
+              COALESCE((
+                SELECT json_agg(json_build_object('product_id', pi.product_id, 'variant_id', pi.variant_id, 'category_id', pi.category_id, 'required_quantity', pi.required_quantity, 'units_per_bulto', pi.units_per_bulto))
+                FROM promotion_items pi WHERE pi.promotion_id = p.id
+              ), '[]'::json) AS items,
+              COALESCE((
+                SELECT json_agg(json_build_object('min_quantity', pt.min_quantity, 'discount_type', pt.discount_type, 'discount_value', pt.discount_value, 'fixed_unit_price', pt.fixed_unit_price))
+                FROM promotion_tiers pt WHERE pt.promotion_id = p.id
+              ), '[]'::json) AS tiers
+       FROM promotions p
+       WHERE p.deleted_at IS NULL
+         AND p.is_active = TRUE
+         AND (p.start_date IS NULL OR p.start_date <= $1)
+         AND (p.end_date IS NULL OR p.end_date >= $1)
+         AND (p.client_id IS NULL OR p.client_id = $2)
+         AND (p.zone_id IS NULL OR p.zone_id = $3)
+       ORDER BY p.priority DESC, p.created_at ASC`,
+      [now, clientId, zoneId],
+    );
+    return rows;
+  }
+
+  async resolveOrderItemsContext(items) {
+    const productIds = [...new Set(items.map((i) => i.product_id))];
+    const variantIds = [...new Set(items.map((i) => i.variant_id).filter(Boolean))];
+    const { rows: products } = await pool.query(
+      `SELECT id, category_id, has_variants, stock_current FROM products WHERE id = ANY($1::uuid[])`,
+      [productIds],
+    );
+    const variants = variantIds.length
+      ? (await pool.query(`SELECT id, product_id, stock FROM product_variants WHERE id = ANY($1::uuid[])`, [variantIds])).rows
+      : [];
+    return { products, variants };
+  }
 }
 
 export const promotionRepository = new PromotionRepository();

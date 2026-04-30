@@ -60,3 +60,15 @@ export const listPromotionsQuerySchema = z.object({
   type: z.enum(promotionTypes).optional(),
   q: z.string().optional(),
 });
+
+export const previewPromotionSchema = z.object({
+  client_id: z.string().uuid().optional().nullable(),
+  zone_id: z.string().uuid().optional().nullable(),
+  date: z.string().datetime().optional().nullable(),
+  items: z.array(z.object({
+    product_id: z.string().uuid(),
+    variant_id: z.string().uuid().optional().nullable(),
+    quantity: z.coerce.number().positive(),
+    unit_price: z.coerce.number().min(0),
+  })).min(1),
+});
