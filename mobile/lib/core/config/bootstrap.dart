@@ -32,6 +32,8 @@ import '../../features/reports/data/datasources/reports_remote_datasource.dart';
 import '../../features/reports/data/repositories/reports_repository.dart';
 import '../../features/deliveries/data/datasources/delivery_remote_datasource.dart';
 import '../../features/deliveries/data/repositories/delivery_repository.dart';
+import '../../features/promotions/data/datasources/promotion_remote_datasource.dart';
+import '../../features/promotions/data/repositories/promotion_repository.dart';
 import '../../services/api/api_client.dart';
 import '../../services/storage/token_storage.dart';
 import '../router/app_router.dart';
@@ -94,6 +96,9 @@ Future<void> bootstrap() async {
   final deliveryRepository = DeliveryRepository(
     remoteDataSource: DeliveryRemoteDataSource(apiClient: apiClient),
   );
+  final promotionRepository = PromotionRepository(
+    remote: PromotionRemoteDataSource(apiClient: apiClient),
+  );
 
   runApp(
     AppRoot(
@@ -109,6 +114,7 @@ Future<void> bootstrap() async {
       creditNoteRepository: creditNoteRepository,
       reportsRepository: reportsRepository,
       deliveryRepository: deliveryRepository,
+      promotionRepository: promotionRepository,
       offlineSyncService: offlineSyncService,
     ),
   );
@@ -128,6 +134,7 @@ class AppRoot extends StatelessWidget {
     required this.creditNoteRepository,
     required this.reportsRepository,
     required this.deliveryRepository,
+    required this.promotionRepository,
     required this.offlineSyncService,
     super.key,
   });
@@ -144,6 +151,7 @@ class AppRoot extends StatelessWidget {
   final CreditNoteRepository creditNoteRepository;
   final ReportsRepository reportsRepository;
   final DeliveryRepository deliveryRepository;
+  final PromotionRepository promotionRepository;
   final OfflineSyncService offlineSyncService;
 
   @override
@@ -158,6 +166,7 @@ class AppRoot extends StatelessWidget {
         RepositoryProvider.value(value: deliveryRepository),
         RepositoryProvider.value(value: offlineSyncService),
         RepositoryProvider.value(value: usersRepository),
+        RepositoryProvider.value(value: promotionRepository),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -175,6 +184,7 @@ class AppRoot extends StatelessWidget {
           final router = AppRouter(
             authCubit: context.read<AuthCubit>(),
             usersRepository: usersRepository,
+            promotionRepository: promotionRepository,
           ).router;
 
           return BlocListener<AuthCubit, AuthState>(

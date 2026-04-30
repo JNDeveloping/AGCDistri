@@ -122,7 +122,15 @@ class ModuleRegistry {
   );
 
   static const bottomModules = [dashboard, orders, clients, products, profile];
-  static const managementModules = [accounts, reports, products, stock, deliveries, users, zones, categories, company];
+  static const promotions = AppModule(
+    key: 'promociones',
+    label: 'Promociones',
+    route: '/profile/promotions',
+    icon: Icons.local_offer_rounded,
+    roles: ['admin'],
+  );
+
+  static const managementModules = [accounts, reports, products, promotions, stock, deliveries, users, zones, categories, company];
 
   static List<AppModule> modulesForRole(String role) {
     return bottomModules.where((module) => module.roles.contains(role)).toList();

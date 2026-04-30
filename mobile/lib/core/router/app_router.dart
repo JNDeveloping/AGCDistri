@@ -19,10 +19,12 @@ import '../../features/stock/presentation/pages/stock_page.dart';
 import '../../features/reports/presentation/pages/reports_page.dart';
 import '../../features/users/data/repositories/users_repository.dart';
 import '../../features/deliveries/presentation/pages/deliveries_page.dart';
+import '../../features/promotions/data/repositories/promotion_repository.dart';
+import '../../features/promotions/presentation/pages/promotions_list_screen.dart';
 import '../navigation/module_registry.dart';
 
 class AppRouter {
-  AppRouter({required AuthCubit authCubit, required UsersRepository usersRepository})
+  AppRouter({required AuthCubit authCubit, required UsersRepository usersRepository, required PromotionRepository promotionRepository})
       : router = GoRouter(
           initialLocation: SplashPage.path,
           refreshListenable: GoRouterRefreshStream(authCubit.stream),
@@ -58,7 +60,8 @@ class AppRouter {
             ),
             GoRoute(path: ReportsPage.path, name: ReportsPage.name, builder: (_, __) => const ReportsPage()),
             GoRoute(path: DeliveriesPage.path, name: DeliveriesPage.name, builder: (_, __) => const DeliveriesPage()),
-            GoRoute(path: ProfilePage.path, name: ProfilePage.name, builder: (_, __) => ProfilePage(usersRepository: usersRepository)),
+            GoRoute(path: ProfilePage.path, name: ProfilePage.name, builder: (_, __) => ProfilePage(usersRepository: usersRepository, promotionRepository: promotionRepository)),
+            GoRoute(path: PromotionsListScreen.path, name: PromotionsListScreen.name, builder: (_, __) => PromotionsListScreen(repository: promotionRepository)),
             GoRoute(path: CompanySettingsPage.path, name: CompanySettingsPage.name, builder: (_, __) => const CompanySettingsPage()),
           ],
           redirect: (_, state) {
