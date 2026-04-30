@@ -54,5 +54,6 @@ deliveryRouter.patch('/delivery-orders/:id/not-delivered', authorize(USER_ROLES.
 deliveryRouter.patch('/delivery-orders/:id/reschedule', authorize(USER_ROLES.ADMIN, USER_ROLES.REPARTIDOR), validate(markRescheduleSchema), asyncHandler(markDeliveryOrderRescheduleController));
 deliveryRouter.post('/deliveries/:id/optimize-route', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), validate(optimizeRouteSchema), asyncHandler(optimizeDeliveryRouteController));
 deliveryRouter.delete('/deliveries/:id', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), asyncHandler(archiveDeliveryController));
+deliveryRouter.delete('/:id', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), asyncHandler(archiveDeliveryController));
 
 export { deliveryRouter };

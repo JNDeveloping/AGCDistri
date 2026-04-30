@@ -274,6 +274,7 @@ export class DeliveryRepository {
       JOIN deliveries d ON d.id = dor.delivery_id
       WHERE dor.order_id = $1
         AND d.status = ANY($2::delivery_status[])
+        AND d.deleted_at IS NULL
         ${extra}
       LIMIT 1
       `,
