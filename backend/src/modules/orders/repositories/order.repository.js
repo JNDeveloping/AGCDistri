@@ -183,7 +183,7 @@ export class OrderRepository {
     const { rows } = await pool.query(
       `
       SELECT id, order_id, product_id, product_variant_id, product_code, product_name, product_name_snapshot, variant_name_snapshot, quantity, unit_measure,
-             unit_price, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
+             unit_price, original_unit_price, promotion_id, applied_promotions, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
       FROM order_items
       WHERE order_id = $1
       ORDER BY created_at ASC
@@ -270,8 +270,8 @@ export class OrderRepository {
         `
         INSERT INTO order_items (
           order_id, product_id, product_variant_id, product_code, product_name, product_name_snapshot, variant_name_snapshot, quantity, unit_measure,
-          unit_price, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+          unit_price, original_unit_price, promotion_id, applied_promotions, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19)
         `,
         [
           orderId,
@@ -284,6 +284,9 @@ export class OrderRepository {
           item.quantity,
           item.unitMeasure,
           item.unitPrice,
+          item.originalUnitPrice ?? item.unitPrice,
+          item.promotionId ?? null,
+          JSON.stringify(item.appliedPromotions ?? []),
           item.discountType,
           item.discountValue,
           item.discountAmount,
@@ -336,8 +339,8 @@ export class OrderRepository {
         `
         INSERT INTO order_items (
           order_id, product_id, product_variant_id, product_code, product_name, product_name_snapshot, variant_name_snapshot, quantity, unit_measure,
-          unit_price, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+          unit_price, original_unit_price, promotion_id, applied_promotions, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19)
         `,
         [
           id,
@@ -350,6 +353,9 @@ export class OrderRepository {
           item.quantity,
           item.unitMeasure,
           item.unitPrice,
+          item.originalUnitPrice ?? item.unitPrice,
+          item.promotionId ?? null,
+          JSON.stringify(item.appliedPromotions ?? []),
           item.discountType,
           item.discountValue,
           item.discountAmount,
@@ -359,6 +365,22 @@ export class OrderRepository {
         ],
       );
     }
+  }
+
+  async replaceOrderPromotionApplications(orderId, applications = []) {
+    await pool.query('DELETE FROM order_promotion_applications WHERE order_id = $1', [orderId]);
+    for (const app of applications) {
+      await pool.query(
+        `INSERT INTO order_promotion_applications (order_id, promotion_id, order_item_id, discount_amount, original_amount, final_amount, application_count, metadata)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb)`,
+        [orderId, app.promotion_id, app.order_item_id ?? null, app.amount ?? 0, app.original_amount ?? null, app.final_amount ?? null, app.application_count ?? 1, JSON.stringify(app.metadata ?? {})],
+      );
+    }
+  }
+
+  async listOrderPromotionApplications(orderId) {
+    const { rows } = await pool.query('SELECT * FROM order_promotion_applications WHERE order_id = $1 ORDER BY created_at ASC', [orderId]);
+    return rows;
   }
 
   async updateStatus(id, status) {

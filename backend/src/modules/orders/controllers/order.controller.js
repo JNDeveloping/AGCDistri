@@ -85,3 +85,8 @@ export const deleteOrderController = async (req, res) => {
   const data = await orderService.archive(req.params.id, req.user, req.body?.reason);
   return ok(res, data, 'Pedido archivado correctamente.');
 };
+
+export const recalculateOrderPromotionsController = async (req, res) => {
+  const data = await orderService.recalculatePromotions(req.params.id, req.user);
+  return ok(res, data, 'Promociones del pedido recalculadas correctamente.');
+};
