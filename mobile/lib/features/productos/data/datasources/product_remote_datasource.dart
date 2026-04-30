@@ -19,6 +19,7 @@ class ProductRemoteDataSource {
   }
 
   Future<Map<String, dynamic>> getProduct(String id) async => (await _apiClient.get('/productos/$id')).data ?? {};
+  Future<Map<String, dynamic>> getProductPromotions(String id) async => (await _apiClient.get('/productos/$id/promotions')).data ?? {};
   Future<Map<String, dynamic>> createProduct(Map<String, dynamic> data) async => (await _apiClient.post('/productos', data: data)).data ?? {};
   Future<Map<String, dynamic>> updateProduct(String id, Map<String, dynamic> data) async => (await _apiClient.put('/productos/$id', data: data)).data ?? {};
   Future<Map<String, dynamic>> deactivateProduct(String id) async => (await _apiClient.patch('/productos/$id/deactivate')).data ?? {};

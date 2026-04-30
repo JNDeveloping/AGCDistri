@@ -41,6 +41,16 @@ class ProductRepository {
     }
   }
 
+  Future<List<ProductActivePromotion>> getActivePromotions(String id) async {
+    try {
+      final payload = await _remoteDataSource.getProductPromotions(id);
+      final data = payload['data'] as List<dynamic>? ?? [];
+      return data.map((e) => ProductActivePromotion.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (error) {
+      throw ProductException(_message(error));
+    }
+  }
+
   Future<void> save(ProductModel model, {String? id}) async {
     try {
       if (id == null) {

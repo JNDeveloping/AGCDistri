@@ -26,6 +26,7 @@ class ProductModel extends Equatable {
     required this.updatedAt,
     required this.lowStock,
     this.hasVariants = false,
+    this.hasActivePromotion = false,
   });
 
   final String id;
@@ -52,6 +53,7 @@ class ProductModel extends Equatable {
   final DateTime? updatedAt;
   final bool lowStock;
   final bool hasVariants;
+  final bool hasActivePromotion;
   bool get isVariantProduct => hasVariants;
   bool get canAdjustBaseStock => !hasVariants;
   String get displayStockLabel => hasVariants ? 'Stock por variantes' : stockCurrent.toStringAsFixed(2);
@@ -82,6 +84,7 @@ class ProductModel extends Equatable {
       updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'] as String) : null,
       lowStock: json['lowStock'] as bool? ?? false,
       hasVariants: json['hasVariants'] as bool? ?? false,
+      hasActivePromotion: json['hasActivePromotion'] as bool? ?? false,
     );
   }
 
@@ -121,7 +124,47 @@ class ProductModel extends Equatable {
         isActive,
         lowStock,
         hasVariants,
+        hasActivePromotion,
       ];
+}
+
+class ProductActivePromotion {
+  const ProductActivePromotion({
+    required this.id,
+    required this.name,
+    required this.type,
+    this.startDate,
+    this.endDate,
+    this.discountType,
+    this.discountValue,
+    this.fixedPrice,
+    this.scope = 'product',
+    this.variantId,
+  });
+
+  final String id;
+  final String name;
+  final String type;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final String? discountType;
+  final double? discountValue;
+  final double? fixedPrice;
+  final String scope;
+  final String? variantId;
+
+  factory ProductActivePromotion.fromJson(Map<String, dynamic> json) => ProductActivePromotion(
+        id: '${json['id']}',
+        name: (json['name'] ?? '').toString(),
+        type: (json['type'] ?? '').toString(),
+        startDate: json['startDate'] == null ? null : DateTime.tryParse(json['startDate'].toString()),
+        endDate: json['endDate'] == null ? null : DateTime.tryParse(json['endDate'].toString()),
+        discountType: json['discountType']?.toString(),
+        discountValue: (json['discountValue'] as num?)?.toDouble(),
+        fixedPrice: (json['fixedPrice'] as num?)?.toDouble(),
+        scope: (json['scope'] ?? 'product').toString(),
+        variantId: json['variantId']?.toString(),
+      );
 }
 
 class ProductCategory extends Equatable {

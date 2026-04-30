@@ -33,6 +33,8 @@ class ProductCard extends StatelessWidget {
           children: [
             Text('Venta ${product.salePrice.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
             if (product.hasVariants) const Text('Con variantes', style: TextStyle(color: Colors.blueGrey, fontSize: 12)),
+            if (product.hasActivePromotion)
+              const Text('Promo activa', style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w700)),
             if (product.lowStock)
               const Text('Stock bajo', style: TextStyle(color: Colors.red, fontSize: 12))
             else if (!product.isActive)

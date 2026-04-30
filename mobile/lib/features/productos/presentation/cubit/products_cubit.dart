@@ -53,6 +53,7 @@ class ProductsCubit extends Cubit<ProductsState> {
   }
 
   Future<ProductModel> getById(String id) => _repository.getById(id);
+  Future<List<ProductActivePromotion>> getActivePromotions(String id) => _repository.getActivePromotions(id);
 
   Future<void> save(ProductModel model, {String? id}) async {
     await _repository.save(model, id: id);
