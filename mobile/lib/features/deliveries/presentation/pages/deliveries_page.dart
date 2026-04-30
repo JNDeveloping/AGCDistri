@@ -106,7 +106,11 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () async {
                     await Navigator.push(context, MaterialPageRoute(builder: (_) => DeliveryDetailPage(deliveryId: item.id)));
-                    if (mounted) setState(() => _future = _load());
+                    if (mounted) {
+                      setState(() {
+                        _future = _load();
+                      });
+                    }
                   },
                 ),
               );
@@ -121,7 +125,11 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
     final id = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const DeliveryCreatePage()));
     if (!mounted || id == null) return;
     await Navigator.push(context, MaterialPageRoute(builder: (_) => DeliveryDetailPage(deliveryId: id)));
-    if (mounted) setState(() => _future = _load());
+    if (mounted) {
+      setState(() {
+        _future = _load();
+      });
+    }
   }
 
   String _money(double value) => String.fromCharCode(36) + value.toStringAsFixed(2);
