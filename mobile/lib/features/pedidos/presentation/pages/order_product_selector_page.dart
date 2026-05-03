@@ -75,6 +75,16 @@ class _OrderProductSelectorPageState extends State<OrderProductSelectorPage> {
                           style: TextStyle(color: (isOutOfStock || alreadyAdded) ? Colors.grey.shade700 : null),
                         ),
                       ),
+                      if (p.hasActivePromotion)
+                        Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade100,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text('Promo activa', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        ),
                       if (alreadyAdded)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

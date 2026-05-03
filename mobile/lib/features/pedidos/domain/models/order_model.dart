@@ -210,7 +210,7 @@ class OrderClientLookup {
 }
 
 class OrderProductLookup {
-  const OrderProductLookup({required this.id, required this.name, this.internalCode, this.barcode, this.brand, this.categoryName, required this.salePrice, this.stockCurrent = 0, this.hasVariants = false, this.variantId, this.variantName});
+  const OrderProductLookup({required this.id, required this.name, this.internalCode, this.barcode, this.brand, this.categoryName, required this.salePrice, this.stockCurrent = 0, this.hasVariants = false, this.hasActivePromotion = false, this.variantId, this.variantName});
   final String id;
   final String name;
   final String? internalCode;
@@ -220,6 +220,7 @@ class OrderProductLookup {
   final double salePrice;
   final double stockCurrent;
   final bool hasVariants;
+  final bool hasActivePromotion;
   final String? variantId;
   final String? variantName;
 
@@ -233,6 +234,7 @@ class OrderProductLookup {
         salePrice: ((json['salePrice'] ?? json['effectivePrice']) as num?)?.toDouble() ?? 0,
         stockCurrent: (json['effectiveStock'] as num?)?.toDouble() ?? (json['stockCurrent'] as num?)?.toDouble() ?? 0,
         hasVariants: json['hasVariants'] as bool? ?? false,
+        hasActivePromotion: json['hasActivePromotion'] as bool? ?? false,
         variantId: json['variantId'] as String?,
         variantName: json['variantName'] as String?,
       );
@@ -282,6 +284,7 @@ class SuggestedProductItem {
     this.productVariantId,
     this.variantName,
     required this.hasVariants,
+    this.hasActivePromotion = false,
     required this.stockAvailable,
     required this.currentPrice,
     this.lastPrice,
@@ -295,6 +298,7 @@ class SuggestedProductItem {
   final String? productVariantId;
   final String? variantName;
   final bool hasVariants;
+  final bool hasActivePromotion;
   final double stockAvailable;
   final double currentPrice;
   final double? lastPrice;
@@ -308,6 +312,7 @@ class SuggestedProductItem {
         productVariantId: json['productVariantId'] as String?,
         variantName: json['variantName'] as String?,
         hasVariants: json['hasVariants'] as bool? ?? false,
+        hasActivePromotion: json['hasActivePromotion'] as bool? ?? false,
         stockAvailable: (json['stockAvailable'] as num?)?.toDouble() ?? 0,
         currentPrice: (json['currentPrice'] as num?)?.toDouble() ?? 0,
         lastPrice: (json['lastPrice'] as num?)?.toDouble(),
@@ -360,6 +365,7 @@ class ClientLastOrderItem {
     required this.stockAvailable,
     required this.hasStock,
     required this.hasVariants,
+    this.hasActivePromotion = false,
   });
 
   final String productId;
@@ -373,6 +379,7 @@ class ClientLastOrderItem {
   final double stockAvailable;
   final bool hasStock;
   final bool hasVariants;
+  final bool hasActivePromotion;
 
   factory ClientLastOrderItem.fromJson(Map<String, dynamic> json) => ClientLastOrderItem(
         productId: json['productId'] as String,
@@ -386,6 +393,7 @@ class ClientLastOrderItem {
         stockAvailable: (json['stockAvailable'] as num?)?.toDouble() ?? 0,
         hasStock: json['hasStock'] as bool? ?? false,
         hasVariants: json['hasVariants'] as bool? ?? false,
+        hasActivePromotion: json['hasActivePromotion'] as bool? ?? false,
       );
 }
 

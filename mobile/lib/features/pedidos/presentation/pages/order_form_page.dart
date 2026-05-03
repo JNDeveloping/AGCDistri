@@ -438,7 +438,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
         discountType: item.discountType,
         discountValue: item.discountValue,
         originalUnitPrice: item.originalUnitPrice,
-        promoText: (item.appliedPromotions.isNotEmpty) ? 'Promoción aplicada' : '',
+        promoText: _promotionSummary(item.appliedPromotions),
       );
     }
 
@@ -458,6 +458,17 @@ class _OrderFormPageState extends State<OrderFormPage> {
     await _loadSmartData();
   }
 
+
+  String _promotionSummary(List<dynamic> appliedPromotions) {
+    if (appliedPromotions.isEmpty) return '';
+    final labels = appliedPromotions
+        .whereType<Map<String, dynamic>>()
+        .map((promo) => (promo['description'] ?? promo['name'] ?? promo['type'])?.toString().trim() ?? '')
+        .where((label) => label.isNotEmpty)
+        .toList();
+    if (labels.isEmpty) return 'Promoción aplicada';
+    return labels.take(2).join(' · ');
+  }
   Future<void> _repeatLastOrder() async {
     final data = _lastOrder;
     if (data == null || data.items.isEmpty) return;
