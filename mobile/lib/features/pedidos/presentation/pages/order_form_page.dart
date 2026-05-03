@@ -486,6 +486,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
           salePrice: item.currentPrice,
           stockCurrent: item.stockAvailable,
           hasVariants: item.hasVariants,
+          hasActivePromotion: item.hasActivePromotion,
         ),
         variant: item.productVariantId == null
             ? null
@@ -519,6 +520,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
           salePrice: s.currentPrice,
           stockCurrent: s.stockAvailable,
           hasVariants: s.hasVariants,
+          hasActivePromotion: s.hasActivePromotion,
         ),
         variant: s.productVariantId == null
             ? null
@@ -546,6 +548,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
         name: suggestion.productName,
         salePrice: suggestion.currentPrice,
         hasVariants: true,
+        hasActivePromotion: suggestion.hasActivePromotion,
       );
       await _selectProductWithVariants(product);
       return;
@@ -558,6 +561,7 @@ class _OrderFormPageState extends State<OrderFormPage> {
         salePrice: suggestion.currentPrice,
         stockCurrent: suggestion.stockAvailable,
         hasVariants: suggestion.hasVariants,
+        hasActivePromotion: suggestion.hasActivePromotion,
       ),
       variant: suggestion.productVariantId == null
           ? null
