@@ -8,15 +8,19 @@ import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../clientes/presentation/pages/zones_management_page.dart';
 import '../../../productos/presentation/pages/product_categories_page.dart';
 import '../../../users/data/repositories/users_repository.dart';
+import '../../../promotions/data/repositories/promotion_repository.dart';
 import '../../../users/presentation/pages/users_page.dart';
+import '../../../../core/offline/offline_sync_service.dart';
+import 'sync_status_page.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({required this.usersRepository, super.key});
+  const ProfilePage({required this.usersRepository, required this.promotionRepository, super.key});
 
   static const path = '/profile';
   static const name = 'profile';
 
   final UsersRepository usersRepository;
+  final PromotionRepository promotionRepository;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -94,6 +98,20 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.sync_alt_rounded),
+              title: const Text('Sincronización'),
+              subtitle: const Text('Pendientes, errores y reintentos offline'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SyncStatusPage(syncService: context.read<OfflineSyncService>()),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
           Text(
             'Administración',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -155,6 +173,8 @@ class _ProfilePageState extends State<ProfilePage> {
         return 'Gestionar categorías y mover productos';
       case 'empresa':
         return 'Datos de empresa y parámetros generales';
+      case 'promociones':
+        return 'Gestión de promociones comerciales';
       default:
         return 'Acceso al módulo';
     }

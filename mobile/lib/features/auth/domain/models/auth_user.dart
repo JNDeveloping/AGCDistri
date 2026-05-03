@@ -5,6 +5,7 @@ class AuthUser extends Equatable {
     required this.id,
     required this.fullName,
     required this.email,
+    required this.username,
     required this.role,
     required this.permissions,
   });
@@ -12,6 +13,7 @@ class AuthUser extends Equatable {
   final String id;
   final String fullName;
   final String email;
+  final String username;
   final String role;
   final List<String> permissions;
 
@@ -20,6 +22,7 @@ class AuthUser extends Equatable {
       id: json['id'] as String,
       fullName: json['fullName'] as String,
       email: json['email'] as String,
+      username: (json['username'] as String?) ?? '',
       role: json['role'] as String,
       permissions: (json['permissions'] as List<dynamic>? ?? []).cast<String>(),
     );
@@ -29,10 +32,11 @@ class AuthUser extends Equatable {
         'id': id,
         'fullName': fullName,
         'email': email,
+        'username': username,
         'role': role,
         'permissions': permissions,
       };
 
   @override
-  List<Object?> get props => [id, fullName, email, role, permissions];
+  List<Object?> get props => [id, fullName, email, username, role, permissions];
 }

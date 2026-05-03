@@ -27,6 +27,7 @@ export const listAccountMovementsQuerySchema = z.object({
 });
 
 export const createClientPaymentSchema = z.object({
+  clientRequestId: z.string().trim().min(8).max(120).optional(),
   clientId: z.string().uuid(),
   amount: z.coerce.number().positive(),
   paymentMethod: z.enum(paymentMethods),

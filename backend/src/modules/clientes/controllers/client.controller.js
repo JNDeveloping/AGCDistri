@@ -19,6 +19,22 @@ export const getClientController = async (req, res) => {
   return ok(res, client, 'Detalle de cliente obtenido correctamente.');
 };
 
+
+export const getClientPurchaseHistoryController = async (req, res) => {
+  const data = await clientService.getPurchaseHistory(req.params.id);
+  return ok(res, { items: data, total: data.length }, 'Historial de compra obtenido correctamente.');
+};
+
+export const getClientSuggestedProductsController = async (req, res) => {
+  const data = await clientService.getSuggestedProducts(req.params.id);
+  return ok(res, { items: data, total: data.length }, 'Productos sugeridos obtenidos correctamente.');
+};
+
+export const getClientLastOrderController = async (req, res) => {
+  const data = await clientService.getLastOrder(req.params.id);
+  return ok(res, data, 'Último pedido obtenido correctamente.');
+};
+
 export const createClientController = async (req, res) => {
   const client = await clientService.create(req.body);
   return created(res, client, 'Cliente creado correctamente.');

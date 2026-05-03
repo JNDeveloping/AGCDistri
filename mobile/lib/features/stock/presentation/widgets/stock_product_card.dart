@@ -11,6 +11,7 @@ class StockProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = _statusStyle(item.status);
+    final variantTotalStock = item.variants.where((v) => v.isActive).fold<double>(0, (acc, v) => acc + (v.stock ?? 0));
 
     return Card(
       elevation: 0,
@@ -69,37 +70,45 @@ class StockProductCard extends StatelessWidget {
                 ),
               ],
 
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Stock actual', style: Theme.of(context).textTheme.labelMedium),
-                        Text(
-                          item.stockCurrent.toStringAsFixed(2),
-                          style: TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w800,
-                            color: status.fg,
-                            height: 1,
+              if (item.hasVariants) ...[
+                Text('Stock por variantes', style: Theme.of(context).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(
+                  'Stock total variantes: ${variantTotalStock.toStringAsFixed(2)}',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: status.fg),
+                ),
+              ] else
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Stock actual', style: Theme.of(context).textTheme.labelMedium),
+                          Text(
+                            item.stockCurrent.toStringAsFixed(2),
+                            style: TextStyle(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w800,
+                              color: status.fg,
+                              height: 1,
+                            ),
                           ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('Stock mínimo', style: Theme.of(context).textTheme.labelMedium),
+                        Text(
+                          item.stockMinimum.toStringAsFixed(2),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                         ),
                       ],
                     ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text('Stock mínimo', style: Theme.of(context).textTheme.labelMedium),
-                      Text(
-                        item.stockMinimum.toStringAsFixed(2),
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                  ],
+                ),
             ],
           ),
         ),

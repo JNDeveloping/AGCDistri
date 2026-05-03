@@ -11,6 +11,7 @@ class OrderRemoteDataSource {
     String? sellerId,
     String? zoneId,
     String? paymentCondition,
+    String? archived,
     String? search,
     String? dateFrom,
     String? dateTo,
@@ -25,6 +26,7 @@ class OrderRemoteDataSource {
       if (sellerId != null) 'sellerId': sellerId,
       if (zoneId != null) 'zoneId': zoneId,
       if (paymentCondition != null) 'paymentCondition': paymentCondition,
+      if (archived != null) 'archived': archived,
       if (search != null && search.isNotEmpty) 'search': search,
       if (dateFrom != null) 'dateFrom': dateFrom,
       if (dateTo != null) 'dateTo': dateTo,
@@ -52,7 +54,19 @@ class OrderRemoteDataSource {
   Future<Map<String, dynamic>> getProductVariants(String productId) async => (await _apiClient.get('/products/$productId/variants')).data ?? {};
 
   Future<Map<String, dynamic>> searchProducts(String query) async {
-    final response = await _apiClient.get('/productos', queryParameters: {'q': query, 'limit': 30, 'isActive': true});
+    final response = await _apiClient.get('/productos/autocomplete', queryParameters: {'q': query, 'limit': 30});
     return response.data ?? {};
   }
+
+  Future<Map<String, dynamic>> getPurchaseHistory(String clientId) async =>
+      (await _apiClient.get('/clients/$clientId/purchase-history')).data ?? {};
+
+  Future<Map<String, dynamic>> getSuggestedProducts(String clientId) async =>
+      (await _apiClient.get('/clients/$clientId/suggested-products')).data ?? {};
+
+  Future<Map<String, dynamic>> getLastOrder(String clientId) async =>
+      (await _apiClient.get('/clients/$clientId/last-order')).data ?? {};
+
+  Future<Map<String, dynamic>> previewPromotions(Map<String, dynamic> data) async =>
+      (await _apiClient.post('/promotions/preview', data: data)).data ?? {};
 }

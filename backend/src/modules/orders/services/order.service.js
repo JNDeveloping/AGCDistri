@@ -2,6 +2,7 @@ import { AppError } from '../../../errors/app-error.js';
 import { pool } from '../../../database/pool.js';
 import { accountService } from '../../accounts/services/account.service.js';
 import { stockService } from '../../stock/services/stock.service.js';
+import { promotionService } from '../../promotions/services/promotion.service.js';
 import { orderRepository } from '../repositories/order.repository.js';
 
 const editableStatuses = ['pendiente'];
@@ -42,6 +43,7 @@ const mapOrder = (row, items = []) => ({
   totalCredited: Number(row.total_credited ?? 0),
   netTotal: Number(row.net_total ?? row.total),
   hasCreditNotes: Number(row.total_credited ?? 0) > 0,
+  appliedPromotions: row.applied_promotions ?? [],
 });
 
 const mapItem = (row) => ({
@@ -58,6 +60,9 @@ const mapItem = (row) => ({
   discountAmount: Number(row.discount_amount),
   discountType: row.discount_type ?? 'amount',
   discountValue: Number(row.discount_value ?? 0),
+  originalUnitPrice: Number(row.original_unit_price ?? row.unit_price),
+  promotionId: row.promotion_id ?? null,
+  appliedPromotions: row.applied_promotions ?? [],
   subtotal: Number(row.subtotal),
   cost: row.cost == null ? null : Number(row.cost),
   estimatedMargin: Number(row.estimated_margin),
@@ -106,7 +111,8 @@ export class OrderService {
         createdAt: note.created_at,
       })),
     };
-    return mapOrder(enriched, items.map(mapItem));
+    const apps = await orderRepository.listOrderPromotionApplications(id);
+    return mapOrder({ ...enriched, applied_promotions: apps }, items.map(mapItem));
   }
 
   async create(payload, user) {
@@ -117,6 +123,7 @@ export class OrderService {
     const normalizedPayload = { ...payload, paymentTerms: payload.paymentTerms ?? 'contado' };
     const computed = await this.computeTotals(normalizedPayload);
     const orderId = await orderRepository.createOrder(client, normalizedPayload, user.sub, computed);
+    await orderRepository.replaceOrderPromotionApplications(orderId, computed.appliedPromotions ?? []);
     return this.getById(orderId, user.role, user.sub);
   }
 
@@ -134,11 +141,33 @@ export class OrderService {
     const normalizedPayload = { ...payload, paymentTerms: payload.paymentTerms ?? existing.payment_terms ?? 'contado' };
     const computed = await this.computeTotals(normalizedPayload);
     await orderRepository.updatePendingOrder(id, client, normalizedPayload, computed);
+    await orderRepository.replaceOrderPromotionApplications(id, computed.appliedPromotions ?? []);
 
     if (existing.status === 'entregado' && existing.payment_terms === 'cuenta_corriente') {
       await accountService.reverseOrderDebt({ orderId: id, clientId: existing.client_id, total: Number(existing.total), userId: user.sub });
     }
 
+    return this.getById(id, user.role, user.sub);
+  }
+
+  async recalculatePromotions(id, user) {
+    const existing = await orderRepository.findById(id);
+    if (!existing) throw new AppError('Pedido no encontrado.', 404);
+    this.ensureAccess(existing, user.role, user.sub);
+    if (!editableStatuses.includes(existing.status)) throw new AppError('Solo se pueden recalcular promociones en pedidos pendientes.', 409);
+    const currentItems = await orderRepository.listItems(id);
+    const payload = {
+      clientId: existing.client_id,
+      paymentTerms: existing.payment_terms ?? 'contado',
+      notes: existing.notes,
+      deliveryAddress: existing.delivery_address,
+      estimatedDeliveryDate: existing.estimated_delivery_date,
+      items: currentItems.map((i) => ({ productId: i.product_id, productVariantId: i.product_variant_id, quantity: Number(i.quantity), discountType: 'amount', discountValue: 0 })),
+    };
+    const client = await this.loadClient(existing.client_id);
+    const computed = await this.computeTotals(payload);
+    await orderRepository.updatePendingOrder(id, client, payload, computed);
+    await orderRepository.replaceOrderPromotionApplications(id, computed.appliedPromotions ?? []);
     return this.getById(id, user.role, user.sub);
   }
 
@@ -162,7 +191,7 @@ export class OrderService {
     return this.getById(id, user.role, user.sub);
   }
 
-  async remove(id, user) {
+  async archive(id, user, reason = null) {
     const existing = await orderRepository.findById(id);
     if (!existing) throw new AppError('Pedido no encontrado.', 404);
     this.ensureAccess(existing, user.role, user.sub);
@@ -171,17 +200,11 @@ export class OrderService {
       throw new AppError('Solo podés eliminar tus propios pedidos.', 403);
     }
 
-    if (existing.status !== 'pendiente') {
-      throw new AppError('Solo se pueden eliminar pedidos pendientes.', 409);
+    if (!['pendiente', 'preparado', 'entregado'].includes(existing.status)) {
+      throw new AppError('Solo se pueden archivar pedidos pendientes, preparados o entregados.', 409);
     }
-
-    const hasAssociatedMovements = await orderRepository.hasAccountOrStockMovements(id);
-    if (hasAssociatedMovements || existing.stock_discounted || existing.payment_terms === 'cuenta_corriente') {
-      throw new AppError('No se puede eliminar este pedido porque tiene movimientos asociados. Podés cancelarlo.', 409);
-    }
-
-    await orderRepository.remove(id);
-    return { id };
+    await orderRepository.archive(id, user.sub, reason);
+    return { id, archived: true };
   }
 
   async changeStatus(id, status, user) {
@@ -189,7 +212,9 @@ export class OrderService {
     if (!existing) throw new AppError('Pedido no encontrado.', 404);
     this.ensureAccess(existing, user.role, user.sub);
     if (terminalStatuses.includes(existing.status)) throw new AppError('No se puede cambiar estado de pedidos entregados o cancelados.', 409);
-    if (status === 'cancelado') return this.cancel(id, user);
+    if (status !== 'preparado') {
+      throw new AppError('Desde Pedidos solo se permite pasar a preparado. Los estados de reparto se gestionan en Entregas.', 409);
+    }
 
     if (stockCommitStatuses.includes(status) && !existing.stock_discounted) {
       await this.ensureStockForOrder(id);
@@ -199,14 +224,6 @@ export class OrderService {
     }
 
     await orderRepository.updateStatus(id, status);
-    if (status === 'entregado' && existing.payment_terms === 'cuenta_corriente') {
-      await accountService.applyOrderDebt({
-        orderId: id,
-        clientId: existing.client_id,
-        total: Number(existing.total),
-        userId: user.sub,
-      });
-    }
     return this.getById(id, user.role, user.sub);
   }
 
@@ -312,29 +329,48 @@ export class OrderService {
       };
     });
 
+    const stockValidItems = [];
     for (const item of items) {
       const availableStock = await this.resolveAvailableStock(item.productId, item.productVariantId);
-      if (availableStock < Number(item.quantity)) {
-        throw new AppError(
-          `Stock insuficiente para ${item.productName}. Disponible: ${availableStock}.`,
-          409,
-          {
-            code: 'INSUFFICIENT_STOCK',
-            productName: item.productNameSnapshot,
-            variantName: item.variantNameSnapshot,
-            availableStock,
-          },
-        );
-      }
+      if (availableStock >= Number(item.quantity)) stockValidItems.push(item);
+    }
+    if (!stockValidItems.length) throw new AppError('Ninguna línea del pedido tiene stock disponible.', 409);
+
+    const dup = new Set();
+    const uniqueItems = [];
+    for (const i of stockValidItems) {
+      const key = `${i.productId}:${i.productVariantId ?? 'base'}`;
+      if (dup.has(key)) throw new AppError('No se permiten líneas duplicadas de producto/variante.', 400);
+      dup.add(key);
+      uniqueItems.push(i);
     }
 
-    const subtotal = items.reduce((acc, i) => acc + i.subtotal, 0);
-    const discountTotal = Number(payload.discountTotal ?? 0);
+    const promotableItems = uniqueItems.map((i) => ({
+      product_id: i.productId,
+      variant_id: i.productVariantId,
+      quantity: i.quantity,
+      unit_price: i.unitPrice,
+    }));
+    const promoPreview = await promotionService.preview({ client_id: payload.clientId, zone_id: null, items: promotableItems });
+    const byKey = new Map(promoPreview.items.map((x) => [`${x.product_id}:${x.variant_id ?? 'base'}`, x]));
+    for (const item of uniqueItems) {
+      const key = `${item.productId}:${item.productVariantId ?? 'base'}`;
+      const p = byKey.get(key);
+      item.originalUnitPrice = item.unitPrice;
+      item.unitPrice = p?.final_unit_price ?? item.unitPrice;
+      item.discountAmount = p?.discount_amount ?? 0;
+      item.appliedPromotions = p?.applied_promotions ?? [];
+      item.promotionId = item.appliedPromotions[0]?.promotion_id ?? null;
+      item.subtotal = Math.max(0, item.unitPrice * item.quantity);
+    }
+
+    const subtotal = uniqueItems.reduce((acc, i) => acc + (i.originalUnitPrice ?? i.unitPrice) * i.quantity, 0);
+    const discountTotal = Number(promoPreview.discount_total ?? 0);
     const taxTotal = 0;
     const total = Math.max(0, subtotal - discountTotal);
-    const estimatedMargin = items.reduce((acc, i) => acc + i.estimatedMargin, 0) - discountTotal;
+    const estimatedMargin = uniqueItems.reduce((acc, i) => acc + ((i.unitPrice * i.quantity) - (i.cost * i.quantity)), 0);
 
-    return { items, subtotal, discountTotal, taxTotal, total, estimatedMargin };
+    return { items: uniqueItems, subtotal, discountTotal, taxTotal, total, estimatedMargin, appliedPromotions: promoPreview.applied_promotions ?? [] };
   }
 
 

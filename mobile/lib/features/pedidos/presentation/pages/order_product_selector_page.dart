@@ -5,7 +5,14 @@ import '../../domain/models/order_model.dart';
 import '../cubit/orders_cubit.dart';
 
 class OrderProductSelectorPage extends StatefulWidget {
-  const OrderProductSelectorPage({super.key});
+  const OrderProductSelectorPage({
+    required this.addedSimpleProductIds,
+    required this.addedVariantIds,
+    super.key,
+  });
+
+  final Set<String> addedSimpleProductIds;
+  final Set<String> addedVariantIds;
 
   @override
   State<OrderProductSelectorPage> createState() => _OrderProductSelectorPageState();
@@ -54,18 +61,40 @@ class _OrderProductSelectorPageState extends State<OrderProductSelectorPage> {
               itemBuilder: (_, i) {
                 final p = _items[i];
                 final isOutOfStock = !p.hasVariants && p.stockCurrent <= 0;
+                final alreadyAddedSimple = !p.hasVariants && p.variantId == null && widget.addedSimpleProductIds.contains(p.id);
+                final alreadyAddedVariant = p.variantId != null && widget.addedVariantIds.contains(p.variantId);
+                final alreadyAdded = alreadyAddedSimple || alreadyAddedVariant;
                 return ListTile(
-                  enabled: !isOutOfStock,
-                  tileColor: isOutOfStock ? Colors.grey.shade200 : null,
+                  enabled: !isOutOfStock && !alreadyAdded,
+                  tileColor: (isOutOfStock || alreadyAdded) ? Colors.grey.shade200 : null,
                   title: Row(
                     children: [
                       Expanded(
                         child: Text(
                           p.name,
-                          style: TextStyle(color: isOutOfStock ? Colors.grey.shade700 : null),
+                          style: TextStyle(color: (isOutOfStock || alreadyAdded) ? Colors.grey.shade700 : null),
                         ),
                       ),
-                      if (isOutOfStock)
+                      if (p.hasActivePromotion)
+                        Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade100,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text('Promo activa', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        ),
+                      if (alreadyAdded)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text('Ya agregado', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                        ),
+                      if (!alreadyAdded && isOutOfStock)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
@@ -77,9 +106,9 @@ class _OrderProductSelectorPageState extends State<OrderProductSelectorPage> {
                     ],
                   ),
                   subtitle: Text(
-                    '${p.internalCode ?? '-'} · Stock ${p.stockCurrent.toStringAsFixed(0)} · ${p.salePrice.toStringAsFixed(2)}${p.hasVariants ? ' · Con variantes' : ''}',
+                    '${p.internalCode ?? '-'} · Stock ${p.stockCurrent.toStringAsFixed(0)} · ${p.salePrice.toStringAsFixed(2)}${p.variantName != null ? ' · ${p.variantName}' : (p.hasVariants ? ' · Con variantes' : '')}',
                   ),
-                  onTap: isOutOfStock ? null : () => _selectProduct(p),
+                  onTap: (isOutOfStock || alreadyAdded) ? null : () => _selectProduct(p),
                 );
               },
             ),
@@ -90,6 +119,19 @@ class _OrderProductSelectorPageState extends State<OrderProductSelectorPage> {
   }
 
   Future<void> _selectProduct(OrderProductLookup product) async {
+    if (product.variantId != null) {
+      final variant = OrderProductVariantLookup(
+        id: product.variantId!,
+        productId: product.id,
+        name: product.variantName ?? 'Variante',
+        active: true,
+        effectivePrice: product.salePrice,
+        effectiveStock: product.stockCurrent,
+      );
+      Navigator.pop(context, [OrderProductSelection(product: product, variant: variant)]);
+      return;
+    }
+
     if (!product.hasVariants) {
       Navigator.pop(context, [OrderProductSelection(product: product)]);
       return;
@@ -110,7 +152,11 @@ class _OrderProductSelectorPageState extends State<OrderProductSelectorPage> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _VariantMultiSelectSheet(product: product, variants: activeVariants),
+      builder: (_) => _VariantMultiSelectSheet(
+        product: product,
+        variants: activeVariants,
+        addedVariantIds: widget.addedVariantIds,
+      ),
     );
 
     if (selected != null && selected.isNotEmpty && mounted) {
@@ -120,10 +166,15 @@ class _OrderProductSelectorPageState extends State<OrderProductSelectorPage> {
 }
 
 class _VariantMultiSelectSheet extends StatefulWidget {
-  const _VariantMultiSelectSheet({required this.product, required this.variants});
+  const _VariantMultiSelectSheet({
+    required this.product,
+    required this.variants,
+    required this.addedVariantIds,
+  });
 
   final OrderProductLookup product;
   final List<OrderProductVariantLookup> variants;
+  final Set<String> addedVariantIds;
 
   @override
   State<_VariantMultiSelectSheet> createState() => _VariantMultiSelectSheetState();
@@ -165,6 +216,7 @@ class _VariantMultiSelectSheetState extends State<_VariantMultiSelectSheet> {
                 final stock = (v.effectiveStock ?? 0).floor();
                 final price = v.effectivePrice ?? widget.product.salePrice;
                 final outOfStock = stock <= 0;
+                final alreadyAdded = widget.addedVariantIds.contains(v.id);
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
@@ -181,7 +233,13 @@ class _VariantMultiSelectSheetState extends State<_VariantMultiSelectSheet> {
                                     style: TextStyle(fontWeight: FontWeight.w700, color: outOfStock ? Colors.grey.shade700 : null),
                                   ),
                                 ),
-                                if (outOfStock)
+                                if (alreadyAdded)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(color: Colors.amber.shade100, borderRadius: BorderRadius.circular(999)),
+                                    child: const Text('Ya agregada', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                                  )
+                                else if (outOfStock)
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(999)),
@@ -199,7 +257,7 @@ class _VariantMultiSelectSheetState extends State<_VariantMultiSelectSheet> {
                       ),
                       SizedBox(width: 28, child: Text('$qty', textAlign: TextAlign.center)),
                       IconButton(
-                        onPressed: outOfStock ? null : (qty < stock ? () => setState(() => _quantities[v.id] = qty + 1) : null),
+                        onPressed: (outOfStock || alreadyAdded) ? null : (qty < stock ? () => setState(() => _quantities[v.id] = qty + 1) : null),
                         icon: const Icon(Icons.add_circle_outline),
                       ),
                     ],

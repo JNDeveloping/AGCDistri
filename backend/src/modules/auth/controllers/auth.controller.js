@@ -23,6 +23,7 @@ export const registerController = async (req, res) => {
       id: user.id,
       fullName: user.full_name,
       email: user.email,
+      username: user.username,
       role: user.role,
       isActive: user.is_active,
       createdAt: user.created_at,
@@ -46,6 +47,7 @@ export const meController = async (req, res) => {
     id: user.id,
     fullName: user.full_name,
     email: user.email,
+    username: user.username,
     role: user.role,
     permissions: ROLE_PERMISSIONS[user.role] ?? [],
   });

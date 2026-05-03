@@ -1,21 +1,21 @@
 import { pool } from '../../../database/pool.js';
 
 export class UserRepository {
-  async create({ fullName, email, passwordHash, role }) {
+  async create({ fullName, username, email, passwordHash, role }) {
     const query = `
-      INSERT INTO users (full_name, email, password_hash, role)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, full_name, email, role, is_active, created_at
+      INSERT INTO users (full_name, username, email, password_hash, role)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, full_name, username, email, role, is_active, created_at
     `;
 
-    const values = [fullName, email.toLowerCase(), passwordHash, role];
+    const values = [fullName, username.toLowerCase(), email.toLowerCase(), passwordHash, role];
     const { rows } = await pool.query(query, values);
     return rows[0];
   }
 
   async findByEmail(email) {
     const query = `
-      SELECT id, full_name, email, password_hash, role, is_active, is_deleted, deleted_at
+      SELECT id, full_name, username, email, password_hash, role, is_active, is_deleted, deleted_at
       FROM users
       WHERE email = $1 AND is_deleted = FALSE
       LIMIT 1
@@ -25,9 +25,22 @@ export class UserRepository {
     return rows[0] ?? null;
   }
 
+
+  async findByUsername(username) {
+    const query = `
+      SELECT id, full_name, username, email, password_hash, role, is_active, is_deleted, deleted_at
+      FROM users
+      WHERE username = $1 AND is_deleted = FALSE
+      LIMIT 1
+    `;
+
+    const { rows } = await pool.query(query, [username.toLowerCase()]);
+    return rows[0] ?? null;
+  }
+
   async findById(id) {
     const query = `
-      SELECT id, full_name, email, role, is_active, is_deleted, deleted_at, created_at
+      SELECT id, full_name, username, email, role, is_active, is_deleted, deleted_at, created_at
       FROM users
       WHERE id = $1
       LIMIT 1
@@ -41,12 +54,12 @@ export class UserRepository {
   async findByIdentifier(identifier) {
     const normalized = String(identifier ?? '').trim().toLowerCase();
     const query = `
-      SELECT id, full_name, email, password_hash, role, is_active, is_deleted, deleted_at
+      SELECT id, full_name, username, email, password_hash, role, is_active, is_deleted, deleted_at
       FROM users
       WHERE is_deleted = FALSE
         AND (
           email = $1
-          OR split_part(email, '@', 1) = $1
+          OR username = $1
         )
       LIMIT 1
     `;
@@ -57,7 +70,7 @@ export class UserRepository {
 
   async list() {
     const query = `
-      SELECT id, full_name, email, role, is_active, is_deleted, deleted_at, created_at, updated_at
+      SELECT id, full_name, username, email, role, is_active, is_deleted, deleted_at, created_at, updated_at
       FROM users
       WHERE is_deleted = FALSE
       ORDER BY created_at DESC
@@ -70,6 +83,7 @@ export class UserRepository {
   async update(id, patch) {
     const dbMap = {
       fullName: 'full_name',
+      username: 'username',
       email: 'email',
       role: 'role',
       passwordHash: 'password_hash',
@@ -92,7 +106,7 @@ export class UserRepository {
       UPDATE users
       SET ${sets.join(', ')}, updated_at = NOW()
       WHERE id = $${values.length}
-      RETURNING id, full_name, email, role, is_active, is_deleted, deleted_at, created_at, updated_at
+      RETURNING id, full_name, username, email, role, is_active, is_deleted, deleted_at, created_at, updated_at
     `;
 
     const { rows } = await pool.query(query, values);
@@ -104,7 +118,7 @@ export class UserRepository {
       UPDATE users
       SET is_active = FALSE, updated_at = NOW()
       WHERE id = $1
-      RETURNING id, full_name, email, role, is_active, is_deleted, deleted_at, created_at, updated_at
+      RETURNING id, full_name, username, email, role, is_active, is_deleted, deleted_at, created_at, updated_at
     `;
 
     const { rows } = await pool.query(query, [id]);
@@ -116,7 +130,7 @@ export class UserRepository {
       UPDATE users
       SET is_active = TRUE, updated_at = NOW()
       WHERE id = $1
-      RETURNING id, full_name, email, role, is_active, is_deleted, deleted_at, created_at, updated_at
+      RETURNING id, full_name, username, email, role, is_active, is_deleted, deleted_at, created_at, updated_at
     `;
 
     const { rows } = await pool.query(query, [id]);

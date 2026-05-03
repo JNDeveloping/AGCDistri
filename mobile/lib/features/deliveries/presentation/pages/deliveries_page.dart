@@ -21,6 +21,7 @@ class DeliveriesPage extends StatefulWidget {
 class _DeliveriesPageState extends State<DeliveriesPage> {
   late Future<List<DeliveryModel>> _future;
   String? _status;
+  String _archived = 'active';
 
   @override
   void initState() {
@@ -29,7 +30,7 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
   }
 
   Future<List<DeliveryModel>> _load() {
-    return context.read<DeliveryRepository>().list(status: _status);
+    return context.read<DeliveryRepository>().list(status: _status, archived: _archived);
   }
 
   @override
@@ -54,6 +55,18 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
               PopupMenuItem(value: 'finalizado', child: Text('Finalizado')),
             ],
           ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.archive_outlined),
+            onSelected: (value) => setState(() {
+              _archived = value;
+              _future = _load();
+            }),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'active', child: Text('Activos')),
+              PopupMenuItem(value: 'archived', child: Text('Archivados')),
+              PopupMenuItem(value: 'all', child: Text('Todos')),
+            ],
+          ),
         ],
       ),
       bottomNavigationBar: AppBottomNavBar(currentRoute: DeliveriesPage.path, role: role),
@@ -72,7 +85,7 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text(snapshot.error.toString()));
+            return const Center(child: Text('No se pudieron cargar repartos.'));
           }
 
           final items = snapshot.data ?? [];
@@ -88,12 +101,16 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
               return Card(
                 margin: const EdgeInsets.only(bottom: 10),
                 child: ListTile(
-                  title: Text('Reparto #${item.number} · ${item.status}'),
+                  title: Text('Reparto #${item.number} · ${_statusLabel(item.status)}'),
                   subtitle: Text('${item.date} · ${item.totalOrders} pedidos · ${_money(item.totalAmount)}'),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () async {
                     await Navigator.push(context, MaterialPageRoute(builder: (_) => DeliveryDetailPage(deliveryId: item.id)));
-                    if (mounted) setState(() => _future = _load());
+                    if (mounted) {
+                      setState(() {
+                        _future = _load();
+                      });
+                    }
                   },
                 ),
               );
@@ -108,8 +125,25 @@ class _DeliveriesPageState extends State<DeliveriesPage> {
     final id = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const DeliveryCreatePage()));
     if (!mounted || id == null) return;
     await Navigator.push(context, MaterialPageRoute(builder: (_) => DeliveryDetailPage(deliveryId: id)));
-    if (mounted) setState(() => _future = _load());
+    if (mounted) {
+      setState(() {
+        _future = _load();
+      });
+    }
   }
 
   String _money(double value) => String.fromCharCode(36) + value.toStringAsFixed(2);
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'en_reparto':
+        return 'En reparto';
+      case 'finalizado':
+        return 'Finalizado';
+      case 'cancelado':
+        return 'Cancelado';
+      default:
+        return 'Pendiente';
+    }
+  }
 }

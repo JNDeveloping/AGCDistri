@@ -27,6 +27,7 @@ export class AuthService {
         id: user.id,
         fullName: user.full_name,
         email: user.email,
+        username: user.username,
         role: user.role,
         permissions: ROLE_PERMISSIONS[user.role] ?? [],
       },

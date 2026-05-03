@@ -13,6 +13,7 @@ const orderItemSchema = z.object({
 });
 
 export const createOrderSchema = z.object({
+  clientRequestId: z.string().trim().min(8).max(120).optional(),
   clientId: z.string().uuid(),
   notes: z.string().max(4000).optional().nullable(),
   paymentTerms: z.enum(paymentTermsValues).optional().default('contado'),
@@ -24,7 +25,7 @@ export const createOrderSchema = z.object({
 export const updateOrderSchema = createOrderSchema;
 
 export const changeOrderStatusSchema = z.object({
-  status: z.enum(orderStatusValues),
+  status: z.enum(['preparado']),
 });
 
 export const listOrdersQuerySchema = z.object({
@@ -33,6 +34,7 @@ export const listOrdersQuerySchema = z.object({
   zoneId: z.string().uuid().optional(),
   status: z.enum(orderStatusValues).optional(),
   paymentCondition: z.enum(paymentTermsValues).optional(),
+  archived: z.enum(['active', 'archived', 'all']).optional().default('active'),
   search: z.string().trim().min(1).max(120).optional(),
   sortBy: z.enum(['orderDate', 'total', 'client', 'zone', 'status']).optional(),
   sortDirection: z.enum(['asc', 'desc']).optional(),
