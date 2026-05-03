@@ -8,3 +8,7 @@ export const updatePromotionController = async (req,res)=> ok(res, await promoti
 export const deletePromotionController = async (req,res)=> ok(res, await promotionService.remove(req.params.id), 'Promoción archivada.');
 export const togglePromotionController = async (req,res)=> ok(res, await promotionService.toggle(req.params.id), 'Promoción actualizada.');
 export const previewPromotionController = async (req,res)=> ok(res, await promotionService.preview(req.body), 'Preview de promociones calculado.');
+export const selectorsProductsController = async (req,res)=> ok(res, await promotionService.selectorsProducts(req.query.q, Number(req.query.limit ?? 25)), 'Selector de productos obtenido.');
+export const selectorsCategoriesController = async (req,res)=> ok(res, await promotionService.selectorsCategories(), 'Selector de categorías obtenido.');
+export const selectorsClientsController = async (req,res)=> ok(res, await promotionService.selectorsClients(req.query.q, Number(req.query.limit ?? 25)), 'Selector de clientes obtenido.');
+export const selectorsZonesController = async (req,res)=> ok(res, await promotionService.selectorsZones(req.query.q, Number(req.query.limit ?? 25)), 'Selector de zonas obtenido.');

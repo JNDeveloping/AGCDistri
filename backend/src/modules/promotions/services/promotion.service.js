@@ -138,5 +138,9 @@ export class PromotionService {
       applied_promotions: orderPromotions,
     };
   }
+  async selectorsProducts(q, limit){ return promotionRepository.selectorProducts({ q, limit }); }
+  async selectorsCategories(){ return promotionRepository.selectorCategories(); }
+  async selectorsClients(q, limit){ return promotionRepository.selectorClients({ q, limit }); }
+  async selectorsZones(q, limit){ return promotionRepository.selectorZones({ q, limit }); }
 }
 export const promotionService = new PromotionService();

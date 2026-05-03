@@ -62,6 +62,25 @@ export class PromotionRepository {
       : [];
     return { products, variants };
   }
+
+  async selectorProducts({ q = '', limit = 25 }) {
+    const { rows } = await pool.query(
+      `SELECT p.id AS product_id, p.name, p.internal_code AS code, p.barcode, p.has_variants, p.wholesale_price AS price,
+              CASE WHEN p.has_variants THEN NULL ELSE p.stock_current END AS stock,
+              COALESCE((
+                SELECT json_agg(json_build_object('id', pv.id, 'name', pv.name, 'price', pv.price, 'stock', pv.stock, 'code', pv.internal_code, 'barcode', pv.barcode))
+                FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_active = TRUE
+              ), '[]'::json) AS variants
+       FROM products p
+       WHERE p.is_active = TRUE AND (p.name ILIKE $1 OR COALESCE(p.internal_code,'') ILIKE $1 OR COALESCE(p.barcode,'') ILIKE $1)
+       ORDER BY p.name ASC LIMIT $2`,
+      [`%${q}%`, limit],
+    );
+    return rows;
+  }
+  async selectorCategories() { return (await pool.query(`SELECT id, name FROM product_categories WHERE is_active = TRUE ORDER BY name`)).rows; }
+  async selectorClients({ q = '', limit = 25 }) { return (await pool.query(`SELECT id, business_name AS name FROM clients WHERE is_active = TRUE AND business_name ILIKE $1 ORDER BY business_name LIMIT $2`, [`%${q}%`, limit])).rows; }
+  async selectorZones({ q = '', limit = 25 }) { return (await pool.query(`SELECT id, name FROM zones WHERE is_active = TRUE AND name ILIKE $1 ORDER BY name LIMIT $2`, [`%${q}%`, limit])).rows; }
 }
 
 export const promotionRepository = new PromotionRepository();
