@@ -1,10 +1,19 @@
 import { AppError } from '../../../errors/app-error.js';
 import { pool } from '../../../database/pool.js';
 import { promotionRepository } from '../repositories/promotion.repository.js';
+import { discountTypeLabel, promotionSummary, promotionTypeLabel } from '../utils/promotion-labels.js';
 
 export class PromotionService {
-  list(filters){ return promotionRepository.list(filters); }
-  async getById(id){ const row = await promotionRepository.findById(id); if(!row) throw new AppError('Promoción no encontrada.',404); return row; }
+  format(row) {
+    return {
+      ...row,
+      typeLabel: promotionTypeLabel(row.type),
+      discountTypeLabel: discountTypeLabel(row.discount_type),
+      summary: promotionSummary(row),
+    };
+  }
+  async list(filters){ return (await promotionRepository.list(filters)).map((r) => this.format(r)); }
+  async getById(id){ const row = await promotionRepository.findById(id); if(!row) throw new AppError('Promoción no encontrada.',404); return this.format(row); }
   async create(payload){
     const client = await pool.connect();
     try {
@@ -58,7 +67,7 @@ export class PromotionService {
         const key = `${promo.id}:${idx}`;
         if (!promo.stackable && lineAppliedByPromo.has(idx)) return;
         lines[idx].discount_amount += amount;
-        lines[idx].applied_promotions.push({ promotion_id: promo.id, name: description, amount });
+        lines[idx].applied_promotions.push({ promotion_id: promo.id, name: description, label: promotionTypeLabel(promo.type), description: promotionSummary(promo), amount });
         promoDiscount += amount;
         lineAppliedByPromo.add(idx);
         lineAppliedByPromo.add(key);
@@ -116,7 +125,7 @@ export class PromotionService {
       }
 
       if (promoDiscount > 0) {
-        orderPromotions.push({ promotion_id: promo.id, name: promo.name, type: promo.type, amount: Number(promoDiscount.toFixed(2)) });
+        orderPromotions.push({ promotion_id: promo.id, name: promo.name, type: promo.type, label: promotionTypeLabel(promo.type), description: promotionSummary(promo), amount: Number(promoDiscount.toFixed(2)) });
       }
     }
 
