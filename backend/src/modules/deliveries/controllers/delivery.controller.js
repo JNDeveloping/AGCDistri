@@ -1,4 +1,5 @@
 import { deliveryService } from '../services/delivery.service.js';
+import { runIdempotent } from '../../../utils/idempotency.js';
 
 export const listDeliveriesController = async (req, res) => {
   const result = await deliveryService.list(req.query, req.user);
@@ -44,7 +45,7 @@ export const addOrdersToDeliveryController = async (req, res) => {
 };
 
 export const listPendingDeliveryOrdersController = async (req, res) => {
-  const rows = await deliveryService.listPendingOrders(req.query.zone_id);
+  const rows = await deliveryService.listPendingOrders(req.query.zoneId ?? req.query.zone_id);
   res.json({ message: 'Pedidos pendientes para reparto.', data: { items: rows, total: rows.length } });
 };
 
@@ -69,16 +70,45 @@ export const optimizeDeliveryRouteController = async (req, res) => {
 };
 
 export const markDeliveryOrderDeliveredController = async (req, res) => {
-  const row = await deliveryService.markDelivered(req.params.id, req.body, req.user);
-  res.json({ message: 'Pedido marcado como entregado.', data: row });
+  const result = await runIdempotent({
+    userId: req.user.sub,
+    action: 'mark_delivery_status',
+    clientRequestId: req.body.clientRequestId,
+    execute: async () => ({
+      statusCode: 200,
+      body: { message: 'Pedido marcado como entregado.', data: await deliveryService.markDelivered(req.params.id, req.body, req.user) },
+    }),
+  });
+  res.status(result.statusCode).json(result.body);
 };
 
 export const markDeliveryOrderNotDeliveredController = async (req, res) => {
-  const row = await deliveryService.markNotDelivered(req.params.id, req.body, req.user);
-  res.json({ message: 'Pedido marcado como no entregado.', data: row });
+  const result = await runIdempotent({
+    userId: req.user.sub,
+    action: 'mark_delivery_status',
+    clientRequestId: req.body.clientRequestId,
+    execute: async () => ({
+      statusCode: 200,
+      body: { message: 'Pedido marcado como no entregado.', data: await deliveryService.markNotDelivered(req.params.id, req.body, req.user) },
+    }),
+  });
+  res.status(result.statusCode).json(result.body);
 };
 
 export const markDeliveryOrderRescheduleController = async (req, res) => {
-  const row = await deliveryService.markRescheduled(req.params.id, req.body, req.user);
-  res.json({ message: 'Pedido reprogramado.', data: row });
+  const result = await runIdempotent({
+    userId: req.user.sub,
+    action: 'mark_delivery_status',
+    clientRequestId: req.body.clientRequestId,
+    execute: async () => ({
+      statusCode: 200,
+      body: { message: 'Pedido reprogramado.', data: await deliveryService.markRescheduled(req.params.id, req.body, req.user) },
+    }),
+  });
+  res.status(result.statusCode).json(result.body);
+};
+
+export const archiveDeliveryController = async (req, res) => {
+  const data = await deliveryService.archive(req.params.id, req.user, req.body?.reason);
+  res.json({ message: 'Reparto archivado.', data });
 };

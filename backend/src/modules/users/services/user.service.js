@@ -4,14 +4,16 @@ import { AppError } from '../../../errors/app-error.js';
 import { userRepository } from '../repositories/user.repository.js';
 
 export class UserService {
-  async register({ fullName, email, password, role }) {
-    const existing = await userRepository.findByEmail(email);
-    if (existing) {
-      throw new AppError('El correo ya está registrado.', 409);
-    }
+  async register({ fullName, username, email, password, role }) {
+    const [existingEmail, existingUsername] = await Promise.all([
+      userRepository.findByEmail(email),
+      userRepository.findByUsername(username),
+    ]);
+    if (existingEmail) throw new AppError('El correo ya está registrado.', 409);
+    if (existingUsername) throw new AppError('El nombre de usuario ya está registrado.', 409);
 
     const passwordHash = await bcrypt.hash(password, 12);
-    return userRepository.create({ fullName, email, passwordHash, role });
+    return userRepository.create({ fullName, username, email, passwordHash, role });
   }
 
   async validateCredentials({ identifier, password }) {
@@ -51,6 +53,13 @@ export class UserService {
       throw new AppError('Usuario no encontrado.', 404);
     }
 
+    if (payload.username && payload.username.toLowerCase() != existing.username?.toLowerCase()) {
+      const duplicatedUsername = await userRepository.findByUsername(payload.username);
+      if (duplicatedUsername && duplicatedUsername.id !== id) {
+        throw new AppError('El nombre de usuario ya está registrado.', 409);
+      }
+    }
+
     if (payload.email && payload.email.toLowerCase() !== existing.email.toLowerCase()) {
       const duplicated = await userRepository.findByEmail(payload.email);
       if (duplicated) {
@@ -65,6 +74,7 @@ export class UserService {
 
     return userRepository.update(id, {
       fullName: payload.fullName,
+      username: payload.username,
       email: payload.email,
       role: payload.role,
       passwordHash,

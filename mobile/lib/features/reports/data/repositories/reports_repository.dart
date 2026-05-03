@@ -15,6 +15,7 @@ class ReportsRepository {
   Future<Map<String, dynamic>> debt(Map<String, dynamic> query) => _safe(() async => (await _remote.debt(query))['data'] as Map<String, dynamic>? ?? {});
   Future<List<Map<String, dynamic>>> stock(Map<String, dynamic> query) => _safe(() async => ((await _remote.stock(query))['data'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>());
   Future<Map<String, dynamic>> payments(Map<String, dynamic> query) => _safe(() async => (await _remote.payments(query))['data'] as Map<String, dynamic>? ?? {});
+  Future<Map<String, dynamic>> paymentRanking(Map<String, dynamic> query) => _safe(() async => (await _remote.paymentRanking(query))['data'] as Map<String, dynamic>? ?? {});
   Future<List<Map<String, dynamic>>> zones(Map<String, dynamic> query) => _safe(() async => ((await _remote.zones(query))['data'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>());
 
   Future<T> _safe<T>(Future<T> Function() run) async {

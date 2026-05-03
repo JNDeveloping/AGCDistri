@@ -619,6 +619,93 @@ export class ReportService {
     };
   }
 
+  async getPaymentRanking(query, user) {
+    this.ensureAccess(user);
+    const limit = Number(query.limit ?? 10);
+
+    const ranking = await pool.query(
+      `
+      WITH payment_stats AS (
+        SELECT
+          cp.client_id,
+          COALESCE(SUM(cp.amount), 0)::numeric AS total_paid,
+          COUNT(*)::int AS payment_count,
+          MAX(cp.created_at) AS last_payment_date
+        FROM client_payments cp
+        WHERE cp.is_annulled = FALSE
+        GROUP BY cp.client_id
+      ),
+      debt_stats AS (
+        SELECT
+          c.id AS client_id,
+          COALESCE(c.current_balance, 0)::numeric AS current_balance,
+          COALESCE(SUM(CASE WHEN o.payment_terms = 'cuenta_corriente' THEN o.total ELSE 0 END),0)::numeric AS total_debt,
+          MIN(CASE WHEN o.payment_terms = 'cuenta_corriente' AND o.status <> 'cancelado' THEN o.order_date END) AS oldest_debt_date,
+          COUNT(*) FILTER (WHERE o.payment_terms = 'cuenta_corriente' AND o.status <> 'cancelado')::int AS unpaid_cc_orders
+        FROM clients c
+        LEFT JOIN orders o ON o.client_id = c.id
+        GROUP BY c.id
+      ),
+      merged AS (
+        SELECT
+          c.id AS client_id,
+          c.business_name AS client_name,
+          ds.current_balance,
+          COALESCE(ps.total_paid, 0)::numeric AS total_paid,
+          COALESCE(ds.total_debt, 0)::numeric AS total_debt,
+          ps.last_payment_date,
+          CASE
+            WHEN ps.last_payment_date IS NULL THEN NULL
+            ELSE (CURRENT_DATE - ps.last_payment_date::date)::int
+          END AS days_since_last_payment,
+          COALESCE(ps.payment_count, 0)::int AS payment_count,
+          COALESCE(ds.unpaid_cc_orders, 0)::int AS unpaid_cc_orders,
+          CASE
+            WHEN ds.oldest_debt_date IS NULL THEN 0
+            ELSE GREATEST((CURRENT_DATE - ds.oldest_debt_date::date)::int, 0)
+          END AS debt_age_days
+        FROM clients c
+        LEFT JOIN payment_stats ps ON ps.client_id = c.id
+        LEFT JOIN debt_stats ds ON ds.client_id = c.id
+      )
+      SELECT
+        *,
+        ROUND(
+          (
+            (COALESCE(total_paid, 0) * 0.03)
+            + (payment_count * 4)
+            - (COALESCE(total_debt, 0) * 0.02)
+            - (COALESCE(days_since_last_payment, 60) * 0.6)
+            - (unpaid_cc_orders * 6)
+            - (debt_age_days * 0.2)
+          )::numeric
+          , 2
+        ) AS score
+      FROM merged
+      `,
+    );
+
+    const rows = ranking.rows.map((r) => ({
+      client_id: r.client_id,
+      client_name: r.client_name,
+      current_balance: toNum(r.current_balance),
+      total_paid: toNum(r.total_paid),
+      total_debt: toNum(r.total_debt),
+      last_payment_date: r.last_payment_date,
+      days_since_last_payment: r.days_since_last_payment == null ? null : Number(r.days_since_last_payment),
+      score: toNum(r.score),
+    })).toList();
+
+    const sortedBest = [...rows].sort((a, b) => b.score - a.score);
+    const sortedWorst = [...rows].sort((a, b) => a.score - b.score);
+
+    return {
+      criteria: 'score = pagos(+) frecuencia(+) deuda(-) antigüedad deuda(-) días sin pago(-)',
+      best_payers: sortedBest.take(limit).toList(),
+      worst_payers: sortedWorst.take(limit).toList(),
+    };
+  }
+
   async getZones(query, user) {
     this.ensureAccess(user);
     const { where, values } = buildOrderFilters(query, user);

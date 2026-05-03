@@ -32,16 +32,21 @@ import '../../features/reports/data/datasources/reports_remote_datasource.dart';
 import '../../features/reports/data/repositories/reports_repository.dart';
 import '../../features/deliveries/data/datasources/delivery_remote_datasource.dart';
 import '../../features/deliveries/data/repositories/delivery_repository.dart';
+import '../../features/promotions/data/datasources/promotion_remote_datasource.dart';
+import '../../features/promotions/data/repositories/promotion_repository.dart';
 import '../../services/api/api_client.dart';
 import '../../services/storage/token_storage.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme.dart';
 import '../../features/users/data/datasources/users_remote_datasource.dart';
+import '../offline/offline_sync_service.dart';
+import '../network/connectivity_cubit.dart';
 import '../../features/users/data/repositories/users_repository.dart';
 
 Future<void> bootstrap() async {
   final tokenStorage = TokenStorage();
   final apiClient = ApiClient(tokenStorage: tokenStorage);
+  final offlineSyncService = OfflineSyncService(apiClient: apiClient);
 
   final authRepository = AuthRepository(
     remoteDataSource: AuthRemoteDataSource(apiClient: apiClient),
@@ -91,6 +96,9 @@ Future<void> bootstrap() async {
   final deliveryRepository = DeliveryRepository(
     remoteDataSource: DeliveryRemoteDataSource(apiClient: apiClient),
   );
+  final promotionRepository = PromotionRepository(
+    remote: PromotionRemoteDataSource(apiClient: apiClient),
+  );
 
   runApp(
     AppRoot(
@@ -106,6 +114,8 @@ Future<void> bootstrap() async {
       creditNoteRepository: creditNoteRepository,
       reportsRepository: reportsRepository,
       deliveryRepository: deliveryRepository,
+      promotionRepository: promotionRepository,
+      offlineSyncService: offlineSyncService,
     ),
   );
 }
@@ -124,6 +134,8 @@ class AppRoot extends StatelessWidget {
     required this.creditNoteRepository,
     required this.reportsRepository,
     required this.deliveryRepository,
+    required this.promotionRepository,
+    required this.offlineSyncService,
     super.key,
   });
 
@@ -139,6 +151,8 @@ class AppRoot extends StatelessWidget {
   final CreditNoteRepository creditNoteRepository;
   final ReportsRepository reportsRepository;
   final DeliveryRepository deliveryRepository;
+  final PromotionRepository promotionRepository;
+  final OfflineSyncService offlineSyncService;
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +164,9 @@ class AppRoot extends StatelessWidget {
         RepositoryProvider.value(value: creditNoteRepository),
         RepositoryProvider.value(value: reportsRepository),
         RepositoryProvider.value(value: deliveryRepository),
+        RepositoryProvider.value(value: offlineSyncService),
         RepositoryProvider.value(value: usersRepository),
+        RepositoryProvider.value(value: promotionRepository),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -161,12 +177,14 @@ class AppRoot extends StatelessWidget {
         BlocProvider(create: (_) => OrdersCubit(repository: orderRepository)),
         BlocProvider(create: (_) => CompanySettingsCubit(repository: companySettingsRepository)),
         BlocProvider(create: (_) => StockCubit(repository: stockRepository)),
+        BlocProvider(create: (_) => ConnectivityCubit()),
       ],
       child: Builder(
         builder: (context) {
           final router = AppRouter(
             authCubit: context.read<AuthCubit>(),
             usersRepository: usersRepository,
+            promotionRepository: promotionRepository,
           ).router;
 
           return BlocListener<AuthCubit, AuthState>(
@@ -183,6 +201,40 @@ class AppRoot extends StatelessWidget {
                   title: 'AGC Distribuidora',
                   theme: AppTheme.light(settingsState.settings),
                   routerConfig: router,
+                  builder: (context, child) => Stack(
+                    children: [
+                      child ?? const SizedBox.shrink(),
+                      BlocListener<ConnectivityCubit, ConnectivityBannerState>(
+                        listenWhen: (a, b) => a != b && b == ConnectivityBannerState.reconnecting,
+                        listener: (_, __) => offlineSyncService.syncPending(),
+                        child: BlocBuilder<ConnectivityCubit, ConnectivityBannerState>(
+                          builder: (_, state) => state == ConnectivityBannerState.online
+                              ? const SizedBox.shrink()
+                              : Positioned(
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                child: Material(
+                                  color: state == ConnectivityBannerState.offline ? Colors.red.shade700 : Colors.green.shade700,
+                                  child: SafeArea(
+                                    bottom: false,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      child: Text(
+                                        state == ConnectivityBannerState.offline
+                                            ? 'Sin conexión · Trabajando offline'
+                                            : 'Conexión recuperada, sincronizando…',
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),

@@ -89,3 +89,33 @@ class StockMovement {
         productName: json['productName'] as String?,
       );
 }
+
+
+class StockLookupItem {
+  const StockLookupItem({
+    required this.productId,
+    required this.productName,
+    this.variantId,
+    this.variantName,
+    required this.effectivePrice,
+    required this.effectiveStock,
+  });
+
+  final String productId;
+  final String productName;
+  final String? variantId;
+  final String? variantName;
+  final double effectivePrice;
+  final double effectiveStock;
+
+  String get displayName => variantName == null || variantName!.isEmpty ? productName : '$productName - $variantName';
+
+  factory StockLookupItem.fromJson(Map<String, dynamic> json) => StockLookupItem(
+        productId: (json['productId'] ?? json['id']) as String,
+        productName: (json['productName'] ?? json['name']) as String? ?? '-',
+        variantId: json['variantId'] as String?,
+        variantName: json['variantName'] as String?,
+        effectivePrice: (json['effectivePrice'] as num?)?.toDouble() ?? (json['salePrice'] as num?)?.toDouble() ?? 0,
+        effectiveStock: (json['effectiveStock'] as num?)?.toDouble() ?? (json['stockCurrent'] as num?)?.toDouble() ?? 0,
+      );
+}

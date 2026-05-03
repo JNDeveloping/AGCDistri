@@ -114,7 +114,7 @@ class _UsersPageState extends State<UsersPage> {
                                 ),
                               ],
                             ),
-                            subtitle: Text('${user.email}\nRol: ${user.role}'),
+                            subtitle: Text('@${user.username} · ${user.email}\nRol: ${user.role}'),
                             isThreeLine: true,
                             trailing: PopupMenuButton<String>(
                               onSelected: (value) {
@@ -242,6 +242,7 @@ class _UsersPageState extends State<UsersPage> {
   Future<void> _openForm({AppUser? user}) async {
     final fullName = TextEditingController(text: user?.fullName ?? '');
     final email = TextEditingController(text: user?.email ?? '');
+    final username = TextEditingController(text: user?.username ?? '');
     final password = TextEditingController();
     String role = user?.role ?? 'vendedor';
 
@@ -260,6 +261,7 @@ class _UsersPageState extends State<UsersPage> {
           children: [
             Text(user == null ? 'Crear usuario' : 'Editar usuario', style: Theme.of(context).textTheme.titleLarge),
             TextField(controller: fullName, decoration: const InputDecoration(labelText: 'Nombre completo')),
+            TextField(controller: username, decoration: const InputDecoration(labelText: 'Username')),
             TextField(controller: email, decoration: const InputDecoration(labelText: 'Email')),
             DropdownButtonFormField<String>(
               value: role,
@@ -282,6 +284,7 @@ class _UsersPageState extends State<UsersPage> {
                 await widget.repository.save(
                   id: user?.id,
                   fullName: fullName.text.trim(),
+                  username: username.text.trim(),
                   email: email.text.trim(),
                   role: role,
                   password: password.text.trim().isEmpty ? null : password.text.trim(),

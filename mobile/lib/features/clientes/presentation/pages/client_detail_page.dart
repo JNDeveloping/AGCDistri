@@ -128,6 +128,7 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
   }
 
   Future<void> _updateLocation(ClientModel client) async {
+    if (!mounted) return;
     setState(() => _updatingLocation = true);
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -139,7 +140,10 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('Permiso de ubicación denegado para siempre.');
+      }
+      if (permission == LocationPermission.denied) {
         throw Exception('Permiso de ubicación denegado.');
       }
 
@@ -164,7 +168,7 @@ class _ClientDetailPageState extends State<ClientDetailPage> {
             message.contains('denegado')
                 ? 'Permiso de ubicación denegado.'
                 : message.contains('GPS apagado')
-                    ? 'GPS apagado. Activá la ubicación del dispositivo.'
+                    ? 'Activá el GPS para guardar ubicación.'
                     : 'No se pudo obtener ubicación.',
           ),
         ),

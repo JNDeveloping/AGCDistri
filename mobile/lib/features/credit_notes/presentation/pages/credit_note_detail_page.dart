@@ -125,17 +125,22 @@ class _CreditNoteDetailPageState extends State<CreditNoteDetailPage> {
     final doc = pw.Document();
     doc.addPage(
       pw.MultiPage(
+        pageTheme: const pw.PageTheme(margin: pw.EdgeInsets.all(24)),
         build: (_) => [
           pw.Text('Nota de Crédito #${note.number}', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 8),
+          pw.SizedBox(height: 6),
           pw.Text('Empresa: ${settings.companyName}'),
           pw.Text('CUIT: ${settings.taxId ?? '-'}'),
+          pw.Text('Dirección: ${settings.address ?? '-'} ${settings.city ?? ''} ${settings.province ?? ''}'.trim()),
+          pw.Text('Tel: ${settings.phone ?? '-'} · Email: ${settings.email ?? '-'}'),
+          pw.Divider(),
           pw.Text('Cliente: ${note.clientName}'),
           pw.Text('Pedido asociado: #${widget.orderNumber}'),
           pw.Text('Motivo: ${note.reason}'),
+          pw.Text('Fecha: ${note.createdAt?.toLocal().toString().split('.').first ?? '-'}'),
           pw.SizedBox(height: 10),
           pw.Table.fromTextArray(
-            headers: const ['Producto', 'Cant', 'Precio', 'Subtotal'],
+            headers: const ['Producto / Variante', 'Cant', 'Precio Unit.', 'Subtotal'],
             data: note.items
                 .map((i) => [
                       i.productNameSnapshot,
@@ -146,13 +151,7 @@ class _CreditNoteDetailPageState extends State<CreditNoteDetailPage> {
                 .toList(),
           ),
           pw.SizedBox(height: 12),
-          pw.Align(
-            alignment: pw.Alignment.centerRight,
-            child: pw.Text(
-              'TOTAL: ${note.totalAmount.toStringAsFixed(2)}',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-            ),
-          ),
+          pw.Align(alignment: pw.Alignment.centerRight, child: pw.Text('TOTAL NOTA DE CRÉDITO: ${note.totalAmount.toStringAsFixed(2)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
         ],
       ),
     );

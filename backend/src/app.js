@@ -23,6 +23,7 @@ import { userRouter } from './modules/users/routes/user.routes.js';
 import { zoneRouter } from './modules/zones/routes/zone.routes.js';
 import { reportRouter } from './modules/reports/routes/report.routes.js';
 import { deliveryRouter } from './modules/deliveries/routes/delivery.routes.js';
+import { promotionRouter } from './modules/promotions/routes/promotion.routes.js';
 
 const buildCorsOptions = () => {
   const configuredOrigins = (env.corsOrigin ?? '')
@@ -81,6 +82,7 @@ export const createApp = () => {
   app.use('/api/v1/users', userRouter);
   app.use('/api/v1/zones', zoneRouter);
   app.use('/api/v1/reports', reportRouter);
+  app.use('/api/v1/promotions', promotionRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

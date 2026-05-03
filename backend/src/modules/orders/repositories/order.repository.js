@@ -101,6 +101,11 @@ export class OrderRepository {
         )
       )`);
     }
+    if (filters.archived === 'archived') {
+      whereBase.push('o.deleted_at IS NOT NULL');
+    } else if (filters.archived !== 'all') {
+      whereBase.push('o.deleted_at IS NULL');
+    }
 
     if (role === 'vendedor') {
       values.push(userId);
@@ -113,7 +118,6 @@ export class OrderRepository {
     }
 
     const whereClause = [...whereBase, ...whereStatus].length ? `WHERE ${[...whereBase, ...whereStatus].join(' AND ')}` : '';
-    const whereCountsClause = whereBase.length ? `WHERE ${whereBase.join(' AND ')}` : '';
     const sortFieldMap = {
       orderDate: 'o.order_date',
       total: 'o.total',
@@ -134,7 +138,7 @@ export class OrderRepository {
       FROM orders o
       JOIN clients c ON c.id = o.client_id
       LEFT JOIN zones z ON z.id = c.zone_id
-      ${whereCountsClause}
+      ${whereClause}
       GROUP BY o.status
     `;
 
@@ -154,7 +158,7 @@ export class OrderRepository {
 
   async listPendingDelivery({ zoneId, role, userId }) {
     const values = [];
-    const filters = [`o.status IN ('pendiente', 'preparado', 'en_reparto')`];
+    const filters = [`o.status = 'preparado'`];
 
     if (zoneId) {
       values.push(zoneId);
@@ -179,7 +183,7 @@ export class OrderRepository {
     const { rows } = await pool.query(
       `
       SELECT id, order_id, product_id, product_variant_id, product_code, product_name, product_name_snapshot, variant_name_snapshot, quantity, unit_measure,
-             unit_price, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
+             unit_price, original_unit_price, promotion_id, applied_promotions, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
       FROM order_items
       WHERE order_id = $1
       ORDER BY created_at ASC
@@ -266,8 +270,8 @@ export class OrderRepository {
         `
         INSERT INTO order_items (
           order_id, product_id, product_variant_id, product_code, product_name, product_name_snapshot, variant_name_snapshot, quantity, unit_measure,
-          unit_price, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+          unit_price, original_unit_price, promotion_id, applied_promotions, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19)
         `,
         [
           orderId,
@@ -280,6 +284,9 @@ export class OrderRepository {
           item.quantity,
           item.unitMeasure,
           item.unitPrice,
+          item.originalUnitPrice ?? item.unitPrice,
+          item.promotionId ?? null,
+          JSON.stringify(item.appliedPromotions ?? []),
           item.discountType,
           item.discountValue,
           item.discountAmount,
@@ -332,8 +339,8 @@ export class OrderRepository {
         `
         INSERT INTO order_items (
           order_id, product_id, product_variant_id, product_code, product_name, product_name_snapshot, variant_name_snapshot, quantity, unit_measure,
-          unit_price, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+          unit_price, original_unit_price, promotion_id, applied_promotions, discount_type, discount_value, discount_amount, subtotal, cost, estimated_margin
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19)
         `,
         [
           id,
@@ -346,6 +353,9 @@ export class OrderRepository {
           item.quantity,
           item.unitMeasure,
           item.unitPrice,
+          item.originalUnitPrice ?? item.unitPrice,
+          item.promotionId ?? null,
+          JSON.stringify(item.appliedPromotions ?? []),
           item.discountType,
           item.discountValue,
           item.discountAmount,
@@ -355,6 +365,22 @@ export class OrderRepository {
         ],
       );
     }
+  }
+
+  async replaceOrderPromotionApplications(orderId, applications = []) {
+    await pool.query('DELETE FROM order_promotion_applications WHERE order_id = $1', [orderId]);
+    for (const app of applications) {
+      await pool.query(
+        `INSERT INTO order_promotion_applications (order_id, promotion_id, order_item_id, discount_amount, original_amount, final_amount, application_count, metadata)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb)`,
+        [orderId, app.promotion_id, app.order_item_id ?? null, app.amount ?? 0, app.original_amount ?? null, app.final_amount ?? null, app.application_count ?? 1, JSON.stringify(app.metadata ?? {})],
+      );
+    }
+  }
+
+  async listOrderPromotionApplications(orderId) {
+    const { rows } = await pool.query('SELECT * FROM order_promotion_applications WHERE order_id = $1 ORDER BY created_at ASC', [orderId]);
+    return rows;
   }
 
   async updateStatus(id, status) {
@@ -382,7 +408,15 @@ export class OrderRepository {
   }
 
   async remove(id) {
-    const { rowCount } = await pool.query('DELETE FROM orders WHERE id = $1', [id]);
+    const { rowCount } = await pool.query('UPDATE orders SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1', [id]);
+    return rowCount > 0;
+  }
+
+  async archive(id, userId, reason = null) {
+    const { rowCount } = await pool.query(
+      'UPDATE orders SET deleted_at = NOW(), deleted_by = $2, delete_reason = $3, updated_at = NOW() WHERE id = $1',
+      [id, userId, reason],
+    );
     return rowCount > 0;
   }
 

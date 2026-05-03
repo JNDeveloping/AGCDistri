@@ -59,6 +59,16 @@ export class DeliveryService {
     return updated;
   }
 
+  async archive(id, authUser, reason = null) {
+    const delivery = await this.repository.findById(id);
+    if (!delivery) throw new AppError('Reparto no encontrado.', 404);
+    if (delivery.status === 'en_reparto') {
+      throw new AppError('No se puede archivar un reparto en curso con pedidos en reparto.', 409);
+    }
+    await this.repository.archive(id, authUser.sub, reason);
+    return { id, archived: true };
+  }
+
   async assignDriver(id, driverId) {
     const delivery = await this.repository.findById(id);
     if (!delivery) throw new AppError('Reparto no encontrado.', 404);
@@ -94,6 +104,7 @@ export class DeliveryService {
   }
 
   async listPendingOrders(zoneId) {
+    if (!zoneId) throw new AppError('zoneId es requerido.', 400);
     return this.repository.listPendingDeliveryOrders({ zoneId });
   }
 
@@ -130,6 +141,10 @@ export class DeliveryService {
     if (FINAL_STATUSES.has(row.delivery_status_parent)) throw new AppError('El reparto finalizado/cancelado no se puede modificar.', 409);
     if (authUser.role === 'repartidor' && row.driver_id !== authUser.sub) {
       throw new AppError('No autorizado para modificar este pedido de reparto.', 403);
+    }
+
+    if (payload.status === 'no_entregado' && !payload.reason?.trim()) {
+      throw new AppError('El motivo es obligatorio para marcar no entregado.', 400);
     }
 
     const updated = await this.repository.updateDeliveryOrderStatus({
@@ -171,6 +186,8 @@ export class DeliveryService {
     if (payload.status === 'no_entregado' || payload.status === 'reprogramado') {
       await this.repository.updateOrderStatus(row.order_id, 'preparado');
     }
+
+    await this.repository.syncDeliveryStatusFromOrders(row.delivery_id);
 
     return updated;
   }

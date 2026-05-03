@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/navigation/app_bottom_nav_bar.dart';
+import '../../../accounts/presentation/pages/client_account_page.dart';
 import '../../../accounts/presentation/pages/accounts_overview_page.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../pedidos/presentation/pages/order_detail_page.dart';
@@ -29,7 +30,7 @@ class _ReportsPageState extends State<ReportsPage> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
   }
 
   @override
@@ -54,13 +55,25 @@ class _ReportsPageState extends State<ReportsPage> with SingleTickerProviderStat
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reportes'),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
+        elevation: 0,
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
+          labelColor: Theme.of(context).colorScheme.primary,
+          unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+          labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+          indicatorColor: Theme.of(context).colorScheme.primary,
+          indicatorWeight: 3,
+          dividerColor: Theme.of(context).colorScheme.outlineVariant,
+          tabAlignment: TabAlignment.start,
           tabs: const [
             Tab(text: 'Ventas'),
             Tab(text: 'Deuda'),
             Tab(text: 'Pagos'),
+            Tab(text: 'Ranking'),
             Tab(text: 'Productos'),
             Tab(text: 'Ganancias'),
             Tab(text: 'Zonas'),
@@ -84,6 +97,7 @@ class _ReportsPageState extends State<ReportsPage> with SingleTickerProviderStat
                 _SalesTab(repo: repo, query: query),
                 _DebtTab(repo: repo, query: query),
                 _PaymentsTab(repo: repo, query: query),
+                _PaymentRankingTab(repo: repo, query: query),
                 _TopProductsTab(repo: repo, query: query),
                 _ProfitTab(repo: repo, query: query),
                 _ZonesTab(repo: repo, query: query),
@@ -313,6 +327,65 @@ class _TopProductsTab extends StatelessWidget {
   }
 }
 
+class _PaymentRankingTab extends StatelessWidget {
+  const _PaymentRankingTab({required this.repo, required this.query});
+  final ReportsRepository repo;
+  final Map<String, dynamic> query;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: repo.paymentRanking(query),
+      builder: (_, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const _LoadingView();
+        if (!snapshot.hasData) return _ErrorView(message: 'No se pudo cargar ranking de pagadores.');
+        final data = snapshot.data!;
+        final best = (data['best_payers'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+        final worst = (data['worst_payers'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+        return ListView(
+          padding: const EdgeInsets.all(12),
+          children: [
+            _SectionCard(
+              title: 'Mejores pagadores',
+              child: _SimpleList(
+                items: best,
+                titleKey: 'client_name',
+                trailingBuilder: (e) => 'Saldo: \$${e['current_balance'] ?? 0}\nÚlt. pago: ${e['last_payment_date']?.toString().split('T').first ?? '-'}',
+                onTap: (e) => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ClientAccountPage(
+                      clientId: '${e['client_id']}',
+                      clientName: '${e['client_name'] ?? '-'}',
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            _SectionCard(
+              title: 'Peores pagadores',
+              child: _SimpleList(
+                items: worst,
+                titleKey: 'client_name',
+                trailingBuilder: (e) => 'Deuda: \$${e['total_debt'] ?? 0}\nSin pagar: ${e['days_since_last_payment'] ?? '-'} días',
+                onTap: (e) => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ClientAccountPage(
+                      clientId: '${e['client_id']}',
+                      clientName: '${e['client_name'] ?? '-'}',
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _ProfitTab extends StatelessWidget {
   const _ProfitTab({required this.repo, required this.query});
   final ReportsRepository repo;
@@ -436,19 +509,20 @@ class _MetricTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Container(
       width: 160,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4),
+        color: colors.primaryContainer,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.labelLarge),
+          Text(title, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: colors.onPrimaryContainer)),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+          Text(value, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: colors.onPrimaryContainer)),
         ],
       ),
     );
@@ -471,14 +545,15 @@ class _SimpleList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) return const _EmptyView(message: 'Sin datos para esta sección.');
+    final colors = Theme.of(context).colorScheme;
     return Column(
       children: items
           .take(12)
           .map(
             (e) => ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('${e[titleKey] ?? '-'}'),
-              trailing: Text(trailingBuilder(e), textAlign: TextAlign.right),
+              title: Text('${e[titleKey] ?? '-'}', style: TextStyle(color: colors.onSurface, fontWeight: FontWeight.w600)),
+              trailing: Text(trailingBuilder(e), textAlign: TextAlign.right, style: TextStyle(color: colors.onSurfaceVariant)),
               onTap: onTap == null ? null : () => onTap!(e),
             ),
           )

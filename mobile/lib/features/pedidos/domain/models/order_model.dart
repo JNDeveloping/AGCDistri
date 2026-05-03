@@ -133,11 +133,13 @@ class OrderItemModel extends Equatable {
     this.variantNameSnapshot,
     required this.quantity,
     required this.unitPrice,
+    required this.originalUnitPrice,
     required this.discountType,
     required this.discountValue,
     required this.discountAmount,
     required this.subtotal,
     required this.estimatedMargin,
+    this.appliedPromotions = const [],
   });
 
   final String productId;
@@ -146,11 +148,13 @@ class OrderItemModel extends Equatable {
   final String? variantNameSnapshot;
   final double quantity;
   final double unitPrice;
+  final double originalUnitPrice;
   final String discountType;
   final double discountValue;
   final double discountAmount;
   final double subtotal;
   final double estimatedMargin;
+  final List<dynamic> appliedPromotions;
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) => OrderItemModel(
         productId: json['productId'] as String,
@@ -159,11 +163,13 @@ class OrderItemModel extends Equatable {
         variantNameSnapshot: json['variantNameSnapshot'] as String?,
         quantity: (json['quantity'] as num?)?.toDouble() ?? 0,
         unitPrice: (json['unitPrice'] as num?)?.toDouble() ?? 0,
+        originalUnitPrice: (json['originalUnitPrice'] as num?)?.toDouble() ?? (json['unitPrice'] as num?)?.toDouble() ?? 0,
         discountType: json['discountType'] as String? ?? 'amount',
         discountValue: (json['discountValue'] as num?)?.toDouble() ?? 0,
         discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0,
         subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0,
         estimatedMargin: (json['estimatedMargin'] as num?)?.toDouble() ?? 0,
+        appliedPromotions: json['appliedPromotions'] as List<dynamic>? ?? const [],
       );
 
   @override
@@ -204,23 +210,190 @@ class OrderClientLookup {
 }
 
 class OrderProductLookup {
-  const OrderProductLookup({required this.id, required this.name, this.internalCode, this.barcode, required this.salePrice, this.stockCurrent = 0, this.hasVariants = false});
+  const OrderProductLookup({required this.id, required this.name, this.internalCode, this.barcode, this.brand, this.categoryName, required this.salePrice, this.stockCurrent = 0, this.hasVariants = false, this.hasActivePromotion = false, this.variantId, this.variantName});
   final String id;
   final String name;
   final String? internalCode;
   final String? barcode;
+  final String? brand;
+  final String? categoryName;
   final double salePrice;
   final double stockCurrent;
   final bool hasVariants;
+  final bool hasActivePromotion;
+  final String? variantId;
+  final String? variantName;
 
   factory OrderProductLookup.fromJson(Map<String, dynamic> json) => OrderProductLookup(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        internalCode: json['internalCode'] as String?,
-        barcode: json['barcode'] as String?,
-        salePrice: (json['salePrice'] as num?)?.toDouble() ?? 0,
-        stockCurrent: (json['stockCurrent'] as num?)?.toDouble() ?? 0,
+        id: (json['id'] ?? json['productId']) as String,
+        name: (json['name'] ?? json['productName']) as String,
+        internalCode: (json['internalCode'] ?? json['variantInternalCode']) as String?,
+        barcode: (json['barcode'] ?? json['variantBarcode']) as String?,
+        brand: json['brand'] as String?,
+        categoryName: json['categoryName'] as String?,
+        salePrice: ((json['salePrice'] ?? json['effectivePrice']) as num?)?.toDouble() ?? 0,
+        stockCurrent: (json['effectiveStock'] as num?)?.toDouble() ?? (json['stockCurrent'] as num?)?.toDouble() ?? 0,
         hasVariants: json['hasVariants'] as bool? ?? false,
+        hasActivePromotion: json['hasActivePromotion'] as bool? ?? false,
+        variantId: json['variantId'] as String?,
+        variantName: json['variantName'] as String?,
+      );
+}
+
+
+class ClientPurchaseHistoryItem {
+  const ClientPurchaseHistoryItem({
+    required this.productId,
+    required this.productName,
+    this.productVariantId,
+    this.variantName,
+    this.lastPurchaseDate,
+    required this.averageQuantity,
+    required this.lastPrice,
+    required this.frequency,
+    required this.purchaseCount,
+  });
+
+  final String productId;
+  final String productName;
+  final String? productVariantId;
+  final String? variantName;
+  final DateTime? lastPurchaseDate;
+  final double averageQuantity;
+  final double lastPrice;
+  final String frequency;
+  final int purchaseCount;
+
+  factory ClientPurchaseHistoryItem.fromJson(Map<String, dynamic> json) => ClientPurchaseHistoryItem(
+        productId: json['productId'] as String,
+        productName: json['productName'] as String? ?? '-',
+        productVariantId: json['productVariantId'] as String?,
+        variantName: json['variantName'] as String?,
+        lastPurchaseDate: json['lastPurchaseDate'] != null ? DateTime.tryParse(json['lastPurchaseDate'] as String) : null,
+        averageQuantity: (json['averageQuantity'] as num?)?.toDouble() ?? 0,
+        lastPrice: (json['lastPrice'] as num?)?.toDouble() ?? 0,
+        frequency: json['frequency'] as String? ?? 'ocasional',
+        purchaseCount: (json['purchaseCount'] as num?)?.toInt() ?? 0,
+      );
+}
+
+class SuggestedProductItem {
+  const SuggestedProductItem({
+    required this.productId,
+    required this.productName,
+    this.productVariantId,
+    this.variantName,
+    required this.hasVariants,
+    this.hasActivePromotion = false,
+    required this.stockAvailable,
+    required this.currentPrice,
+    this.lastPrice,
+    this.averageQuantity,
+    required this.relevanceReason,
+    required this.relevanceScore,
+  });
+
+  final String productId;
+  final String productName;
+  final String? productVariantId;
+  final String? variantName;
+  final bool hasVariants;
+  final bool hasActivePromotion;
+  final double stockAvailable;
+  final double currentPrice;
+  final double? lastPrice;
+  final double? averageQuantity;
+  final String relevanceReason;
+  final int relevanceScore;
+
+  factory SuggestedProductItem.fromJson(Map<String, dynamic> json) => SuggestedProductItem(
+        productId: json['productId'] as String,
+        productName: json['productName'] as String? ?? '-',
+        productVariantId: json['productVariantId'] as String?,
+        variantName: json['variantName'] as String?,
+        hasVariants: json['hasVariants'] as bool? ?? false,
+        hasActivePromotion: json['hasActivePromotion'] as bool? ?? false,
+        stockAvailable: (json['stockAvailable'] as num?)?.toDouble() ?? 0,
+        currentPrice: (json['currentPrice'] as num?)?.toDouble() ?? 0,
+        lastPrice: (json['lastPrice'] as num?)?.toDouble(),
+        averageQuantity: (json['averageQuantity'] as num?)?.toDouble(),
+        relevanceReason: json['relevanceReason'] as String? ?? 'sugerido',
+        relevanceScore: (json['relevanceScore'] as num?)?.toInt() ?? 0,
+      );
+}
+
+class ClientLastOrderSuggestion {
+  const ClientLastOrderSuggestion({required this.order, required this.items});
+
+  final ClientLastOrderHeader? order;
+  final List<ClientLastOrderItem> items;
+
+  factory ClientLastOrderSuggestion.fromJson(Map<String, dynamic> json) => ClientLastOrderSuggestion(
+        order: json['order'] == null ? null : ClientLastOrderHeader.fromJson(json['order'] as Map<String, dynamic>),
+        items: (json['items'] as List<dynamic>? ?? []).map((e) => ClientLastOrderItem.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+}
+
+class ClientLastOrderHeader {
+  const ClientLastOrderHeader({required this.id, required this.orderNumber, this.orderDate, required this.total, this.paymentTerms});
+
+  final String id;
+  final int orderNumber;
+  final DateTime? orderDate;
+  final double total;
+  final String? paymentTerms;
+
+  factory ClientLastOrderHeader.fromJson(Map<String, dynamic> json) => ClientLastOrderHeader(
+        id: json['id'] as String,
+        orderNumber: (json['orderNumber'] as num?)?.toInt() ?? 0,
+        orderDate: json['orderDate'] != null ? DateTime.tryParse(json['orderDate'] as String) : null,
+        total: (json['total'] as num?)?.toDouble() ?? 0,
+        paymentTerms: json['paymentTerms'] as String?,
+      );
+}
+
+class ClientLastOrderItem {
+  const ClientLastOrderItem({
+    required this.productId,
+    required this.productName,
+    this.productVariantId,
+    this.variantName,
+    required this.quantity,
+    required this.previousPrice,
+    required this.currentPrice,
+    required this.priceChanged,
+    required this.stockAvailable,
+    required this.hasStock,
+    required this.hasVariants,
+    this.hasActivePromotion = false,
+  });
+
+  final String productId;
+  final String productName;
+  final String? productVariantId;
+  final String? variantName;
+  final double quantity;
+  final double previousPrice;
+  final double currentPrice;
+  final bool priceChanged;
+  final double stockAvailable;
+  final bool hasStock;
+  final bool hasVariants;
+  final bool hasActivePromotion;
+
+  factory ClientLastOrderItem.fromJson(Map<String, dynamic> json) => ClientLastOrderItem(
+        productId: json['productId'] as String,
+        productName: json['productName'] as String? ?? '-',
+        productVariantId: json['productVariantId'] as String?,
+        variantName: json['variantName'] as String?,
+        quantity: (json['quantity'] as num?)?.toDouble() ?? 0,
+        previousPrice: (json['previousPrice'] as num?)?.toDouble() ?? 0,
+        currentPrice: (json['currentPrice'] as num?)?.toDouble() ?? 0,
+        priceChanged: json['priceChanged'] as bool? ?? false,
+        stockAvailable: (json['stockAvailable'] as num?)?.toDouble() ?? 0,
+        hasStock: json['hasStock'] as bool? ?? false,
+        hasVariants: json['hasVariants'] as bool? ?? false,
+        hasActivePromotion: json['hasActivePromotion'] as bool? ?? false,
       );
 }
 

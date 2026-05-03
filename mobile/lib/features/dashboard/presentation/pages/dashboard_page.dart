@@ -149,6 +149,52 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                   ],
                 ),
+
+                const SizedBox(height: 18),
+                _sectionTitle(context, 'Reparto'),
+                const SizedBox(height: 8),
+                _cardsGrid(
+                  context,
+                  [
+                    _DashboardMetric(
+                      title: 'Repartos del día',
+                      value: '${stats.deliveriesToday}',
+                      icon: Icons.route_rounded,
+                      color: Colors.cyan,
+                    ),
+                    _DashboardMetric(
+                      title: 'Pedidos en reparto',
+                      value: '${stats.ordersInDelivery}',
+                      icon: Icons.local_shipping_rounded,
+                      color: Colors.indigo,
+                    ),
+                    _DashboardMetric(
+                      title: 'Entregados hoy',
+                      value: '${stats.deliveredOrdersToday}',
+                      icon: Icons.check_circle_rounded,
+                      color: Colors.green,
+                    ),
+                    _DashboardMetric(
+                      title: 'No entregados',
+                      value: '${stats.notDeliveredOrdersToday}',
+                      icon: Icons.cancel_rounded,
+                      color: Colors.red,
+                    ),
+                    _DashboardMetric(
+                      title: 'Total a cobrar',
+                      value: _money(stats.totalToCollect),
+                      icon: Icons.request_quote_rounded,
+                      color: Colors.deepOrange,
+                    ),
+                    _DashboardMetric(
+                      title: 'Total cobrado',
+                      value: _money(stats.totalCollectedDelivery),
+                      icon: Icons.payments_rounded,
+                      color: Colors.teal,
+                    ),
+                  ],
+                ),
+
                 const SizedBox(height: 18),
                 _sectionTitle(context, 'Clientes / Deuda'),
                 const SizedBox(height: 8),

@@ -20,6 +20,7 @@ class OrdersCubit extends Cubit<OrdersState> {
       state.dateFrom ?? '-',
       state.dateTo ?? '-',
       state.paymentCondition ?? '-',
+      state.archived,
       state.zoneId ?? '-',
       state.sortBy,
       state.sortDirection,
@@ -37,6 +38,7 @@ class OrdersCubit extends Cubit<OrdersState> {
         dateFrom: state.dateFrom,
         dateTo: state.dateTo,
         paymentCondition: state.paymentCondition,
+        archived: state.archived,
         zoneId: state.zoneId,
         sortBy: state.sortBy,
         sortDirection: state.sortDirection,
@@ -61,6 +63,11 @@ class OrdersCubit extends Cubit<OrdersState> {
 
   Future<void> setPaymentCondition(String? value) async {
     emit(state.copyWith(paymentCondition: value, clearPaymentCondition: value == null));
+    await load();
+  }
+
+  Future<void> setArchivedFilter(String value) async {
+    emit(state.copyWith(archived: value));
     await load();
   }
 
@@ -131,6 +138,9 @@ class OrdersCubit extends Cubit<OrdersState> {
   Future<List<OrderClientLookup>> searchClients(String query) => _repository.searchClients(query);
   Future<List<OrderProductLookup>> searchProducts(String query) => _repository.searchProducts(query);
   Future<List<OrderProductVariantLookup>> searchProductVariants(String productId) => _repository.searchProductVariants(productId);
+  Future<List<ClientPurchaseHistoryItem>> getPurchaseHistory(String clientId) => _repository.getPurchaseHistory(clientId);
+  Future<List<SuggestedProductItem>> getSuggestedProducts(String clientId) => _repository.getSuggestedProducts(clientId);
+  Future<ClientLastOrderSuggestion> getLastOrder(String clientId) => _repository.getLastOrder(clientId);
 
   @override
   Future<void> close() {

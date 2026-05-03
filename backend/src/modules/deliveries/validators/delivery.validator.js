@@ -6,6 +6,7 @@ const deliveryOrderStatus = z.enum(['pendiente', 'entregado', 'no_entregado', 'r
 export const listDeliveriesQuerySchema = z.object({
   date: z.string().date().optional(),
   status: deliveryStatus.optional(),
+  archived: z.enum(['active', 'archived', 'all']).optional().default('active'),
   driverId: z.string().uuid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -56,21 +57,24 @@ export const pendingDeliveryOrdersQuerySchema = z
     path: ['zone_id'],
   })
   .transform((data) => ({
-    zone_id: data.zone_id ?? data.zoneId,
+    zoneId: data.zoneId ?? data.zone_id,
   }));
 
 export const markDeliveredSchema = z.object({
+  clientRequestId: z.string().trim().min(8).max(120).optional(),
   notes: z.string().trim().max(500).optional(),
   collectedCash: z.boolean().optional(),
   collectedAmount: z.coerce.number().min(0).optional(),
 });
 
 export const markNotDeliveredSchema = z.object({
+  clientRequestId: z.string().trim().min(8).max(120).optional(),
   reason: z.string().trim().min(2).max(500),
   notes: z.string().trim().max(500).optional(),
 });
 
 export const markRescheduleSchema = z.object({
+  clientRequestId: z.string().trim().min(8).max(120).optional(),
   notes: z.string().trim().max(500).optional(),
 });
 

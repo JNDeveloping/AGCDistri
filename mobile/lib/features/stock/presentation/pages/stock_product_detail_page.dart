@@ -100,12 +100,14 @@ class _StockProductDetailPageState extends State<StockProductDetailPage> {
                             children: [
                               Text(_item!.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                               const SizedBox(height: 10),
-                              Text('Stock actual', style: Theme.of(context).textTheme.labelLarge),
-                              Text(
-                                _item!.stockCurrent.toStringAsFixed(2),
-                                style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w800, height: 1),
-                              ),
-                              Text('Stock mínimo: ${_item!.stockMinimum.toStringAsFixed(2)}'),
+                              if (!_item!.hasVariants) ...[
+                                Text('Stock actual', style: Theme.of(context).textTheme.labelLarge),
+                                Text(
+                                  _item!.stockCurrent.toStringAsFixed(2),
+                                  style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w800, height: 1),
+                                ),
+                                Text('Stock mínimo: ${_item!.stockMinimum.toStringAsFixed(2)}'),
+                              ],
                               if (_item!.hasVariants && _item!.variants.isNotEmpty) ...[
                                 const SizedBox(height: 8),
                                 Wrap(
@@ -169,7 +171,7 @@ class _StockProductDetailPageState extends State<StockProductDetailPage> {
     final reason = TextEditingController();
     final notes = TextEditingController();
     final isAbsolute = ValueNotifier<bool>(true);
-    final selectedVariantId = ValueNotifier<String?>(null);
+    final selectedVariantId = ValueNotifier<String?>(_item!.hasVariants && _item!.variants.isNotEmpty ? _item!.variants.first.id : null);
 
     final ok = await showModalBottomSheet<bool>(
       context: context,
@@ -187,7 +189,6 @@ class _StockProductDetailPageState extends State<StockProductDetailPage> {
                   value: selected,
                   isExpanded: true,
                   items: [
-                    const DropdownMenuItem<String?>(value: null, child: Text('Stock general del producto')),
                     ..._item!.variants
                         .where((v) => v.isActive)
                         .map((v) => DropdownMenuItem<String?>(value: v.id, child: Text('${v.name} · Stock ${(v.stock ?? 0).toStringAsFixed(2)}'))),

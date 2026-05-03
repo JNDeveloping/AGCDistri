@@ -30,7 +30,23 @@ const buildBaseSelect = (supportsHasVariants) => `
     p.tax_rate, p.notes, p.created_at, p.updated_at, p.deactivated_at,
     p.category_id,
     c.name AS category_name,
-    c.is_active AS category_is_active
+    c.is_active AS category_is_active,
+    EXISTS (
+      SELECT 1
+      FROM promotions pr
+      WHERE pr.deleted_at IS NULL
+        AND pr.is_active = TRUE
+        AND (pr.start_date IS NULL OR pr.start_date <= NOW())
+        AND (pr.end_date IS NULL OR pr.end_date >= NOW())
+        AND (
+          pr.product_id = p.id
+          OR (pr.category_id IS NOT NULL AND pr.category_id = p.category_id)
+          OR EXISTS (
+            SELECT 1 FROM promotion_items pi
+            WHERE pi.promotion_id = pr.id AND (pi.product_id = p.id OR pi.category_id = p.category_id)
+          )
+        )
+    ) AS has_active_promotion
   FROM products p
   LEFT JOIN product_categories c ON c.id = p.category_id
 `;
@@ -157,6 +173,86 @@ export class ProductRepository {
     return { rows: data.rows, total: count.rows[0].total };
   }
 
+
+  async autocomplete({ q, limit = 20 }) {
+    const term = `%${q}%`;
+    const { rows } = await pool.query(
+      `
+      SELECT * FROM (
+        SELECT
+          p.id AS product_id,
+          p.name AS product_name,
+          p.internal_code AS product_internal_code,
+          p.barcode AS product_barcode,
+          p.brand,
+          p.has_variants,
+          p.wholesale_price AS product_price,
+          p.stock_current AS product_stock,
+          NULL::numeric AS variant_price,
+          NULL::numeric AS variant_stock,
+          NULL::uuid AS variant_id,
+          NULL::text AS variant_name,
+          NULL::text AS variant_internal_code,
+          NULL::text AS variant_barcode,
+          c.name AS category_name,
+          120 AS relevance
+        FROM products p
+        LEFT JOIN product_categories c ON c.id = p.category_id
+        WHERE p.is_active = TRUE
+          AND p.has_variants = FALSE
+          AND (
+            p.name ILIKE $1
+            OR p.internal_code ILIKE $1
+            OR COALESCE(p.barcode, '') ILIKE $1
+            OR COALESCE(p.brand, '') ILIKE $1
+            OR COALESCE(c.name, '') ILIKE $1
+          )
+
+        UNION ALL
+
+        SELECT
+          p.id AS product_id,
+          p.name AS product_name,
+          p.internal_code AS product_internal_code,
+          p.barcode AS product_barcode,
+          p.brand,
+          p.has_variants,
+          p.wholesale_price AS product_price,
+          p.stock_current AS product_stock,
+          pv.price AS variant_price,
+          pv.stock AS variant_stock,
+          pv.id AS variant_id,
+          pv.name AS variant_name,
+          pv.internal_code AS variant_internal_code,
+          pv.barcode AS variant_barcode,
+          c.name AS category_name,
+          140 AS relevance
+        FROM products p
+        JOIN product_variants pv ON pv.product_id = p.id
+        LEFT JOIN product_categories c ON c.id = p.category_id
+        WHERE p.is_active = TRUE
+          AND p.has_variants = TRUE
+          AND pv.is_active = TRUE
+          AND (
+            p.name ILIKE $1
+            OR p.internal_code ILIKE $1
+            OR COALESCE(p.barcode, '') ILIKE $1
+            OR COALESCE(p.brand, '') ILIKE $1
+            OR COALESCE(c.name, '') ILIKE $1
+            OR pv.name ILIKE $1
+            OR COALESCE(pv.internal_code, '') ILIKE $1
+            OR COALESCE(pv.barcode, '') ILIKE $1
+          )
+      ) q
+      ORDER BY relevance DESC, product_name ASC, variant_name ASC NULLS LAST
+      LIMIT $2
+      `,
+      [term, limit],
+    );
+
+    return rows;
+  }
+
   async update(id, patch) {
     const supportsHasVariants = await resolveHasVariantsSupport();
     const dbMap = {
@@ -196,6 +292,26 @@ export class ProductRepository {
     const query = `UPDATE products SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${values.length} RETURNING id`;
     const { rows } = await pool.query(query, values);
     return this.findById(rows[0].id);
+  }
+
+  async listActivePromotionsByProduct(productId) {
+    const { rows } = await pool.query(
+      `SELECT pr.id, pr.name, pr.type, pr.start_date, pr.end_date, pr.discount_type, pr.discount_value, pr.fixed_price,
+              pr.product_id, pr.variant_id, pi.variant_id AS item_variant_id
+       FROM promotions pr
+       LEFT JOIN promotion_items pi ON pi.promotion_id = pr.id
+       WHERE pr.deleted_at IS NULL
+         AND pr.is_active = TRUE
+         AND (pr.start_date IS NULL OR pr.start_date <= NOW())
+         AND (pr.end_date IS NULL OR pr.end_date >= NOW())
+         AND (
+           pr.product_id = $1
+           OR EXISTS (SELECT 1 FROM promotion_items x WHERE x.promotion_id = pr.id AND x.product_id = $1)
+         )
+       ORDER BY pr.priority DESC, pr.created_at ASC`,
+      [productId],
+    );
+    return rows;
   }
 
   async deactivate(id) {

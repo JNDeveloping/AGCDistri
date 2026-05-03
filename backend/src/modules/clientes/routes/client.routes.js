@@ -11,6 +11,9 @@ import {
   activateClientController,
   deactivateClientController,
   getClientController,
+  getClientLastOrderController,
+  getClientPurchaseHistoryController,
+  getClientSuggestedProductsController,
   listClientsController,
   updateClientController,
 } from '../controllers/client.controller.js';
@@ -25,6 +28,25 @@ clientRouter.get(
   authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR),
   validate(listClientQuerySchema, 'query'),
   asyncHandler(listClientsController),
+);
+
+
+clientRouter.get(
+  '/:id/purchase-history',
+  authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR),
+  asyncHandler(getClientPurchaseHistoryController),
+);
+
+clientRouter.get(
+  '/:id/suggested-products',
+  authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR),
+  asyncHandler(getClientSuggestedProductsController),
+);
+
+clientRouter.get(
+  '/:id/last-order',
+  authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR),
+  asyncHandler(getClientLastOrderController),
 );
 
 clientRouter.get(
