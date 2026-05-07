@@ -84,6 +84,13 @@ export class StockService {
     if (!product) throw new AppError('Producto no encontrado.', 404);
 
     const variant = payload.productVariantId ? await stockRepository.findVariant(payload.productVariantId) : null;
+    if (product.has_variants === true && !payload.productVariantId) {
+      throw new AppError('Los productos con variantes deben ajustarse por variante.', 400);
+    }
+
+    if (product.has_variants === true && !payload.productVariantId) {
+      throw new AppError('Este producto se maneja por variantes. Seleccioná una variante específica.', 400);
+    }
     if (payload.productVariantId && (!variant || variant.product_id !== product.id)) {
       throw new AppError('Variante no encontrada para el producto seleccionado.', 404);
     }
@@ -117,6 +124,13 @@ export class StockService {
     if (!product) throw new AppError('Producto no encontrado.', 404);
 
     const variant = payload.productVariantId ? await stockRepository.findVariant(payload.productVariantId) : null;
+    if (product.has_variants === true && !payload.productVariantId) {
+      throw new AppError('Los productos con variantes deben ajustarse por variante.', 400);
+    }
+
+    if (product.has_variants === true && !payload.productVariantId) {
+      throw new AppError('Este producto se maneja por variantes. Seleccioná una variante específica.', 400);
+    }
     if (payload.productVariantId && (!variant || variant.product_id !== product.id)) {
       throw new AppError('Variante no encontrada para el producto seleccionado.', 404);
     }

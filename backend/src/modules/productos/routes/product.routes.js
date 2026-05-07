@@ -6,8 +6,10 @@ import { asyncHandler } from '../../../middlewares/async-handler.js';
 import { authorize } from '../../../middlewares/authorize.js';
 import { validate } from '../../../middlewares/validate.js';
 import {
+  autocompleteProductsController,
   createProductController,
   deactivateProductController,
+  getProductActivePromotionsController,
   getProductController,
   listProductsController,
   updateProductController,
@@ -17,8 +19,10 @@ import { createProductSchema, listProductQuerySchema, updateProductSchema } from
 const productRouter = Router();
 
 productRouter.use(authenticate);
+productRouter.get('/autocomplete', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), asyncHandler(autocompleteProductsController));
 productRouter.get('/', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), validate(listProductQuerySchema, 'query'), asyncHandler(listProductsController));
 productRouter.get('/:id', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), asyncHandler(getProductController));
+productRouter.get('/:id/promotions', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), asyncHandler(getProductActivePromotionsController));
 productRouter.post('/', authorize(USER_ROLES.ADMIN), validate(createProductSchema), asyncHandler(createProductController));
 productRouter.put('/:id', authorize(USER_ROLES.ADMIN), validate(updateProductSchema), asyncHandler(updateProductController));
 productRouter.patch('/:id/deactivate', authorize(USER_ROLES.ADMIN), asyncHandler(deactivateProductController));

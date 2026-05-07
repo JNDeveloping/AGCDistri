@@ -38,7 +38,7 @@ export class DeliveryRepository {
     return rows;
   }
 
-  async list({ date, status, driverId, zoneId, page, limit, role, userId }) {
+  async list({ date, status, driverId, zoneId, page, limit, role, userId, archived }) {
     const values = [];
     const where = [];
 
@@ -65,6 +65,11 @@ export class DeliveryRepository {
     if (role === 'repartidor') {
       values.push(userId);
       where.push(`d.driver_id = $${values.length}`);
+    }
+    if (archived === 'archived') {
+      where.push('d.deleted_at IS NOT NULL');
+    } else if (archived !== 'all') {
+      where.push('d.deleted_at IS NULL');
     }
 
     const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -184,6 +189,16 @@ export class DeliveryRepository {
     return rows[0] ? this.findById(rows[0].id) : null;
   }
 
+  async archive(id, userId, reason = null) {
+    const { rowCount } = await pool.query(
+      `UPDATE deliveries
+       SET deleted_at = NOW(), deleted_by = $2, delete_reason = $3, updated_at = NOW()
+       WHERE id = $1`,
+      [id, userId, reason],
+    );
+    return rowCount > 0;
+  }
+
   async addOrders(deliveryId, orderIds) {
     const orderRows = await pool.query(
       `
@@ -259,6 +274,7 @@ export class DeliveryRepository {
       JOIN deliveries d ON d.id = dor.delivery_id
       WHERE dor.order_id = $1
         AND d.status = ANY($2::delivery_status[])
+        AND d.deleted_at IS NULL
         ${extra}
       LIMIT 1
       `,
@@ -295,7 +311,7 @@ export class DeliveryRepository {
       JOIN clients c ON c.id = o.client_id
       JOIN zones z ON z.id = c.zone_id
       WHERE c.zone_id = $1
-        AND o.status IN ('preparado', 'en_reparto')
+        AND o.status = 'preparado'
         AND NOT EXISTS (
           SELECT 1
           FROM delivery_orders dor
@@ -317,17 +333,17 @@ export class DeliveryRepository {
     const { rows } = await pool.query(
       `
       UPDATE delivery_orders
-      SET delivery_status = $2,
+      SET delivery_status = $2::delivery_order_status,
           notes = COALESCE($3, notes),
-          not_delivered_reason = CASE WHEN $2 = 'no_entregado' THEN $4 ELSE not_delivered_reason END,
+          not_delivered_reason = CASE WHEN $2::delivery_order_status = 'no_entregado' THEN $4 ELSE not_delivered_reason END,
           collected_cash = COALESCE($5, collected_cash),
           collected_amount = COALESCE($6, collected_amount),
           payment_status = CASE
               WHEN COALESCE($6, 0) > 0 THEN 'cobrado'
-              WHEN $2 = 'entregado' THEN payment_status
+              WHEN $2::delivery_order_status = 'entregado' THEN payment_status
               ELSE payment_status
           END,
-          delivered_at = CASE WHEN $2 = 'entregado' THEN NOW() ELSE delivered_at END,
+          delivered_at = CASE WHEN $2::delivery_order_status = 'entregado' THEN NOW() ELSE delivered_at END,
           updated_at = NOW()
       WHERE id = $1
       RETURNING *
@@ -399,6 +415,45 @@ export class DeliveryRepository {
     }
 
     return this.listOrders(deliveryId);
+  }
+
+
+
+  async syncDeliveryStatusFromOrders(deliveryId) {
+    const { rows } = await pool.query(
+      `
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE delivery_status = 'entregado')::int AS delivered,
+        COUNT(*) FILTER (WHERE delivery_status IN ('no_entregado', 'reprogramado'))::int AS unresolved
+      FROM delivery_orders
+      WHERE delivery_id = $1
+      `,
+      [deliveryId],
+    );
+
+    const stats = rows[0];
+    if (!stats || Number(stats.total) === 0) return;
+
+    let nextStatus = 'pendiente';
+    if (Number(stats.delivered) > 0 || Number(stats.unresolved) > 0) {
+      nextStatus = 'en_reparto';
+    }
+
+    if (Number(stats.delivered) + Number(stats.unresolved) === Number(stats.total)) {
+      nextStatus = 'finalizado';
+    }
+
+    await pool.query(
+      `
+      UPDATE deliveries
+      SET status = $2::delivery_status,
+          finished_at = CASE WHEN $2::delivery_status = 'finalizado' THEN NOW() ELSE NULL END,
+          updated_at = NOW()
+      WHERE id = $1
+      `,
+      [deliveryId, nextStatus],
+    );
   }
 
   async todayRoutes({ role, userId }) {

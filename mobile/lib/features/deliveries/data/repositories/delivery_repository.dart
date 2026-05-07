@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../../../../core/offline/offline_store.dart';
 import '../../domain/models/delivery_model.dart';
 import '../datasources/delivery_remote_datasource.dart';
 
@@ -7,10 +8,11 @@ class DeliveryRepository {
   DeliveryRepository({required DeliveryRemoteDataSource remoteDataSource}) : _remoteDataSource = remoteDataSource;
 
   final DeliveryRemoteDataSource _remoteDataSource;
+  final OfflineStore _offlineStore = OfflineStore.instance;
 
-  Future<List<DeliveryModel>> list({String? date, String? status}) async {
+  Future<List<DeliveryModel>> list({String? date, String? status, String archived = 'active'}) async {
     try {
-      final payload = await _remoteDataSource.listDeliveries(date: date, status: status);
+      final payload = await _remoteDataSource.listDeliveries(date: date, status: status, archived: archived);
       final data = payload['data'] as Map<String, dynamic>? ?? {};
       return (data['items'] as List<dynamic>? ?? [])
           .map((row) => DeliveryModel.fromJson(row as Map<String, dynamic>))
@@ -20,14 +22,30 @@ class DeliveryRepository {
     }
   }
 
+  Future<void> archive(String id) async {
+    try {
+      await _remoteDataSource.archiveDelivery(id);
+    } on DioException catch (error) {
+      throw DeliveryException(_message(error));
+    }
+  }
+
   Future<List<DeliveryZoneModel>> listZones() async {
     try {
       final payload = await _remoteDataSource.listZones();
+      await _offlineStore.saveCache('delivery_zones_v1', payload);
       final data = payload['data'] as Map<String, dynamic>? ?? {};
       return (data['items'] as List<dynamic>? ?? [])
           .map((row) => DeliveryZoneModel.fromJson(row as Map<String, dynamic>))
           .toList();
     } on DioException catch (error) {
+      final cached = await _offlineStore.readCache('delivery_zones_v1');
+      if (cached != null) {
+        final data = cached['data'] as Map<String, dynamic>? ?? {};
+        return (data['items'] as List<dynamic>? ?? [])
+            .map((row) => DeliveryZoneModel.fromJson(row as Map<String, dynamic>))
+            .toList();
+      }
       throw DeliveryException(_message(error));
     }
   }
@@ -97,17 +115,39 @@ class DeliveryRepository {
   }
 
   Future<void> markDelivered(String deliveryOrderId, {bool? collectedCash, double? collectedAmount}) async {
+    final localRequestId = 'local_${DateTime.now().microsecondsSinceEpoch}';
     try {
-      await _remoteDataSource.markDelivered(deliveryOrderId, collectedCash: collectedCash, collectedAmount: collectedAmount);
+      await _remoteDataSource.markDelivered(deliveryOrderId, clientRequestId: localRequestId, collectedCash: collectedCash, collectedAmount: collectedAmount);
     } on DioException catch (error) {
+      final isOffline = error.type == DioExceptionType.connectionError || error.type == DioExceptionType.connectionTimeout || error.type == DioExceptionType.unknown;
+      if (isOffline) {
+        await _offlineStore.enqueue(actionType: 'mark_delivery_status', payload: {
+          'path': '/delivery-orders/$deliveryOrderId/delivered',
+          'data': {
+            'clientRequestId': localRequestId,
+            if (collectedCash != null) 'collectedCash': collectedCash,
+            if (collectedAmount != null) 'collectedAmount': collectedAmount,
+          },
+        });
+        throw DeliveryException('Sin conexión: entrega registrada localmente para sincronizar.');
+      }
       throw DeliveryException(_message(error));
     }
   }
 
   Future<void> markNotDelivered(String deliveryOrderId, {required String reason}) async {
+    final localRequestId = 'local_${DateTime.now().microsecondsSinceEpoch}';
     try {
-      await _remoteDataSource.markNotDelivered(deliveryOrderId, reason: reason);
+      await _remoteDataSource.markNotDelivered(deliveryOrderId, reason: reason, clientRequestId: localRequestId);
     } on DioException catch (error) {
+      final isOffline = error.type == DioExceptionType.connectionError || error.type == DioExceptionType.connectionTimeout || error.type == DioExceptionType.unknown;
+      if (isOffline) {
+        await _offlineStore.enqueue(actionType: 'mark_delivery_status', payload: {
+          'path': '/delivery-orders/$deliveryOrderId/not-delivered',
+          'data': {'clientRequestId': localRequestId, 'reason': reason},
+        });
+        throw DeliveryException('Sin conexión: estado guardado localmente para sincronizar.');
+      }
       throw DeliveryException(_message(error));
     }
   }

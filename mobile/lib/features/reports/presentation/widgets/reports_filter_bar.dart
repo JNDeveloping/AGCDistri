@@ -91,9 +91,11 @@ class _ReportsFilterBarState extends State<ReportsFilterBar> {
   @override
   Widget build(BuildContext context) {
     final filters = widget.filters;
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: colorScheme.surfaceContainerHighest,
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -107,6 +109,12 @@ class _ReportsFilterBarState extends State<ReportsFilterBar> {
                   ChoiceChip(
                     label: Text(p.$2),
                     selected: filters.period == p.$1,
+                    selectedColor: colorScheme.primaryContainer,
+                    backgroundColor: colorScheme.surface,
+                    labelStyle: TextStyle(
+                      color: filters.period == p.$1 ? colorScheme.onPrimaryContainer : colorScheme.onSurface,
+                      fontWeight: filters.period == p.$1 ? FontWeight.w700 : FontWeight.w500,
+                    ),
                     onSelected: (_) => widget.onFiltersChanged(filters.copyWith(period: p.$1, clearDates: p.$1 != 'custom')),
                   ),
               ],

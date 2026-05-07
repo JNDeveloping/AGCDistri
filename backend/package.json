@@ -9,10 +9,11 @@
     "lint": "eslint .",
     "migrate": "node src/database/migrate.js",
     "backup": "node scripts/backup.js",
-    "seed": "node scripts/seed.js",
+    "seed": "node scripts/seed-users.js",
     "reset:dev": "node scripts/reset-dev.js",
     "db:migrate": "npm run migrate",
-    "db:seed": "npm run seed"
+    "db:seed": "npm run seed",
+    "seed:demo": "node scripts/seed-demo.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

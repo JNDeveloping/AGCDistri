@@ -8,6 +8,7 @@ import { validate } from '../../../middlewares/validate.js';
 import {
   getReportsDebtController,
   getReportsPaymentsController,
+  getReportsPaymentRankingController,
   getReportsProfitController,
   getReportsSalesController,
   getReportsStockController,
@@ -31,6 +32,7 @@ reportRouter.get('/debt', validate(reportQuerySchema, 'query'), asyncHandler(get
 reportRouter.get('/debtors', validate(reportQuerySchema, 'query'), asyncHandler(getReportsDebtController));
 reportRouter.get('/stock', validate(reportQuerySchema, 'query'), asyncHandler(getReportsStockController));
 reportRouter.get('/payments', validate(reportQuerySchema, 'query'), asyncHandler(getReportsPaymentsController));
+reportRouter.get('/payment-ranking', validate(reportQuerySchema, 'query'), asyncHandler(getReportsPaymentRankingController));
 reportRouter.get('/zones', validate(reportQuerySchema, 'query'), asyncHandler(getReportsZonesController));
 
 export { reportRouter };

@@ -5,6 +5,7 @@ class AppUser extends Equatable {
     required this.id,
     required this.fullName,
     required this.email,
+    required this.username,
     required this.role,
     required this.isActive,
   });
@@ -12,6 +13,7 @@ class AppUser extends Equatable {
   final String id;
   final String fullName;
   final String email;
+  final String username;
   final String role;
   final bool isActive;
 
@@ -20,11 +22,12 @@ class AppUser extends Equatable {
       id: json['id'] as String,
       fullName: json['fullName'] as String,
       email: json['email'] as String,
+      username: (json['username'] as String?) ?? '',
       role: json['role'] as String,
       isActive: json['isActive'] as bool? ?? true,
     );
   }
 
   @override
-  List<Object?> get props => [id, fullName, email, role, isActive];
+  List<Object?> get props => [id, fullName, email, username, role, isActive];
 }

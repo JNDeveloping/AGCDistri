@@ -14,6 +14,7 @@ class OrdersState extends Equatable {
     this.dateFrom,
     this.dateTo,
     this.paymentCondition,
+    this.archived = 'active',
     this.zoneId,
     this.sortBy = 'orderDate',
     this.sortDirection = 'desc',
@@ -29,6 +30,7 @@ class OrdersState extends Equatable {
   final String? dateFrom;
   final String? dateTo;
   final String? paymentCondition;
+  final String archived;
   final String? zoneId;
   final String sortBy;
   final String sortDirection;
@@ -44,6 +46,7 @@ class OrdersState extends Equatable {
     String? dateFrom,
     String? dateTo,
     String? paymentCondition,
+    String? archived,
     String? zoneId,
     String? sortBy,
     String? sortDirection,
@@ -62,6 +65,7 @@ class OrdersState extends Equatable {
       dateFrom: clearDateRange ? null : (dateFrom ?? this.dateFrom),
       dateTo: clearDateRange ? null : (dateTo ?? this.dateTo),
       paymentCondition: clearPaymentCondition ? null : (paymentCondition ?? this.paymentCondition),
+      archived: archived ?? this.archived,
       zoneId: zoneId ?? this.zoneId,
       sortBy: sortBy ?? this.sortBy,
       sortDirection: sortDirection ?? this.sortDirection,
@@ -71,5 +75,5 @@ class OrdersState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [status, items, errorMessage, query, statusFilter, dateFrom, dateTo, paymentCondition, zoneId, sortBy, sortDirection, groupBy, countsByStatus];
+  List<Object?> get props => [status, items, errorMessage, query, statusFilter, dateFrom, dateTo, paymentCondition, archived, zoneId, sortBy, sortDirection, groupBy, countsByStatus];
 }

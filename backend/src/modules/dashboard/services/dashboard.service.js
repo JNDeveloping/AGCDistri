@@ -7,12 +7,14 @@ const relationExists = async (relationName) => {
 
 export class DashboardService {
   async getStats() {
-    const [clientsTableExists, productsTableExists, ordersTableExists, orderItemsTableExists, paymentsTableExists] = await Promise.all([
+    const [clientsTableExists, productsTableExists, ordersTableExists, orderItemsTableExists, paymentsTableExists, deliveriesTableExists, deliveryOrdersTableExists] = await Promise.all([
       relationExists('public.clients'),
       relationExists('public.products'),
       relationExists('public.orders'),
       relationExists('public.order_items'),
       relationExists('public.client_payments'),
+      relationExists('public.deliveries'),
+      relationExists('public.delivery_orders'),
     ]);
 
     const businessMetrics = ordersTableExists
@@ -84,6 +86,23 @@ export class DashboardService {
         `)
       : Promise.resolve({ rows: [{ profit_estimate: 0 }] });
 
+
+
+    const deliveryMetrics = (deliveriesTableExists && deliveryOrdersTableExists)
+      ? pool.query(`
+          SELECT
+            COUNT(*) FILTER (WHERE d.date = CURRENT_DATE)::int AS deliveries_today,
+            COUNT(dor.id) FILTER (WHERE d.status IN ('pendiente', 'en_reparto') AND dor.delivery_status = 'pendiente')::int AS orders_in_delivery,
+            COUNT(dor.id) FILTER (WHERE dor.delivery_status = 'entregado' AND dor.updated_at::date = CURRENT_DATE)::int AS delivered_orders_today,
+            COUNT(dor.id) FILTER (WHERE dor.delivery_status = 'no_entregado' AND dor.updated_at::date = CURRENT_DATE)::int AS not_delivered_orders_today,
+            COALESCE(SUM(dor.amount_to_collect) FILTER (WHERE d.status IN ('pendiente', 'en_reparto') AND dor.delivery_status = 'pendiente' AND o.payment_terms = 'contado'), 0)::numeric AS total_to_collect,
+            COALESCE(SUM(dor.collected_amount) FILTER (WHERE dor.delivery_status = 'entregado' AND dor.payment_status = 'cobrado' AND dor.updated_at::date = CURRENT_DATE), 0)::numeric AS total_collected_delivery
+          FROM deliveries d
+          LEFT JOIN delivery_orders dor ON dor.delivery_id = d.id
+          LEFT JOIN orders o ON o.id = dor.order_id
+        `)
+      : Promise.resolve({ rows: [{ deliveries_today: 0, orders_in_delivery: 0, delivered_orders_today: 0, not_delivered_orders_today: 0, total_to_collect: 0, total_collected_delivery: 0 }] });
+
     const zonesMetrics = clientsTableExists
       ? pool.query(`
           SELECT
@@ -107,13 +126,14 @@ export class DashboardService {
         `)
       : Promise.resolve({ rows: [] });
 
-    const [businessResult, debtResult, paymentsTodayResult, stockResult, topProductsResult, profitResult, zonesResult] = await Promise.all([
+    const [businessResult, debtResult, paymentsTodayResult, stockResult, topProductsResult, profitResult, deliveryResult, zonesResult] = await Promise.all([
       businessMetrics,
       debtMetrics,
       paymentsToday,
       stockMetrics,
       topProducts,
       profitEstimate,
+      deliveryMetrics,
       zonesMetrics,
     ]);
 
@@ -121,6 +141,7 @@ export class DashboardService {
     const debt = debtResult.rows[0];
     const payments = paymentsTodayResult.rows[0];
     const stock = stockResult.rows[0];
+    const delivery = deliveryResult.rows[0];
 
     return {
       salesToday: Number(business.sales_today ?? 0),
@@ -133,6 +154,12 @@ export class DashboardService {
       clientsWithDebt: Number(debt.clients_with_debt ?? 0),
       paymentsToday: Number(payments.payments_today ?? 0),
       collectedToday: Number(payments.collected_today ?? 0),
+      deliveriesToday: Number(delivery.deliveries_today ?? 0),
+      ordersInDelivery: Number(delivery.orders_in_delivery ?? 0),
+      deliveredOrdersToday: Number(delivery.delivered_orders_today ?? 0),
+      notDeliveredOrdersToday: Number(delivery.not_delivered_orders_today ?? 0),
+      totalToCollect: Number(delivery.total_to_collect ?? 0),
+      totalCollectedDelivery: Number(delivery.total_collected_delivery ?? 0),
       outOfStockProducts: Number(stock.out_of_stock_products ?? 0),
       lowStockProducts: Number(stock.low_stock_products ?? 0),
       topProducts: topProductsResult.rows.map((row) => ({

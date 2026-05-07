@@ -21,12 +21,14 @@ class ProductDetailPage extends StatefulWidget {
 class _ProductDetailPageState extends State<ProductDetailPage> {
   late Future<ProductModel> _future;
   late Future<List<ProductVariantModel>> _variantsFuture;
+  late Future<List<ProductActivePromotion>> _promotionsFuture;
 
   @override
   void initState() {
     super.initState();
     _future = context.read<ProductsCubit>().getById(widget.productId);
     _variantsFuture = context.read<ProductsCubit>().listVariants(widget.productId);
+    _promotionsFuture = context.read<ProductsCubit>().getActivePromotions(widget.productId);
   }
 
   @override
@@ -83,8 +85,15 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 Text('Margen: ${(p.marginPercentage ?? 0).toStringAsFixed(2)}%'),
                 if ((p.barcode ?? '').isNotEmpty) Text('Código de barras: ${p.barcode}'),
                 const Divider(height: 30),
-                Text('Stock actual: ${p.stockCurrent.toStringAsFixed(2)}'),
-                Text('Stock mínimo: ${p.stockMinimum.toStringAsFixed(2)}'),
+                if (!p.hasVariants) ...[
+                  Text('Stock actual: ${p.stockCurrent.toStringAsFixed(2)}'),
+                  Text('Stock mínimo: ${p.stockMinimum.toStringAsFixed(2)}'),
+                ] else ...[
+                  const Text('Stock por variantes'),
+                  Text(
+                    'Este producto base no se vende directamente. El stock operativo se gestiona por cada variante.',
+                  ),
+                ],
                 Text('Estado: ${p.isActive ? 'Activo' : 'Inactivo'}'),
                 Text('Con variantes: ${p.hasVariants ? 'Sí' : 'No'}'),
                 const SizedBox(height: 10),
@@ -96,6 +105,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   icon: const Icon(Icons.inventory_2_outlined),
                   label: const Text('Ver historial de stock'),
                 ),
+                const SizedBox(height: 16),
+                _PromotionsSection(promotionsFuture: _promotionsFuture),
                 const SizedBox(height: 16),
                 if (p.hasVariants)
                   _VariantsSection(
@@ -120,6 +131,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     setState(() {
       _future = context.read<ProductsCubit>().getById(widget.productId);
       _variantsFuture = context.read<ProductsCubit>().listVariants(widget.productId);
+      _promotionsFuture = context.read<ProductsCubit>().getActivePromotions(widget.productId);
     });
     await context.read<ProductsCubit>().refreshAfterVariantMutation();
   }
@@ -179,6 +191,39 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
     }
+  }
+}
+
+class _PromotionsSection extends StatelessWidget {
+  const _PromotionsSection({required this.promotionsFuture});
+  final Future<List<ProductActivePromotion>> promotionsFuture;
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<ProductActivePromotion>>(
+      future: promotionsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        final promos = snapshot.data ?? const [];
+        if (promos.isEmpty) return const SizedBox.shrink();
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Promociones activas', style: TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              ...promos.map((p) => ListTile(
+                    dense: true,
+                    title: Text(p.name),
+                    subtitle: Text('${p.type} · ${p.scope == 'variant' ? 'Variante' : 'Producto'}'),
+                    trailing: Text(
+                      p.discountValue != null ? '${p.discountValue}${p.discountType == 'percentage' ? '%' : ''}' : (p.fixedPrice != null ? p.fixedPrice!.toStringAsFixed(2) : '-'),
+                    ),
+                  )),
+            ]),
+          ),
+        );
+      },
+    );
   }
 }
 

@@ -1,6 +1,15 @@
 import { created, ok } from '../../../utils/api-response.js';
 import { productService } from '../services/product.service.js';
 
+export const autocompleteProductsController = async (req, res) => {
+  const payload = await productService.autocomplete({
+    q: req.query.q,
+    limit: Number(req.query.limit ?? 20),
+  });
+
+  return ok(res, payload, 'Autocomplete de productos obtenido correctamente.');
+};
+
 export const listProductsController = async (req, res) => {
   const payload = await productService.list({
     q: req.query.q,
@@ -17,6 +26,10 @@ export const listProductsController = async (req, res) => {
 export const getProductController = async (req, res) => {
   const payload = await productService.getById(req.params.id, req.user.role);
   return ok(res, payload, 'Detalle de producto obtenido correctamente.');
+};
+export const getProductActivePromotionsController = async (req, res) => {
+  const payload = await productService.getActivePromotions(req.params.id);
+  return ok(res, payload, 'Promociones activas del producto obtenidas correctamente.');
 };
 
 export const createProductController = async (req, res) => {

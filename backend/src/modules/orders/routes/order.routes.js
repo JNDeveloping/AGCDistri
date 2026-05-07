@@ -15,6 +15,7 @@ import {
   listOrdersController,
   updateOrderController,
   validateOrderStockController,
+  recalculateOrderPromotionsController,
 } from '../controllers/order.controller.js';
 import {
   changeOrderStatusSchema,
@@ -35,6 +36,7 @@ orderRouter.put('/:id', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), valida
 orderRouter.patch('/:id/cancel', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), asyncHandler(cancelOrderController));
 orderRouter.patch('/:id/status', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), validate(changeOrderStatusSchema), asyncHandler(changeOrderStatusController));
 orderRouter.get('/:id/stock-validation', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR, USER_ROLES.REPARTIDOR), asyncHandler(validateOrderStockController));
+orderRouter.post('/:id/recalculate-promotions', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), asyncHandler(recalculateOrderPromotionsController));
 orderRouter.delete('/:id', authorize(USER_ROLES.ADMIN, USER_ROLES.VENDEDOR), asyncHandler(deleteOrderController));
 
 export { orderRouter };

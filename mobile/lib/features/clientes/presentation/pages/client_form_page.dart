@@ -213,6 +213,7 @@ class _ClientFormPageState extends State<ClientFormPage> {
   }
 
   Future<void> _saveLocation() async {
+    if (!mounted) return;
     setState(() => _loadingLocation = true);
 
     try {
@@ -226,13 +227,17 @@ class _ClientFormPageState extends State<ClientFormPage> {
         permission = await Geolocator.requestPermission();
       }
 
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('Permiso de ubicación denegado para siempre.');
+      }
+      if (permission == LocationPermission.denied) {
         throw Exception('Permiso de ubicación denegado.');
       }
 
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
+      if (!mounted) return;
       setState(() {
         _latitude = position.latitude;
         _longitude = position.longitude;
@@ -249,8 +254,8 @@ class _ClientFormPageState extends State<ClientFormPage> {
             content: Text(
               message.contains('denegado')
                   ? 'Permiso de ubicación denegado.'
-                  : message.contains('GPS apagado')
-                      ? 'GPS apagado. Activá la ubicación del dispositivo.'
+                : message.contains('GPS apagado')
+                      ? 'Activá el GPS para guardar ubicación.'
                       : 'No se pudo obtener ubicación.',
             ),
           ),

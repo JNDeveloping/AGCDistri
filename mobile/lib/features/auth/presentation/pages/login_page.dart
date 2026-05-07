@@ -55,6 +55,13 @@ class _LoginPageState extends State<LoginPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            Image.asset(
+                              'assets/images/logo.png',
+                              width: 120,
+                              height: 120,
+                              fit: BoxFit.contain,
+                            ),
+                            const SizedBox(height: 16),
                             const AuthHeader(),
                             const SizedBox(height: 28),
                             TextFormField(

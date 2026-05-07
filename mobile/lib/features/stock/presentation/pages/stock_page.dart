@@ -7,6 +7,7 @@ import '../cubit/stock_cubit.dart';
 import '../cubit/stock_state.dart';
 import '../widgets/stock_product_card.dart';
 import 'stock_product_detail_page.dart';
+import 'stock_quick_entry_page.dart';
 
 class StockPage extends StatefulWidget {
   const StockPage({this.initialFilter, super.key});
@@ -44,7 +45,16 @@ class _StockPageState extends State<StockPage> {
     final role = context.select((AuthCubit cubit) => cubit.state.session?.user.role ?? 'vendedor');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Stock')),
+      appBar: AppBar(
+        title: const Text('Stock'),
+        actions: [
+          IconButton(
+            tooltip: 'Ingreso rápido de mercadería',
+            onPressed: role == 'admin' ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StockQuickEntryPage())) : null,
+            icon: const Icon(Icons.qr_code_scanner_rounded),
+          ),
+        ],
+      ),
       bottomNavigationBar: AppBottomNavBar(currentRoute: StockPage.path, role: role),
       body: Column(
         children: [

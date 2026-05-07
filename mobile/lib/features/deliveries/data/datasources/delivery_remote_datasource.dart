@@ -5,10 +5,11 @@ class DeliveryRemoteDataSource {
 
   final ApiClient _apiClient;
 
-  Future<Map<String, dynamic>> listDeliveries({String? date, String? status, int page = 1, int limit = 20}) async {
+  Future<Map<String, dynamic>> listDeliveries({String? date, String? status, String? archived, int page = 1, int limit = 20}) async {
     final response = await _apiClient.get('/deliveries', queryParameters: {
       if (date != null) 'date': date,
       if (status != null) 'status': status,
+      if (archived != null) 'archived': archived,
       'page': page,
       'limit': limit,
     });
@@ -29,7 +30,7 @@ class DeliveryRemoteDataSource {
       (await _apiClient.post('/deliveries/$id/orders', data: {'orderIds': orderIds})).data ?? {};
 
   Future<Map<String, dynamic>> pendingOrders(String zoneId) async =>
-      (await _apiClient.get('/deliveries/pending-orders', queryParameters: {'zone_id': zoneId})).data ?? {};
+      (await _apiClient.get('/deliveries/pending-orders', queryParameters: {'zoneId': zoneId})).data ?? {};
 
   Future<Map<String, dynamic>> todayRoutes() async => (await _apiClient.get('/routes/today')).data ?? {};
 
@@ -55,17 +56,24 @@ class DeliveryRemoteDataSource {
 
   Future<Map<String, dynamic>> markDelivered(
     String deliveryOrderId, {
+    String? clientRequestId,
     bool? collectedCash,
     double? collectedAmount,
   }) async =>
       (await _apiClient.patch('/delivery-orders/$deliveryOrderId/delivered', data: {
+        if (clientRequestId != null) 'clientRequestId': clientRequestId,
         if (collectedCash != null) 'collectedCash': collectedCash,
         if (collectedAmount != null) 'collectedAmount': collectedAmount,
       })).data ?? {};
 
-  Future<Map<String, dynamic>> markNotDelivered(String deliveryOrderId, {required String reason}) async =>
-      (await _apiClient.patch('/delivery-orders/$deliveryOrderId/not-delivered', data: {'reason': reason})).data ?? {};
+  Future<Map<String, dynamic>> markNotDelivered(String deliveryOrderId, {required String reason, String? clientRequestId}) async =>
+      (await _apiClient.patch('/delivery-orders/$deliveryOrderId/not-delivered', data: {
+        'reason': reason,
+        if (clientRequestId != null) 'clientRequestId': clientRequestId,
+      })).data ?? {};
 
   Future<Map<String, dynamic>> markRescheduled(String deliveryOrderId, {String? notes}) async =>
       (await _apiClient.patch('/delivery-orders/$deliveryOrderId/reschedule', data: {if (notes != null) 'notes': notes})).data ?? {};
+
+  Future<Map<String, dynamic>> archiveDelivery(String id) async => (await _apiClient.delete('/deliveries/$id')).data ?? {};
 }

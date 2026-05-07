@@ -21,7 +21,13 @@ class HomePage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Panel principal'),
+        title: Row(
+          children: [
+            Image.asset('assets/images/logo.png', height: 32, fit: BoxFit.contain),
+            const SizedBox(width: 10),
+            const Text('Panel principal'),
+          ],
+        ),
         actions: [
           IconButton(
             onPressed: () => context.read<AuthCubit>().logout(),
